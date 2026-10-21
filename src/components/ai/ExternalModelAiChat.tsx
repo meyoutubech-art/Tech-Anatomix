@@ -18,6 +18,7 @@ import {
   isEligibleForKeyTakeaways,
   findPrecedingUserQuestion,
 } from '../../utils/keyTakeawaysService';
+import { aiSpeechManager } from '../../utils/aiSpeechService';
 
 export interface ExternalModelChatContext {
   modelId: string;
@@ -101,6 +102,7 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
 
   // Sync with cache when model changes
   useEffect(() => {
+    aiSpeechManager.stop();
     if (conversationCache[modelKey] && conversationCache[modelKey].length > 0) {
       setMessages(conversationCache[modelKey]);
     } else {
@@ -325,6 +327,7 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
 
   // Reset conversation to fresh state
   const handleResetConversation = () => {
+    aiSpeechManager.stop();
     const welcome = getWelcomeMessage();
     setMessages([welcome]);
     conversationCache[modelKey] = [welcome];
@@ -442,7 +445,7 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
                   variant={isUser ? 'user' : 'dark'}
                 />
 
-                {isEligibleForKeyTakeaways(msg, idx) && (
+                {!isUser && (
                   <AiKeyTakeawaysPanel
                     messageId={msg.id}
                     question={findPrecedingUserQuestion(messages, idx)}
@@ -451,6 +454,7 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
                     subject={context.subject || 'Biology & Anatomy'}
                     context={context}
                     variant="dark"
+                    showTakeawaysButton={isEligibleForKeyTakeaways(msg, idx)}
                     cachedTakeaways={msg.keyTakeaways}
                     cachedIsOpen={msg.takeawaysOpen}
                     onUpdateCache={(takeaways, isOpen) =>

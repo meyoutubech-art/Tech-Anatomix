@@ -11,11 +11,13 @@ import { AiModelGeneratorPage } from './pages/AiModelGeneratorPage';
 import { DiagramScanPage } from './pages/DiagramScanPage';
 import { AboutPage } from './pages/AboutPage';
 import { AnatomyPage } from './pages/AnatomyPage';
+import { aiSpeechManager } from './utils/aiSpeechService';
 
 export default function App() {
   const [currentRoute, setCurrentRoute] = useState<PageRoute>('home');
 
   const handleNavigate = (route: PageRoute) => {
+    aiSpeechManager.stop();
     setCurrentRoute(route);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

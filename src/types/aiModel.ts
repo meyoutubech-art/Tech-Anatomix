@@ -190,4 +190,6 @@ export interface ScientificModelSpec {
   equations?: string[];
   curiosityPrompts?: string[];
   embedHtml?: string;
+  generationSource?: 'ai-live' | 'procedural-synthesizer' | 'curated-preset';
+  subjectDomain?: 'Physics' | 'Chemistry' | 'Biology' | 'Anatomy' | 'General Science';
 }

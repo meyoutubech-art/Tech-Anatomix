@@ -5527,37 +5527,91 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
         ];
 
         if (!handledDomainTypes.includes(modelSpec.functionalType || '')) {
-          modelSpec.parts.forEach((part) => {
-            if (!part.animation) return;
+          modelSpec.parts.forEach((part, partIdx) => {
             const mesh = meshMap.get(part.id);
             if (!mesh) return;
 
-            let speed = part.animation.speed || 1.0;
-            Object.values(modelSpec.parameters).forEach((param) => {
-              if (param.affects === 'animationSpeed' && (!param.targetPartId || param.targetPartId === part.id)) {
-                const val = parameters[param.id] ?? param.defaultValue;
-                speed = val * (param.scaleFactor ?? 0.25);
-              }
-            });
+            let speedMultiplier = 1.0;
+            let scaleMult = 1.0;
+            let posOffset = 0;
+            let rotOffset = 0;
 
+            if (modelSpec.parameters) {
+              Object.values(modelSpec.parameters).forEach((param) => {
+                const isTargeted = !param.targetPartId || param.targetPartId === part.id;
+                const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
+                const defVal = Number(param.defaultValue || 1) || 1;
+                if (param.affects === 'animationSpeed' && isTargeted) {
+                  speedMultiplier = defVal > 0 ? (val / defVal) * (param.scaleFactor ?? 1) : val * (param.scaleFactor ?? 0.5);
+                } else if (param.affects === 'objectScale' && isTargeted) {
+                  scaleMult = defVal > 0 ? val / defVal : val;
+                } else if (param.affects === 'objectPosition' && isTargeted) {
+                  posOffset = (val - defVal) * (param.scaleFactor ?? 0.35);
+                } else if (param.affects === 'objectRotation' && isTargeted) {
+                  rotOffset = ((val - defVal) * Math.PI) / 180;
+                }
+              });
+            }
+
+            // Internal cutaway support for outer shells/membranes/envelopes
+            if (conditions.internalView !== undefined && (mesh as THREE.Mesh).material) {
+              const isOuterShell =
+                (part.opacity !== undefined && part.opacity < 0.85) ||
+                /membrane|envelope|wall|shell|capsule|cortex|casing|glass|chamber/i.test(`${part.id} ${part.name}`);
+              if (isOuterShell) {
+                const mat = (mesh as THREE.Mesh).material as THREE.MeshStandardMaterial;
+                mat.transparent = true;
+                mat.opacity = conditions.internalView
+                  ? Math.min(part.opacity ?? 0.6, 0.25)
+                  : (part.opacity ?? 0.85);
+              }
+            }
+
+            const baseScale = part.scale || [1, 1, 1];
+            const basePos = part.position || [0, 0, 0];
+            const baseRot = part.rotation || [0, 0, 0];
+
+            if (!part.animation) {
+              mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
+              mesh.position.set(basePos[0] + posOffset, basePos[1], basePos[2]);
+              if (rotOffset !== 0) {
+                mesh.rotation.set(baseRot[0], baseRot[1] + rotOffset, baseRot[2]);
+              }
+              return;
+            }
+
+            const speed = (part.animation.speed || 1.2) * Math.max(0.05, speedMultiplier);
             const axis = part.animation.axis || 'y';
 
             if (part.animation.type === 'spin') {
               mesh.rotation[axis] += delta * speed;
+              mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
             } else if (part.animation.type === 'oscillate') {
-              const amp = part.animation.amplitude || 0.2;
-              mesh.rotation[axis] =
-                (part.rotation?.[axis === 'x' ? 0 : axis === 'y' ? 1 : 2] || 0) +
-                Math.sin(simTime * speed) * amp;
+              const amp = (part.animation.amplitude || 0.2) * Math.max(0.4, scaleMult);
+              const phase = partIdx * 0.65;
+              const wave = Math.sin(simTime * speed * 2.2 + phase) * amp;
+              if (axis === 'x') {
+                mesh.position.x = basePos[0] + posOffset + wave;
+              } else if (axis === 'y') {
+                mesh.position.y = basePos[1] + wave;
+              } else {
+                mesh.position.z = basePos[2] + wave;
+              }
+              mesh.rotation[axis] = (baseRot[axis === 'x' ? 0 : axis === 'y' ? 1 : 2] || 0) + wave * 0.45 + rotOffset;
+              mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
             } else if (part.animation.type === 'pulse') {
-              const amp = part.animation.amplitude || 0.1;
-              const s = 1.0 + Math.sin(simTime * speed) * amp;
-              mesh.scale.set(s, s, s);
+              const amp = part.animation.amplitude || 0.12;
+              const phase = partIdx * 0.5;
+              const s = (1.0 + Math.sin(simTime * speed * 2.4 + phase) * amp) * scaleMult;
+              mesh.scale.set(baseScale[0] * s, baseScale[1] * s, baseScale[2] * s);
+              mesh.position.set(basePos[0] + posOffset, basePos[1], basePos[2]);
             } else if (part.animation.type === 'orbit') {
-              const r = Math.hypot(part.position[0], part.position[2]);
-              const angle = simTime * speed * 0.4;
-              mesh.position.x = r * Math.cos(angle);
+              const r = Math.max(0.4, Math.hypot(basePos[0], basePos[2])) * scaleMult;
+              const initialAngle = Math.atan2(basePos[2], basePos[0]);
+              const angle = initialAngle + simTime * speed * 0.85;
+              mesh.position.x = r * Math.cos(angle) + posOffset;
               mesh.position.z = r * Math.sin(angle);
+              mesh.position.y = basePos[1] + Math.sin(simTime * speed * 1.5 + partIdx) * (part.animation.amplitude || 0.08);
             }
           });
         }
@@ -5572,6 +5626,32 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
         updateBatch4CustomAssemblies(batch4Handles, modelSpec, parameters, conditions, simTime, meshMap);
       } else if (isChemBatch1Studio && chemBatch1Handles) {
         updateChemistryBatch1CustomAssemblies(chemBatch1Handles, parameters, conditions, simTime);
+      } else {
+        // Apply static parameter adjustments (scale/position/rotation/cutaway) when simulation is paused on standard AI models
+        modelSpec.parts.forEach((part) => {
+          const mesh = meshMap.get(part.id);
+          if (!mesh) return;
+          let scaleMult = 1.0;
+          let posOffset = 0;
+          if (modelSpec.parameters) {
+            Object.values(modelSpec.parameters).forEach((param) => {
+              const isTargeted = !param.targetPartId || param.targetPartId === part.id;
+              const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
+              const defVal = Number(param.defaultValue || 1) || 1;
+              if (param.affects === 'objectScale' && isTargeted) {
+                scaleMult = defVal > 0 ? val / defVal : val;
+              } else if (param.affects === 'objectPosition' && isTargeted) {
+                posOffset = (val - defVal) * (param.scaleFactor ?? 0.35);
+              }
+            });
+          }
+          const baseScale = part.scale || [1, 1, 1];
+          const basePos = part.position || [0, 0, 0];
+          mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
+          if (!part.animation || part.animation.type !== 'orbit') {
+            mesh.position.x = basePos[0] + posOffset;
+          }
+        });
       }
 
       // Preserve active blue component highlight across dynamic material updates

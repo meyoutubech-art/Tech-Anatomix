@@ -10,6 +10,7 @@ import {
   BookmarkCheck,
 } from 'lucide-react';
 import { FormattedAiMessage } from './FormattedAiMessage';
+import { AiVoicePlaybackControl } from './AiVoicePlaybackControl';
 import {
   requestKeyTakeaways,
   extractLocalScientificTakeaways,
@@ -23,6 +24,8 @@ export interface AiKeyTakeawaysPanelProps {
   subject?: string;
   context?: Record<string, any>;
   variant?: 'light' | 'dark';
+  /** Whether to show the ✨ Important Points button in addition to the Voice Listen control */
+  showTakeawaysButton?: boolean;
   /** Optional cached takeaways persisted in parent message state */
   cachedTakeaways?: string;
   /** Optional cached open/collapsed state persisted in parent message state */
@@ -32,12 +35,14 @@ export interface AiKeyTakeawaysPanelProps {
 }
 
 export const AiKeyTakeawaysPanel: React.FC<AiKeyTakeawaysPanelProps> = ({
+  messageId,
   question = '',
   answer,
   modelTitle,
   subject,
   context,
   variant = 'light',
+  showTakeawaysButton = true,
   cachedTakeaways,
   cachedIsOpen,
   onUpdateCache,
@@ -117,65 +122,90 @@ export const AiKeyTakeawaysPanel: React.FC<AiKeyTakeawaysPanelProps> = ({
   const isDark = variant === 'dark';
 
   return (
-    <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-700/60" style={{ borderColor: isDark ? 'rgba(51, 65, 85, 0.55)' : 'rgba(226, 232, 240, 0.85)' }}>
-      {/* Action Row */}
+    <div
+      className={`mt-2.5 pt-2 border-t ${
+        isDark ? 'border-slate-700/60' : 'border-slate-200/80'
+      }`}
+    >
+      {/* Unified AI Answer Action Row: Voice Playback + Important Points */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => handleGenerateOrToggle(false)}
-          disabled={loading}
-          aria-expanded={isOpen}
-          title={
-            takeaways
-              ? isOpen
-                ? 'Hide important points summary'
-                : 'Show important points summary'
-              : 'Extract concise key takeaways from this AI explanation'
-          }
-          className={
-            isDark
-              ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
-                  isOpen && takeaways
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
-                    : 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-amber-500/30 hover:border-amber-400/50 shadow-2xs'
-                } disabled:opacity-60`
-              : `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
-                  isOpen && takeaways
-                    ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100/80'
-                    : 'bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 border-amber-200/90 hover:border-amber-300 shadow-2xs'
-                } disabled:opacity-60`
-          }
-        >
-          <Sparkles
-            className={`w-3 h-3 shrink-0 ${
-              loading
-                ? 'animate-spin text-amber-500'
-                : isDark
-                  ? 'text-amber-400'
-                  : 'text-amber-600'
-            }`}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Application-wide AI Answer Voice Playback Control */}
+          <AiVoicePlaybackControl
+            speechId={messageId ? `voice-ans-${messageId}` : undefined}
+            text={answer}
+            variant={variant}
+            label="Listen"
           />
-          <span>
-            {loading
-              ? 'Extracting Important Points...'
-              : takeaways
-                ? isOpen
-                  ? '✨ Hide Important Points'
-                  : '✨ Important Points'
-                : '✨ Important Points'}
-          </span>
-          {takeaways && !loading && (
-            isOpen ? (
-              <ChevronUp className="w-3 h-3 opacity-75" />
-            ) : (
-              <ChevronDown className="w-3 h-3 opacity-75" />
-            )
-          )}
-        </button>
 
-        {/* Secondary controls when open */}
-        {isOpen && takeaways && !loading && (
+          {/* Important Points / Key Takeaways Action */}
+          {showTakeawaysButton && (
+            <button
+              type="button"
+              onClick={() => handleGenerateOrToggle(false)}
+              disabled={loading}
+              aria-expanded={isOpen}
+              title={
+                takeaways
+                  ? isOpen
+                    ? 'Hide important points summary'
+                    : 'Show important points summary'
+                  : 'Extract concise key takeaways from this AI explanation'
+              }
+              className={
+                isDark
+                  ? `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
+                      isOpen && takeaways
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/25'
+                        : 'bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-amber-500/30 hover:border-amber-400/50 shadow-2xs'
+                    } disabled:opacity-60`
+                  : `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
+                      isOpen && takeaways
+                        ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100/80'
+                        : 'bg-amber-50/70 hover:bg-amber-100/80 text-amber-800 border-amber-200/90 hover:border-amber-300 shadow-2xs'
+                    } disabled:opacity-60`
+              }
+            >
+              <Sparkles
+                className={`w-3 h-3 shrink-0 ${
+                  loading
+                    ? 'animate-spin text-amber-500'
+                    : isDark
+                      ? 'text-amber-400'
+                      : 'text-amber-600'
+                }`}
+              />
+              <span>
+                {loading
+                  ? 'Extracting Important Points...'
+                  : takeaways
+                    ? isOpen
+                      ? '✨ Hide Important Points'
+                      : '✨ Important Points'
+                    : '✨ Important Points'}
+              </span>
+              {takeaways && !loading && (
+                isOpen ? (
+                  <ChevronUp className="w-3 h-3 opacity-75" />
+                ) : (
+                  <ChevronDown className="w-3 h-3 opacity-75" />
+                )
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Secondary controls when Key Takeaways panel is open */}
+        {showTakeawaysButton && isOpen && takeaways && !loading && (
           <div className="flex items-center gap-1">
+            <AiVoicePlaybackControl
+              speechId={messageId ? `voice-takeaways-${messageId}` : undefined}
+              text={takeaways}
+              variant={variant}
+              label="Read Points"
+              compact
+            />
+
             <button
               type="button"
               onClick={handleCopy}
@@ -217,7 +247,7 @@ export const AiKeyTakeawaysPanel: React.FC<AiKeyTakeawaysPanelProps> = ({
       </div>
 
       {/* Loading Indicator */}
-      {loading && (
+      {showTakeawaysButton && loading && (
         <div
           className={
             isDark
@@ -231,7 +261,7 @@ export const AiKeyTakeawaysPanel: React.FC<AiKeyTakeawaysPanelProps> = ({
       )}
 
       {/* Error State */}
-      {error && !loading && (
+      {showTakeawaysButton && error && !loading && (
         <div
           className={
             isDark
@@ -254,7 +284,7 @@ export const AiKeyTakeawaysPanel: React.FC<AiKeyTakeawaysPanelProps> = ({
       )}
 
       {/* Collapsible Key Takeaways Content Box */}
-      {isOpen && takeaways && !loading && (
+      {showTakeawaysButton && isOpen && takeaways && !loading && (
         <div
           className={
             isDark
@@ -279,10 +309,8 @@ export const AiKeyTakeawaysPanel: React.FC<AiKeyTakeawaysPanelProps> = ({
             </div>
             {modelTitle && (
               <span
-                className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
-                  isDark
-                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/25'
-                    : 'bg-amber-100/80 text-amber-800 border border-amber-200'
+                className={`text-[10px] font-medium ${
+                  isDark ? 'text-amber-300/80' : 'text-amber-800/80'
                 } truncate max-w-[160px]`}
               >
                 {modelTitle}

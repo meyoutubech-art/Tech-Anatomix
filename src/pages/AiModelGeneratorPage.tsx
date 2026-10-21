@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScientificModelSpec } from '../types/aiModel';
 import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { Dynamic3DModelRenderer } from '../components/models/Dynamic3DModelRenderer';
-import { Sparkles, Send, Lightbulb, Compass, RotateCcw, Info, X, CheckCircle2, WifiOff } from 'lucide-react';
+import { Sparkles, Send, Lightbulb, Compass, RotateCcw, Info, X, CheckCircle2, WifiOff, Layers, Sliders, Cpu, History } from 'lucide-react';
 import { classifyAiError } from '../utils/aiErrorClassifier';
 import { matchOfflinePreset } from '../utils/offlineModelManager';
+import { synthesizeProceduralScientificModel } from '../utils/proceduralModelSynthesizer';
 
 export const AiModelGeneratorPage: React.FC = () => {
   const [prompt, setPrompt] = useState('');
@@ -77,6 +78,10 @@ export const AiModelGeneratorPage: React.FC = () => {
   });
 
   const [showLabels, setShowLabels] = useState(true);
+  const [preferCustomSynthesis, setPreferCustomSynthesis] = useState<boolean>(false);
+  const [generatedHistory, setGeneratedHistory] = useState<ScientificModelSpec[]>([
+    CURATED_AI_MODELS.motor,
+  ]);
 
   const promptSuggestions = [
     { label: '🪐 Solar System Explorer', query: 'Create a 3D model of the solar system' },
@@ -189,6 +194,17 @@ export const AiModelGeneratorPage: React.FC = () => {
     { label: '🛡️ 82. Buffer Solution Simulator', query: 'Create a 3D Buffer Solution Simulator showing a vessel with weak acid and conjugate base species, strong acid and base addition droppers, digital pH readout, composition bars, and buffer capacity comparison' },
   ];
 
+  const customAiSynthesisPrompts = [
+    { label: '🌿 Chloroplast & Thylakoids', query: 'Create a 3D model of a plant chloroplast with thylakoid grana stacks and stroma lamellae' },
+    { label: '🦠 Bacteriophage T4 Virus', query: 'Create a 3D model of a Bacteriophage T4 virus capsid, contractile sheath, and tail fibers' },
+    { label: '🧪 Methane (CH4) Molecule', query: 'Create a 3D tetrahedral molecular model of Methane (CH4) with sp3 covalent bonds' },
+    { label: '⚗️ Sulfuric Acid (H2SO4)', query: 'Create a 3D molecular structure of Sulfuric Acid (H2SO4)' },
+    { label: '🧬 DNA Replication Fork', query: 'Create a 3D model of a DNA replication fork with helicase and DNA polymerase' },
+    { label: '🧠 Chemical Synapse', query: 'Create a 3D model of a chemical synapse with neurotransmitter vesicles and receptor channels' },
+    { label: '⚡ Solenoid Electromagnet', query: 'Create a 3D model of a solenoid electromagnet with ferromagnetic core and magnetic flux loops' },
+    { label: '🔬 Mitosis Spindle Fibers', query: 'Create a 3D model of cell mitosis metaphase chromosomes and mitotic spindle apparatus' },
+  ];
+
   const handleGenerate = async (userQuery: string, forceFresh = false) => {
     const q = userQuery.trim();
     if (!q || isGenerating || activeRequestRef.current) return;
@@ -259,6 +275,10 @@ export const AiModelGeneratorPage: React.FC = () => {
       if (data.model && data.model.parts && data.model.parts.length > 0) {
         const spec: ScientificModelSpec = data.model;
         setActiveModel(spec);
+        setGeneratedHistory((prev) => {
+          const filtered = prev.filter((item) => item.title !== spec.title);
+          return [spec, ...filtered].slice(0, 8);
+        });
 
         const newParams: Record<string, number> = {};
         Object.values(spec.parameters || {}).forEach((p) => {
@@ -276,7 +296,7 @@ export const AiModelGeneratorPage: React.FC = () => {
           setFallbackNotification(
             data.fallbackReason ||
               data.note ||
-              "Loaded verified interactive scientific model."
+              'Loaded verified interactive scientific model.'
           );
         } else {
           setFallbackNotification(null);
@@ -287,28 +307,34 @@ export const AiModelGeneratorPage: React.FC = () => {
       }
     } catch (e: any) {
       if (e.name === 'AbortError') return;
-      // Network disconnect fallback
-      const offlineMatch = matchOfflinePreset(q);
-      if (offlineMatch.matched && offlineMatch.spec) {
-        const spec = offlineMatch.spec;
-        setActiveModel(spec);
-        const newParams: Record<string, number> = {};
-        Object.values(spec.parameters || {}).forEach((p) => {
-          newParams[p.id] = p.defaultValue;
-        });
-        setParameters(newParams);
-        const newConds: Record<string, any> = {};
-        Object.values(spec.conditions || {}).forEach((c) => {
-          newConds[c.id] = c.defaultValue;
-        });
-        setConditions(newConds);
-        setFallbackNotification(
-          `⚡ Offline Fallback: Loaded verified interactive model for "${offlineMatch.presetTitle || q}".`
-        );
-        return;
-      }
-      const errorMsg = classifyAiError(e);
-      setFallbackNotification(errorMsg);
+      // Network disconnect fallback: check offline preset first (if not forcing custom), otherwise synthesize procedurally
+      const offlineMatch = !forceFresh ? matchOfflinePreset(q) : { matched: false };
+      const spec: ScientificModelSpec =
+        offlineMatch.matched && offlineMatch.spec
+          ? offlineMatch.spec
+          : synthesizeProceduralScientificModel(q);
+
+      setActiveModel(spec);
+      setGeneratedHistory((prev) => {
+        const filtered = prev.filter((item) => item.title !== spec.title);
+        return [spec, ...filtered].slice(0, 8);
+      });
+      const newParams: Record<string, number> = {};
+      Object.values(spec.parameters || {}).forEach((p) => {
+        newParams[p.id] = p.defaultValue;
+      });
+      setParameters(newParams);
+      const newConds: Record<string, any> = {};
+      Object.values(spec.conditions || {}).forEach((c) => {
+        newConds[c.id] = c.defaultValue;
+      });
+      setConditions(newConds);
+      setFallbackNotification(
+        offlineMatch.matched
+          ? `⚡ Offline Mode: Loaded verified interactive model for "${offlineMatch.presetTitle || q}".`
+          : `⚙️ Procedural 3D Synthesizer: Built interactive multi-part 3D model for "${q}".`
+      );
+      return;
     } finally {
       if (currentRequestIdRef.current === reqId) {
         stepTimerRef.current.forEach((t) => clearTimeout(t));
@@ -429,20 +455,34 @@ export const AiModelGeneratorPage: React.FC = () => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleGenerate(prompt);
+            handleGenerate(prompt, preferCustomSynthesis);
           }}
           className="flex flex-col sm:flex-row gap-2.5"
         >
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder='e.g., "Create a 3D model of a simple electric motor", "Create a model of a lever", "Show magnetic field lines", "Create a water molecule"'
+              placeholder='Describe any 3D scientific model: e.g., "Chloroplast with thylakoid grana", "Methane (CH4) molecule", "Bacteriophage T4 virus", "Solenoid electromagnet"...'
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               disabled={isGenerating}
               className="w-full px-4 py-3 text-xs sm:text-sm rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-sky-500 bg-slate-50/50"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setPreferCustomSynthesis((prev) => !prev)}
+            disabled={isGenerating}
+            className={`flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer shrink-0 border ${
+              preferCustomSynthesis
+                ? 'bg-violet-50 border-violet-300 text-violet-900 shadow-2xs'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+            title="When enabled, always synthesizes a fresh custom 3D multi-part assembly rather than matching a preset"
+          >
+            <Cpu className={`w-3.5 h-3.5 ${preferCustomSynthesis ? 'text-violet-600' : 'text-slate-400'}`} />
+            <span>{preferCustomSynthesis ? 'Custom 3D Synthesis: ON' : 'Smart Preset + AI'}</span>
+          </button>
           <button
             type="submit"
             disabled={!prompt.trim() || isGenerating}
@@ -457,10 +497,10 @@ export const AiModelGeneratorPage: React.FC = () => {
               disabled={isGenerating}
               onClick={() => handleGenerate(activeModel.prompt || activeModel.concept || activeModel.title, true)}
               className="flex items-center justify-center gap-1.5 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-50 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer shrink-0 border border-slate-200"
-              title="Force fresh AI synthesis for active model"
+              title="Force fresh custom AI 3D synthesis for active model"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Regenerate Fresh</span>
+              <span>Synthesize Fresh</span>
             </button>
           )}
         </form>
@@ -474,6 +514,24 @@ export const AiModelGeneratorPage: React.FC = () => {
 
         {/* Quick Suggestion Pills */}
         <div className="space-y-1.5 pt-1">
+          {/* Open-Ended Custom AI 3D Synthesis Prompts */}
+          <div className="flex items-center gap-2 overflow-x-auto text-xs text-fuchsia-900 pb-0.5">
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-300 shrink-0 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-fuchsia-600" />
+              Custom AI 3D Synthesizer:
+            </span>
+            {customAiSynthesisPrompts.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => handleGenerate(item.query, true)}
+                disabled={isGenerating}
+                className="px-2.5 py-1 rounded-md bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-2xs"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-2 overflow-x-auto text-xs text-slate-600 pb-0.5">
             <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span className="text-slate-400 shrink-0 font-medium">Core Models:</span>
@@ -659,6 +717,81 @@ export const AiModelGeneratorPage: React.FC = () => {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Active Model Provenance, Architecture Summary & Session History */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {activeModel.generationSource === 'ai-live' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              AI Live 3D Synthesis
+            </span>
+          ) : activeModel.generationSource === 'procedural-synthesizer' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200">
+              <Cpu className="w-3.5 h-3.5 text-fuchsia-600" />
+              Procedural 3D Scientific Synthesizer
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200">
+              <Layers className="w-3.5 h-3.5 text-sky-600" />
+              Verified Laboratory Preset
+            </span>
+          )}
+
+          {activeModel.subjectDomain && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+              {activeModel.subjectDomain}
+            </span>
+          )}
+
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+            <Layers className="w-3 h-3 text-slate-400" />
+            {activeModel.parts?.length || 0} Interactive 3D Parts
+          </span>
+
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+            <Sliders className="w-3 h-3 text-slate-400" />
+            {Object.keys(activeModel.parameters || {}).length} Live Controls
+          </span>
+        </div>
+
+        {generatedHistory.length > 1 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+            <span className="inline-flex items-center gap-1 text-slate-400 font-medium shrink-0">
+              <History className="w-3.5 h-3.5" />
+              Session Models:
+            </span>
+            {generatedHistory.map((item) => {
+              const isCurrent = item.id === activeModel.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveModel(item);
+                    const newParams: Record<string, number> = {};
+                    Object.values(item.parameters || {}).forEach((p) => {
+                      newParams[p.id] = p.defaultValue;
+                    });
+                    setParameters(newParams);
+                    const newConds: Record<string, any> = {};
+                    Object.values(item.conditions || {}).forEach((c) => {
+                      newConds[c.id] = c.defaultValue;
+                    });
+                    setConditions(newConds);
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 border ${
+                    isCurrent
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  {item.title}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Rendered 3D Model with Inspector and Parameters */}

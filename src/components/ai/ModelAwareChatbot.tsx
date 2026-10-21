@@ -24,6 +24,7 @@ import {
   isEligibleForKeyTakeaways,
   findPrecedingUserQuestion,
 } from '../../utils/keyTakeawaysService';
+import { aiSpeechManager } from '../../utils/aiSpeechService';
 
 export interface ModelChatContext {
   modelId: string;
@@ -295,6 +296,11 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
     return createInitialMessage(context);
   }, [context.modelId]);
 
+  // Stop active voice playback when switching models
+  useEffect(() => {
+    aiSpeechManager.stop();
+  }, [currentModelId]);
+
   // Retrieve messages for current model
   const currentMessages = useMemo(() => {
     return conversations[currentModelId] || [initialWelcome];
@@ -474,6 +480,7 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
   };
 
   const handleClearHistory = () => {
+    aiSpeechManager.stop();
     setConversations((prev) => ({
       ...prev,
       [currentModelId]: [createInitialMessage(context)],
@@ -562,7 +569,7 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
                 text={m.text}
                 variant={m.role === 'user' ? 'user' : 'light'}
               />
-              {isEligibleForKeyTakeaways(m, idx) && (
+              {m.role !== 'user' && (
                 <AiKeyTakeawaysPanel
                   messageId={m.id}
                   question={findPrecedingUserQuestion(currentMessages, idx)}
@@ -571,6 +578,7 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
                   subject={context.subject}
                   context={context}
                   variant="light"
+                  showTakeawaysButton={isEligibleForKeyTakeaways(m, idx)}
                   cachedTakeaways={m.keyTakeaways}
                   cachedIsOpen={m.takeawaysOpen}
                   onUpdateCache={(takeaways, isOpen) =>

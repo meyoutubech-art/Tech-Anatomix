@@ -4,6 +4,7 @@ import { BATCH_3_MODELS } from '../data/curatedModelsBatch5';
 import { GeminiModelRouter } from './geminiModelRouter';
 import { cleanAndFormatScientificText, convertLatexFragmentToUnicode } from '../utils/scientificTextFormatter';
 import { extractLocalScientificTakeaways } from '../utils/keyTakeawaysService';
+import { synthesizeProceduralScientificModel } from '../utils/proceduralModelSynthesizer';
 
 let ai: GoogleGenAI | null = null;
 let currentKey = '';
@@ -967,29 +968,30 @@ export function matchVerifiedScientificModel(query: string): any | null {
     return CURATED_AI_MODELS.respiratory;
   }
   if (
-    combined.includes('magnet') ||
-    combined.includes('magnetic field') ||
-    combined.includes('dipole') ||
-    combined.includes('flux')
+    (combined.includes('bar magnet') || combined.includes('magnetic dipole')) &&
+    !combined.includes('solenoid') &&
+    !combined.includes('electromagnet') &&
+    !combined.includes('induction') &&
+    !combined.includes('levitation') &&
+    !combined.includes('transformer')
   ) {
     return CURATED_AI_MODELS.magnetic;
   }
   if (
-    combined.includes('solar') ||
-    combined.includes('planet') ||
-    combined.includes('orbit') ||
-    combined.includes('earth') ||
-    combined.includes('kepler') ||
-    combined.includes('sun')
+    (combined.includes('solar system') ||
+      combined.includes('planetary orbit') ||
+      combined.includes('kepler')) &&
+    !combined.includes('solar cell') &&
+    !combined.includes('solar panel') &&
+    !combined.includes('earthquake') &&
+    !combined.includes('tectonic')
   ) {
     return CURATED_AI_MODELS.solar;
   }
   if (
-    combined.includes('water') ||
+    combined.includes('water molecule') ||
     combined.includes('h2o') ||
-    combined.includes('molecule') ||
-    combined.includes('covalent') ||
-    combined.includes('vsepr')
+    (combined.includes('water') && (combined.includes('bond') || combined.includes('vsepr') || combined.includes('dipole')))
   ) {
     return CURATED_AI_MODELS.water;
   }
@@ -1092,11 +1094,19 @@ export function matchVerifiedScientificModel(query: string): any | null {
     return CURATED_AI_MODELS.dna;
   }
   if (
-    combined.includes('cell') ||
-    combined.includes('eukaryot') ||
-    combined.includes('organelle') ||
-    combined.includes('cytoplasm') ||
-    combined.includes('mitochond')
+    (combined.includes('eukaryotic cell') ||
+      combined.includes('animal cell') ||
+      combined.includes('cell structure')) &&
+    !combined.includes('chloroplast') &&
+    !combined.includes('membrane') &&
+    !combined.includes('bilayer') &&
+    !combined.includes('electrochemical') &&
+    !combined.includes('galvanic') &&
+    !combined.includes('solar cell') &&
+    !combined.includes('fuel cell') &&
+    !combined.includes('sickle') &&
+    !combined.includes('mitosis') &&
+    !combined.includes('meiosis')
   ) {
     return CURATED_AI_MODELS.cell;
   }
@@ -1108,7 +1118,17 @@ export function matchVerifiedScientificModel(query: string): any | null {
 export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
   if (!raw || typeof raw !== 'object') return null;
 
-  const validShapes = new Set(['box', 'cylinder', 'sphere', 'cone', 'torus', 'ring', 'capsule', 'tube']);
+  const validShapes = new Set([
+    'box',
+    'cylinder',
+    'sphere',
+    'cone',
+    'torus',
+    'ring',
+    'capsule',
+    'tube',
+    'octahedron',
+  ]);
   const validMaterials = new Set([
     'standard',
     'metal',
@@ -1120,6 +1140,7 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
     'tissue',
     'liquid',
     'bone',
+    'plastic',
   ]);
 
   const sanitizedParts = Array.isArray(raw.parts)
@@ -1204,6 +1225,33 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
         };
       }
     });
+  }
+  if (Object.keys(sanitizedParams).length === 0) {
+    sanitizedParams.processRate = {
+      id: 'processRate',
+      name: 'Process / Excitation Speed',
+      min: 0.2,
+      max: 3.5,
+      step: 0.1,
+      defaultValue: 1.0,
+      unit: '×',
+      description: 'Controls the dynamic oscillation, rotation, or reaction velocity of active components.',
+      affects: 'animationSpeed',
+      scaleFactor: 1,
+    };
+    sanitizedParams.componentScale = {
+      id: 'componentScale',
+      name: 'Active Component Scale',
+      min: 0.6,
+      max: 1.6,
+      step: 0.05,
+      defaultValue: 1.0,
+      unit: '×',
+      description: 'Scales the active structural component for detailed inspection.',
+      affects: 'objectScale',
+      targetPartId: sanitizedParts[0]?.id,
+      scaleFactor: 1,
+    };
   }
 
   const sanitizedConditions: Record<string, any> = {};
@@ -1306,10 +1354,12 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
     conditions: sanitizedConditions,
     equations: Array.isArray(raw.equations) ? raw.equations.filter((e: any) => typeof e === 'string') : undefined,
     curiosityPrompts: Array.isArray(raw.curiosityPrompts) ? raw.curiosityPrompts.filter((c: any) => typeof c === 'string') : undefined,
+    generationSource: raw.generationSource || 'ai-live',
+    subjectDomain: raw.subjectDomain || undefined,
   };
 }
 
-// 1. Generate 3D Model with Model Fallback
+// 1. Generate 3D Model with Model Fallback + Procedural Scientific 3D Synthesizer
 export async function generate3DModel(
   userQuery: string,
   options?: { forceFresh?: boolean; requestId?: string }
@@ -1317,7 +1367,7 @@ export async function generate3DModel(
   const reqId = options?.requestId || `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const normKey = normalizePrompt(userQuery);
 
-  // 1. Check server-side cache for instant deterministic repeated prompts
+  // 1. Check server-side cache for instant deterministic repeated prompts (unless forcing fresh synthesis)
   if (!options?.forceFresh && modelCache.has(normKey)) {
     const cached = modelCache.get(normKey)!;
     if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -1334,54 +1384,62 @@ export async function generate3DModel(
     }
   }
 
-  // 2. Verified Model Template Router (No word length limit!)
-  const verifiedMatch = matchVerifiedScientificModel(userQuery);
-  if (verifiedMatch) {
+  // 2. Verified Model Template Router (Only when not forcing a custom fresh synthesis)
+  if (!options?.forceFresh) {
+    const verifiedMatch = matchVerifiedScientificModel(userQuery);
+    if (verifiedMatch) {
+      const spec = {
+        ...verifiedMatch,
+        prompt: userQuery,
+        generationSource: 'curated-preset' as const,
+      };
+      modelCache.set(normKey, { spec, timestamp: Date.now() });
+      return {
+        success: true,
+        model: spec,
+        isFallback: false,
+        activeModel: 'verified-scientific-template',
+        requestId: reqId,
+      };
+    }
+  }
+
+  const aiClient = getAiClient();
+  if (!aiClient) {
+    // Synthesize custom multi-part 3D model using the Procedural Scientific 3D Synthesizer
+    const synthesized = findCuratedFallback(userQuery, options?.forceFresh);
     const spec = {
-      ...verifiedMatch,
+      ...synthesized,
       prompt: userQuery,
+      generationSource: synthesized.generationSource || ('procedural-synthesizer' as const),
     };
     modelCache.set(normKey, { spec, timestamp: Date.now() });
     return {
       success: true,
       model: spec,
       isFallback: false,
-      activeModel: 'verified-scientific-template',
+      activeModel: 'procedural-scientific-synthesizer',
       requestId: reqId,
     };
   }
 
-  const aiClient = getAiClient();
-  if (!aiClient) {
-    // If API key is not configured, load matched verified scientific model
-    const fallbackModel = findCuratedFallback(userQuery);
-    return {
-      success: true,
-      model: { ...fallbackModel, prompt: userQuery },
-      isFallback: true,
-      fallbackReason: 'Loaded verified scientific model.',
-      activeModel: 'verified-scientific-model',
-      requestId: reqId,
-    };
-  }
-
-  const systemInstruction = `You are VIZLAB's Structured 3D Scientific Model Synthesizer.
+  const systemInstruction = `You are Tech-Anatomix's Structured 3D Scientific Model Synthesizer.
 Translate the user's scientific prompt into a valid, rich, modular 3D model specification to be rendered with Three.js in WebGL.
 
 SCIENTIFIC MODEL INTEGRITY RULES:
-1. Provide between 4 and 10 recognizable, logically assembled components positioned in 3D coordinate space around [0,0,0].
-2. NO FLOATING OBJECTS: Every component must connect physically to a mounting base, stand, pivot, axle, or biological membrane.
-3. REAL RELATIVE PROPORTIONS: Respect authentic scale relationships between parts (e.g. telescope tube length vs lens diameter, motor axle vs armature, pendulum string vs bob, cell nucleus vs organelles).
-4. SCIENTIFIC MATERIALS: Use authentic PBR materials: "metal" (conductors/hardware), "copper" (windings), "glass" (lenses/screens), "rubber" (seals/eyecups), "tissue" (muscles/lungs), "liquid" (fluids), "bone" (ossicles/supports), "standard".
-5. ASSIGN FUNCTIONAL TYPE: If the model represents an established scientific mechanism, set "functionalType" to one of:
-   "optical-telescope", "rutherford-scattering", "pendulum-harmonics", "dc-motor-assembly", "class-1-lever", "respiratory-system", "bar-magnet-field", "solar-system", "water-molecule", "compound-microscope", "human-heart", "human-ear", "dna-helix", "eukaryotic-cell", "nephron", or "standard".
-6. EXPERIMENT PARAMETERS: Provide 2-4 interactive parameters with real units and ranges (e.g. speed, angle, length, voltage, temperature) that affect object animation or geometry.
+1. Provide between 6 and 12 recognizable, logically assembled components positioned in 3D coordinate space around [0,0,0].
+2. NO FLOATING OBJECTS: Every component must connect physically or spatially to a mounting base, stand, pivot, axle, molecular bond, or biological membrane.
+3. REAL RELATIVE PROPORTIONS: Respect authentic scale relationships between parts (e.g. telescope tube length vs lens diameter, motor axle vs armature, molecular bond lengths and angles, cell nucleus vs organelles).
+4. SCIENTIFIC MATERIALS: Use authentic PBR materials: "metal" (conductors/hardware), "copper" (windings), "glass" (lenses/membranes/vessels), "rubber" (seals/insulators), "tissue" (muscles/organs), "liquid" (fluids/cytoplasm), "bone" (skeletal/supports), "glow" (energy/photons/signals), "plastic", "standard".
+5. ASSIGN FUNCTIONAL TYPE: If the model represents an established preset mechanism, set "functionalType" accordingly, or "standard" for custom assemblies so every part in "parts" is rendered with full animations and interactive parameters.
+6. EXPERIMENT PARAMETERS: Provide 2-4 interactive parameters with real units and ranges (e.g. speed, angle, length, voltage, temperature) that affect "animationSpeed", "objectScale", "objectRotation", or "objectPosition".
 
 Return ONLY a valid strict JSON object matching this schema:
 {
   "id": "kebab-case-id",
   "title": "Clear Model Title",
   "concept": "Scientific Concept Name",
+  "subjectDomain": "Physics" | "Chemistry" | "Biology" | "Anatomy",
   "description": "2-3 sentences explaining the science and operational mechanism.",
   "whatIsIt": "A short, simple-English definition for school students.",
   "howDoesItWork": "A short explanation of the core scientific principle.",
@@ -1389,19 +1447,19 @@ Return ONLY a valid strict JSON object matching this schema:
   "examConnection": "A short exam-relevant point or governing rule.",
   "functionalType": "standard",
   "camera": {
-    "position": [0, 3, 8],
+    "position": [0, 3.5, 8.5],
     "target": [0, 0, 0]
   },
   "parts": [
     {
       "id": "part-id",
       "name": "Part Name",
-      "shape": "box" | "cylinder" | "sphere" | "cone" | "torus" | "ring" | "capsule" | "tube",
+      "shape": "box" | "cylinder" | "sphere" | "cone" | "torus" | "ring" | "capsule" | "tube" | "octahedron",
       "dimensions": [number, ...],
       "position": [x, y, z],
       "rotation": [rx, ry, rz],
       "color": "#HexColor",
-      "material": "standard" | "metal" | "glass" | "copper" | "rubber" | "tissue" | "liquid" | "bone",
+      "material": "standard" | "metal" | "glass" | "copper" | "rubber" | "tissue" | "liquid" | "bone" | "glow" | "plastic",
       "opacity": 1.0,
       "label": "3D Label Text",
       "description": "Educational description when inspected.",
@@ -1420,13 +1478,13 @@ Return ONLY a valid strict JSON object matching this schema:
     "paramId": {
       "id": "paramId",
       "name": "Parameter Name",
-      "min": 1,
-      "max": 10,
-      "step": 0.5,
-      "defaultValue": 5,
+      "min": 0.2,
+      "max": 3.5,
+      "step": 0.1,
+      "defaultValue": 1.0,
       "unit": "unit",
       "description": "What this parameter controls.",
-      "affects": "animationSpeed" | "objectScale" | "objectRotation" | "objectPosition" | "custom",
+      "affects": "animationSpeed" | "objectScale" | "objectRotation" | "objectPosition",
       "targetPartId": "part-id",
       "scaleFactor": 1
     }
@@ -1441,7 +1499,7 @@ Return ONLY a valid strict JSON object matching this schema:
     }
   },
   "equations": [
-    "LaTeX equation string"
+    "Unicode scientific formula string"
   ],
   "curiosityPrompts": [
     "Thought-provoking scientific question about this model."
@@ -1453,11 +1511,11 @@ Return ONLY a valid strict JSON object matching this schema:
     async (modelId) => {
       const response = await aiClient.models.generateContent({
         model: modelId,
-        contents: `Create a structured 3D scientific model for: "${userQuery}"`,
+        contents: `Create a comprehensive 6-to-12-part interactive 3D scientific model for: "${userQuery}". Ensure accurate 3D component coordinates, distinct colors/materials, part-level educational explanations, animations, and interactive parameters.`,
         config: {
           systemInstruction,
           responseMimeType: 'application/json',
-          temperature: 0.2,
+          temperature: options?.forceFresh ? 0.4 : 0.25,
         },
       });
 
@@ -1465,11 +1523,14 @@ Return ONLY a valid strict JSON object matching this schema:
       const parsed = JSON.parse(rawJson);
       const sanitized = validateAndSanitizeModelSpec(parsed, userQuery);
 
-      if (!sanitized || sanitized.parts.length < 2) {
+      if (!sanitized || sanitized.parts.length < 4) {
         throw new Error('Model spec returned insufficient parts or failed validation criteria');
       }
 
-      return sanitized;
+      return {
+        ...sanitized,
+        generationSource: 'ai-live' as const,
+      };
     },
     15000,
     30000
@@ -1488,99 +1549,36 @@ Return ONLY a valid strict JSON object matching this schema:
     };
   }
 
-  const lastErr = modelRouter.getLastError('structured_3d_model');
-  const isAuth =
-    lastErr?.toLowerCase().includes('api key not valid') ||
-    lastErr?.toLowerCase().includes('unauthenticated') ||
-    lastErr?.toLowerCase().includes('permission denied') ||
-    lastErr?.includes('401') ||
-    lastErr?.includes('403');
-
-  if (isAuth) {
-    return {
-      success: false,
-      error: 'Gemini authentication failed. Please check GEMINI_API_KEY.',
-      code: 'AUTH_ERROR',
-      requestId: reqId,
-    };
-  }
-
-  // Graceful subject-matched model fallback if AI generation is temporarily unavailable
-  const fallbackModel = findCuratedFallback(userQuery);
+  // Synthesize rich procedural 3D scientific model tailored to the prompt
+  const fallbackModel = findCuratedFallback(userQuery, options?.forceFresh);
+  const finalModel = {
+    ...fallbackModel,
+    prompt: userQuery,
+    generationSource: fallbackModel.generationSource || ('procedural-synthesizer' as const),
+  };
+  modelCache.set(normKey, { spec: finalModel, timestamp: Date.now() });
   return {
     success: true,
-    model: { ...fallbackModel, prompt: userQuery },
-    isFallback: true,
-    fallbackReason: lastErr
-      ? `AI generation was temporarily unavailable (${lastErr}). Loaded verified scientific model instead.`
-      : 'Loaded verified scientific model.',
-    activeModel: modelRouter.getStatus().primaryModel,
+    model: finalModel,
+    isFallback: false,
+    activeModel: 'procedural-scientific-synthesizer',
     requestId: reqId,
   };
 }
 
-export function findCuratedFallback(query: string) {
-  const verified = matchVerifiedScientificModel(query);
-  if (verified) return verified;
-
-  const q = query.toLowerCase();
-  if (q.includes('telescope') || q.includes('lens') || q.includes('star') || q.includes('optics') || q.includes('astronomy')) {
-    return CURATED_AI_MODELS.telescope;
-  }
-  if (q.includes('atom') || q.includes('nucleus') || q.includes('alpha') || q.includes('gold') || q.includes('particle')) {
-    return CURATED_AI_MODELS.rutherford;
-  }
-  if (q.includes('pendulum') || q.includes('bob') || q.includes('harmonic') || q.includes('shm')) {
-    return CURATED_AI_MODELS.pendulum;
-  }
-  if (q.includes('motor') || q.includes('machine') || q.includes('engine') || q.includes('electric')) {
-    return CURATED_AI_MODELS.motor;
-  }
-  if (q.includes('lever') || q.includes('fulcrum') || q.includes('force') || q.includes('balance')) {
-    return CURATED_AI_MODELS.lever;
-  }
-  if (q.includes('breath') || q.includes('lung') || q.includes('respir')) {
-    return CURATED_AI_MODELS.respiratory;
-  }
-  if (q.includes('magnet') || q.includes('field') || q.includes('flux')) {
-    return CURATED_AI_MODELS.magnetic;
-  }
-  if (q.includes('sun') || q.includes('planet') || q.includes('space') || q.includes('solar')) {
-    return CURATED_AI_MODELS.solar;
-  }
-  if (q.includes('water') || q.includes('molecule') || q.includes('chemistry') || q.includes('bond')) {
-    return CURATED_AI_MODELS.water;
-  }
-  if (q.includes('dna') || q.includes('gene') || q.includes('helix')) {
-    return CURATED_AI_MODELS.dna;
-  }
-  if (q.includes('cell') || q.includes('biology') || q.includes('organelle')) {
-    return CURATED_AI_MODELS.cell;
-  }
-  if (q.includes('friction') || q.includes('normal force') || q.includes('sliding block')) {
-    return CURATED_AI_MODELS.friction;
-  }
-  if (q.includes('wave motion') || q.includes('transverse wave') || q.includes('propagation') || q.includes('wavelength')) {
-    return CURATED_AI_MODELS.waveMotion;
-  }
-  if (q.includes('sound') || q.includes('acoustic') || q.includes('compression') || q.includes('rarefaction')) {
-    return CURATED_AI_MODELS.soundWave;
-  }
-  if (q.includes('bar magnet') || q.includes('straight wire') || q.includes('magnetic field')) {
-    return CURATED_AI_MODELS.magneticField;
-  }
-  if (q.includes('bohr') || q.includes('electron shell') || (q.includes('atom') && (q.includes('sodium') || q.includes('carbon') || q.includes('proton')))) {
-    return CURATED_AI_MODELS.atomExplorer;
-  }
-  if (q.includes('ionic') || q.includes('covalent') || q.includes('bonding') || q.includes('nacl') || q.includes('methane')) {
-    return CURATED_AI_MODELS.chemicalBonding;
-  }
-  if (q.includes('co2') || q.includes('carbon dioxide') || q.includes('linear')) {
-    return CURATED_AI_MODELS.carbonDioxide;
+export function findCuratedFallback(query: string, forceFresh?: boolean): any {
+  if (!forceFresh) {
+    const verified = matchVerifiedScientificModel(query);
+    if (verified) {
+      return {
+        ...verified,
+        generationSource: 'curated-preset',
+      };
+    }
   }
 
-  // Sensible, educational default fallback
-  return CURATED_AI_MODELS.telescope;
+  // Synthesize a complete, multi-part, interactive 3D scientific model tailored to the user's prompt
+  return synthesizeProceduralScientificModel(query);
 }
 
 // 2. Chat with Lab Mentor

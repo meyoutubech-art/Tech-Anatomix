@@ -170,7 +170,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
                 text={m.text}
                 variant={m.role === 'user' ? 'user' : 'light'}
               />
-              {isEligibleForKeyTakeaways(m, idx) && (
+              {m.role !== 'user' && (
                 <AiKeyTakeawaysPanel
                   messageId={m.id || `msg-${idx}`}
                   question={findPrecedingUserQuestion(messages, idx)}
@@ -179,6 +179,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
                   subject={context.subject}
                   context={context}
                   variant="light"
+                  showTakeawaysButton={isEligibleForKeyTakeaways(m, idx)}
                   cachedTakeaways={m.keyTakeaways}
                   cachedIsOpen={m.takeawaysOpen}
                   onUpdateCache={(takeaways, isOpen) => {

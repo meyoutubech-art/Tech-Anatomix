@@ -615,13 +615,14 @@ export const ReactionAiChatbot: React.FC<ReactionAiChatbotProps> = ({
                 text={m.text}
                 variant={m.role === 'user' ? 'user' : 'dark'}
               />
-              {isEligibleForKeyTakeaways(m, idx) && (
+              {m.role !== 'user' && (
                 <AiKeyTakeawaysPanel
                   messageId={m.id}
                   question={findPrecedingUserQuestion(messages, idx)}
                   answer={m.text}
                   modelTitle="Chemical Reaction Laboratory"
                   subject="Chemistry"
+                  showTakeawaysButton={isEligibleForKeyTakeaways(m, idx)}
                   context={{
                     title: 'Chemical Reaction Laboratory',
                     subject: 'Chemistry',
