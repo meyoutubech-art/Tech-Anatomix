@@ -66,8 +66,45 @@ export interface ModelPartSpec {
   };
 }
 
+export interface ResearchSource {
+  title: string;
+  url: string;
+  snippet: string;
+  domain?: string;
+}
+
+export interface ResearchRecord {
+  query: string;
+  normalizedTopic: string;
+  status: 'web-researched' | 'knowledge-based';
+  timestamp: string;
+  sources: ResearchSource[];
+  retrievedFacts: string[];
+  extractedComponents: string[];
+  extractedMechanism?: string;
+  extractedEquations?: string[];
+}
+
+export interface ValidationCheckItem {
+  id: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ModelValidationReport {
+  isValid: boolean;
+  identityMatched: boolean;
+  componentCountValid: boolean;
+  topologyConnected: boolean;
+  parametersBound: boolean;
+  equationsCoherent: boolean;
+  checks: ValidationCheckItem[];
+}
+
 export interface ScientificConceptSpecification {
   scientificDomain: string;
+  modelCategory?: string;
   chosenInterpretation: string;
   purpose: string;
   essentialComponents: string[];
@@ -79,7 +116,11 @@ export interface ScientificConceptSpecification {
     formulaOrRule: string;
     unit?: string;
   }[];
-  limitations: string;
+  limitations: string | string[];
+  researchStatus?: 'web-researched' | 'knowledge-based';
+  researchSources?: ResearchSource[];
+  retrievedFacts?: string[];
+  validationChecks?: string[];
 }
 
 export interface ModelParameterSpec {
@@ -226,4 +267,7 @@ export interface ScientificModelSpec {
   generationSource?: 'ai-live' | 'procedural-synthesizer' | 'curated-preset';
   subjectDomain?: 'Physics' | 'Chemistry' | 'Biology' | 'Anatomy' | 'General Science';
   scientificSpecification?: ScientificConceptSpecification;
+  researchRecord?: ResearchRecord;
+  validationReport?: ModelValidationReport;
+  structuralArchetype?: string;
 }

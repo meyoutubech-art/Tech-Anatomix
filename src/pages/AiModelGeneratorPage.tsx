@@ -221,27 +221,27 @@ export const AiModelGeneratorPage: React.FC = () => {
     activeRequestRef.current = true;
     setIsGenerating(true);
     setFallbackNotification(null);
-    setGenerationStep('Analyzing scientific concept...');
+    setGenerationStep('Researching scientific references & structural components...');
 
     // Clear previous timers
     stepTimerRef.current.forEach((t) => clearTimeout(t));
     stepTimerRef.current = [];
 
-    // Schedule progressive user-friendly status updates during generation/retries
+    // Schedule progressive user-friendly status updates during research & 3D synthesis
     stepTimerRef.current.push(
       setTimeout(() => {
-        setGenerationStep('AI model generation is temporarily busy. Retrying...');
-      }, 2400)
+        setGenerationStep('Extracting essential components, equations & topology from research...');
+      }, 2200)
     );
     stepTimerRef.current.push(
       setTimeout(() => {
-        setGenerationStep('Synthesizing 3D parts, physical constraints, and materials...');
-      }, 5500)
+        setGenerationStep('Synthesizing 3D parts, kinematic linkages, and materials...');
+      }, 5200)
     );
     stepTimerRef.current.push(
       setTimeout(() => {
-        setGenerationStep('Finalizing physical parameters and scientific accuracy...');
-      }, 9000)
+        setGenerationStep('Validating model identity, parameter bounds, and scientific accuracy...');
+      }, 8500)
     );
 
     // Abort previous in-flight request if any

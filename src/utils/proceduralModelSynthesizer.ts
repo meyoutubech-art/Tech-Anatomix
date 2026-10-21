@@ -4,7 +4,9 @@ import {
   ModelParameterSpec,
   ModelConditionSpec,
   ScientificConceptSpecification,
+  ResearchRecord,
 } from '../types/aiModel';
+import { validateResearchGroundedModel } from './modelValidator';
 
 /**
  * CPK Element Colors & Covalent Radii for Dynamic 3D Molecular Geometry Synthesis
@@ -106,6 +108,8 @@ function inferSynthesizedSubjectDomain(
     combined.includes('synapse') ||
     combined.includes('neuron') ||
     combined.includes('nephron') ||
+    combined.includes('kidney') ||
+    combined.includes('glomerul') ||
     combined.includes('heart') ||
     combined.includes('lung') ||
     /\bear\b/i.test(combined) ||
@@ -137,9 +141,11 @@ function inferSynthesizedSubjectDomain(
 
 export function buildScientificConceptSpecification(
   prompt: string,
-  spec: ScientificModelSpec
+  spec: ScientificModelSpec,
+  researchRecord?: ResearchRecord
 ): ScientificConceptSpecification {
-  if (spec.scientificSpecification) {
+  const activeResearch = researchRecord || spec.researchRecord;
+  if (spec.scientificSpecification && !activeResearch) {
     return spec.scientificSpecification;
   }
 
@@ -162,7 +168,7 @@ export function buildScientificConceptSpecification(
         .map((tid) => spec.parts.find((p) => p.id === tid)?.label || tid)
         .join(', ');
       topologyAndConnections.push(`${partLabel} ⟷ ${targets}`);
-    } else if (idx > 0 && topologyAndConnections.length < 4) {
+    } else if (idx > 0 && topologyAndConnections.length < 5) {
       const prevPart = spec.parts[idx - 1];
       topologyAndConnections.push(
         `${prevPart.label || prevPart.name} ➔ ${partLabel} (${part.animation ? `${part.animation.type} dynamics` : 'structural coupling'})`
@@ -187,21 +193,34 @@ export function buildScientificConceptSpecification(
     unit: param.unit,
   }));
 
+  const validationReport =
+    spec.validationReport || validateResearchGroundedModel(prompt, spec, activeResearch);
+
   return {
     scientificDomain: `${domain} — ${spec.concept}`,
+    modelCategory: spec.structuralArchetype || spec.functionalType || 'Interactive 3D Scientific Assembly',
     chosenInterpretation: `Interpreted "${prompt.trim() || spec.title}" as "${spec.title}" (${spec.concept}) with ${essentialComponents.length} interactive 3D subassemblies.`,
     purpose: spec.whatIsIt || spec.description,
     essentialComponents,
     topologyAndConnections,
-    governingBehavior: spec.howDoesItWork || spec.description,
+    governingBehavior:
+      spec.howDoesItWork || activeResearch?.extractedMechanism || spec.description,
     governingEquations:
       spec.equations && spec.equations.length > 0
         ? spec.equations
-        : [spec.formula || 'Conservation of Energy & Structure–Function Coupling'],
+        : activeResearch?.extractedEquations && activeResearch.extractedEquations.length > 0
+          ? activeResearch.extractedEquations
+          : [spec.formula || 'Conservation of Energy & Structure–Function Coupling'],
     expectedOutputs,
     limitations:
       spec.scaleNote ||
       'Educational 3D representation with idealized component proportions, smooth rigid-body/harmonic kinematics, and neglect of higher-order environmental losses for visual clarity.',
+    researchStatus: activeResearch?.status || 'knowledge-based',
+    researchSources: activeResearch?.sources || [],
+    retrievedFacts: activeResearch?.retrievedFacts || [],
+    validationChecks: validationReport.checks.map(
+      (c) => `${c.passed ? 'PASS' : 'WARN'}: ${c.label} — ${c.detail}`
+    ),
   };
 }
 
@@ -233,6 +252,22 @@ export function isSpecializedProceduralConcept(prompt: string): boolean {
     q.includes('volcano') ||
     q.includes('magma chamber') ||
     q.includes('wind turbine') ||
+    q.includes('hydraulic press') ||
+    q.includes('bramah press') ||
+    q.includes('hydraulic brak') ||
+    q.includes('disc brake') ||
+    q.includes('nephron') ||
+    q.includes('glomerul') ||
+    q.includes('loop of henle') ||
+    q.includes('jet engine') ||
+    q.includes('turbofan') ||
+    q.includes('turbojet') ||
+    q.includes('gas turbine') ||
+    q.includes('robotic arm') ||
+    q.includes('robot arm') ||
+    q.includes('manipulator') ||
+    q.includes('custom electric motor') ||
+    q.includes('brushless motor') ||
     q.includes('prokaryot') ||
     q.includes('flagellum') ||
     q.includes('solar cell') ||
@@ -252,19 +287,31 @@ export function isSpecializedProceduralConcept(prompt: string): boolean {
   return false;
 }
 
-export function synthesizeProceduralScientificModel(prompt: string): ScientificModelSpec {
-  const spec = synthesizeProceduralScientificModelInternal(prompt);
+export function synthesizeProceduralScientificModel(
+  prompt: string,
+  researchRecord?: ResearchRecord
+): ScientificModelSpec {
+  const spec = synthesizeProceduralScientificModelInternal(prompt, researchRecord);
   const subjectDomain = spec.subjectDomain || inferSynthesizedSubjectDomain(prompt, spec);
   const enriched: ScientificModelSpec = {
     ...spec,
     generationSource: 'procedural-synthesizer',
     subjectDomain,
+    researchRecord: researchRecord || spec.researchRecord,
   };
-  enriched.scientificSpecification = buildScientificConceptSpecification(prompt, enriched);
+  enriched.validationReport = validateResearchGroundedModel(prompt, enriched, enriched.researchRecord);
+  enriched.scientificSpecification = buildScientificConceptSpecification(
+    prompt,
+    enriched,
+    enriched.researchRecord
+  );
   return enriched;
 }
 
-function synthesizeProceduralScientificModelInternal(prompt: string): ScientificModelSpec {
+function synthesizeProceduralScientificModelInternal(
+  prompt: string,
+  researchRecord?: ResearchRecord
+): ScientificModelSpec {
   const q = prompt.toLowerCase().trim();
 
   // 0A. DOUBLE PENDULUM (COUPLED CHAOTIC LAGRANGIAN PENDULUM)
@@ -4160,199 +4207,1600 @@ function synthesizeProceduralScientificModelInternal(prompt: string): Scientific
     };
   }
 
-  // 11. GENERAL SEMANTIC SCIENTIFIC APPARATUS SYNTHESIZER (OPEN-ENDED PROMPTS)
-  // Extracts scientific domain, title, and key concepts from any arbitrary prompt
+  // 10A. HYDRAULIC PRESS (PASCAL'S PRINCIPLE & INDUSTRIAL COMPRESSION RIG)
+  if (
+    q.includes('hydraulic press') ||
+    q.includes('bramah press') ||
+    (q.includes('hydraulic') && q.includes('press'))
+  ) {
+    return {
+      id: 'custom-hydraulic-press',
+      title: 'Hydraulic Press & Pascal Force Multiplier',
+      concept: "Fluid Statics, Pascal's Principle, Hydrostatic Pressure & Mechanical Advantage",
+      subjectDomain: 'Physics',
+      structuralArchetype: 'coupled-hydraulic-press',
+      description:
+        "Interactive 3D engineering model of an industrial Bramah hydraulic press featuring an interconnected hydraulic fluid manifold, small-bore master input cylinder and plunger piston (area A₁), manual pump lever arm, high-pressure check valve, large-bore slave ram cylinder and platen (area A₂), twin high-tensile press columns, upper reaction crosshead beam, and a deformable metal billet workpiece.",
+      whatIsIt:
+        "A mechanical compression machine that uses an incompressible fluid inside two interconnected cylinders of different cross-sectional areas to multiply an applied input force.",
+      howDoesItWork:
+        "By Pascal's Law, pressure applied to an enclosed incompressible fluid is transmitted undiminished throughout the fluid (P = F₁ / A₁ = F₂ / A₂). Pushing the small input plunger (area A₁) with force F₁ over a long stroke d₁ drives the large hydraulic ram (area A₂) upward with multiplied force F₂ = F₁ × (A₂ / A₁) over a correspondingly shorter stroke d₂ = d₁ × (A₁ / A₂), conserving mechanical work (W = F₁·d₁ = F₂·d₂).",
+      realLifeExample:
+        'Automotive body-panel stamping presses, forging presses, metal-recycling balers, and laboratory KBr pellet presses.',
+      examConnection:
+        'A hydraulic press multiplies force by the area ratio (MA = A₂ / A₁ = (r₂ / r₁)²), NOT energy! The distance moved by the large ram is reduced by the exact same ratio so ideal work input equals work output.',
+      scaleNote:
+        'Educational scale: cylinder walls are rendered in cutaway glass so internal hydraulic oil displacement and piston strokes are clearly visible.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.5, 8.8], target: [0, 0.2, 0] },
+      parts: [
+        {
+          id: 'press-structural-base',
+          name: 'Heavy Cast-Steel Press Bed & Foundation',
+          label: 'Cast-Steel Press Bed',
+          shape: 'box',
+          dimensions: [6.2, 0.45, 2.8],
+          position: [0, -2.25, 0],
+          color: '#1e293b',
+          material: 'metal',
+          kinematicRole: 'fixed-anchor',
+          connectedTo: ['fluid-connecting-manifold', 'input-master-cylinder', 'output-slave-cylinder', 'press-frame-pillars'],
+          description: 'Massive structural baseplate supporting both hydraulic cylinders and the twin vertical tension columns.',
+          whatIsIt: 'Rigid steel foundation bed of the hydraulic press.',
+          whatDoesItDo: 'Absorbs compressive reaction loads and aligns the master and slave cylinders.',
+        },
+        {
+          id: 'fluid-connecting-manifold',
+          name: 'Interconnecting High-Pressure Hydraulic Manifold',
+          label: 'Hydraulic Fluid Channel (P = F/A)',
+          shape: 'box',
+          dimensions: [3.8, 0.48, 1.1],
+          position: [-0.25, -1.75, 0],
+          color: '#0284c7',
+          material: 'liquid',
+          opacity: 0.85,
+          connectedTo: ['input-master-cylinder', 'output-slave-cylinder'],
+          description: 'Sealed horizontal fluid passage filled with incompressible hydraulic oil connecting Cylinder 1 to Cylinder 2.',
+          whatIsIt: 'High-pressure hydraulic oil conduit.',
+          whatDoesItDo: 'Transmits hydrostatic pressure P equally in all directions between the input plunger and output ram.',
+        },
+        {
+          id: 'input-master-cylinder',
+          name: 'Small-Bore Master Input Cylinder (Area A₁)',
+          label: 'Input Cylinder (Area A₁)',
+          shape: 'cylinder',
+          dimensions: [0.48, 2.1],
+          position: [-2.05, -0.85, 0],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.48,
+          connectedTo: ['fluid-connecting-manifold', 'input-plunger-piston'],
+          description: 'Narrow-diameter cylinder housing the input plunger where external force F₁ is applied.',
+          whatIsIt: 'Small cross-sectional area cylinder (A₁).',
+          whatDoesItDo: 'Generates high fluid pressure P = F₁ / A₁ from a modest input force.',
+        },
+        {
+          id: 'input-plunger-piston',
+          name: 'Master Input Plunger Piston & Rod (F₁)',
+          label: 'Small Input Piston (F₁, d₁)',
+          shape: 'cylinder',
+          dimensions: [0.41, 1.55],
+          position: [-2.05, 0.05, 0],
+          color: '#f59e0b',
+          material: 'metal',
+          parentId: 'input-master-cylinder',
+          kinematicRole: 'piston',
+          connectedTo: ['input-master-cylinder', 'actuating-pump-lever'],
+          description: 'Precision-machined steel plunger that travels downward through stroke d₁ to displace hydraulic oil into the manifold.',
+          whatIsIt: 'Small-diameter input piston driven by force F₁.',
+          whatDoesItDo: 'Pushes volume V = A₁·d₁ of hydraulic fluid into the slave cylinder.',
+          animation: { type: 'oscillate', axis: 'y', speed: 1.8, amplitude: 0.45 },
+        },
+        {
+          id: 'actuating-pump-lever',
+          name: 'Ergonomic Input Force Lever Arm',
+          label: 'Actuating Pump Lever',
+          shape: 'cylinder',
+          dimensions: [0.09, 2.0],
+          position: [-2.45, 0.95, 0],
+          rotation: [0, 0, 1.18],
+          color: '#ef4444',
+          material: 'metal',
+          parentId: 'input-plunger-piston',
+          connectedTo: ['input-plunger-piston'],
+          description: 'Pivoting mechanical handle that applies downward force F₁ to the master input plunger.',
+          whatIsIt: 'Manual or hydraulic actuator lever connected to the input plunger.',
+          whatDoesItDo: 'Delivers the downward driving stroke to pressurize the hydraulic circuit.',
+        },
+        {
+          id: 'output-slave-cylinder',
+          name: 'Large-Bore Slave Ram Cylinder (Area A₂)',
+          label: 'Large Ram Cylinder (Area A₂)',
+          shape: 'cylinder',
+          dimensions: [1.18, 2.2],
+          position: [1.15, -0.8, 0],
+          color: '#0ea5e9',
+          material: 'glass',
+          opacity: 0.48,
+          connectedTo: ['fluid-connecting-manifold', 'output-hydraulic-ram'],
+          description: 'Wide-diameter hydraulic cylinder of cross-sectional area A₂ = (A₂/A₁)·A₁.',
+          whatIsIt: 'Large cross-sectional area slave cylinder (A₂).',
+          whatDoesItDo: 'Converts hydrostatic pressure P into a massive upward force F₂ = P × A₂.',
+        },
+        {
+          id: 'output-hydraulic-ram',
+          name: 'Heavy-Duty Output Ram & Compression Platen (F₂)',
+          label: 'Large Output Ram & Platen (F₂, d₂)',
+          shape: 'cylinder',
+          dimensions: [1.08, 1.45],
+          position: [1.15, -0.1, 0],
+          color: '#10b981',
+          material: 'metal',
+          parentId: 'output-slave-cylinder',
+          kinematicRole: 'piston',
+          connectedTo: ['output-slave-cylinder', 'workpiece-compression-billet'],
+          description: 'Large-area hydraulic ram piston and flat platen that rises with multiplied force F₂ = F₁·(A₂/A₁) to crush or forge the workpiece.',
+          whatIsIt: 'High-force output ram piston.',
+          whatDoesItDo: 'Exerts multiplied upward compressive force against the workpiece and top crosshead.',
+          animation: { type: 'oscillate', axis: 'y', speed: 1.8, amplitude: 0.14 },
+        },
+        {
+          id: 'workpiece-compression-billet',
+          name: 'Deformable Metal Billet Workpiece',
+          label: 'Compressed Workpiece Specimen',
+          shape: 'cylinder',
+          dimensions: [0.68, 0.72],
+          position: [1.15, 0.98, 0],
+          color: '#f97316',
+          material: 'copper',
+          parentId: 'output-hydraulic-ram',
+          connectedTo: ['output-hydraulic-ram', 'upper-reaction-crosshead'],
+          description: 'Copper-alloy billet positioned between the rising hydraulic platen and the fixed upper reaction crosshead.',
+          whatIsIt: 'Material specimen undergoing compressive forging.',
+          whatDoesItDo: 'Demonstrates plastic compression under multiplied force F₂.',
+        },
+        {
+          id: 'press-frame-pillars',
+          name: 'Twin High-Tensile Steel Tie-Rod Columns',
+          label: 'High-Tensile Frame Columns',
+          shape: 'cylinder',
+          dimensions: [0.16, 4.1],
+          position: [1.15, 0.0, -1.05],
+          color: '#94a3b8',
+          material: 'metal',
+          connectedTo: ['press-structural-base', 'upper-reaction-crosshead'],
+          description: 'Vertical alloy-steel columns tying the press bed to the upper reaction crosshead.',
+          whatIsIt: 'Structural tension columns of the press frame.',
+          whatDoesItDo: 'Carries the equal and opposite tensile reaction load during high-tonnage pressing.',
+        },
+        {
+          id: 'upper-reaction-crosshead',
+          name: 'Upper Stationary Reaction Crosshead Beam',
+          label: 'Upper Reaction Crosshead Anvil',
+          shape: 'box',
+          dimensions: [2.8, 0.42, 2.4],
+          position: [1.15, 1.62, 0],
+          color: '#334155',
+          material: 'metal',
+          kinematicRole: 'fixed-anchor',
+          connectedTo: ['press-frame-pillars', 'workpiece-compression-billet'],
+          description: 'Stationary upper anvil beam against which the rising hydraulic ram compresses the workpiece.',
+          whatIsIt: 'Fixed top anvil crossbeam.',
+          whatDoesItDo: 'Provides the downward normal reaction force equal to F₂ during compression.',
+        },
+      ],
+      parameters: {
+        inputForceN: {
+          id: 'inputForceN',
+          name: 'Applied Input Plunger Force (F₁)',
+          min: 50,
+          max: 500,
+          step: 25,
+          defaultValue: 200,
+          unit: 'N',
+          description: 'Downward force applied to the small master input piston.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.008,
+        },
+        areaRatio: {
+          id: 'areaRatio',
+          name: 'Cylinder Area Ratio (A₂ / A₁)',
+          min: 2,
+          max: 20,
+          step: 1,
+          defaultValue: 10,
+          unit: '×',
+          description: 'Ratio of slave ram cross-sectional area A₂ to master plunger area A₁ (Mechanical Advantage).',
+          affects: 'objectScale',
+          targetPartId: 'output-hydraulic-ram',
+          scaleFactor: 1.0,
+        },
+        plungerStrokePct: {
+          id: 'plungerStrokePct',
+          name: 'Input Plunger Stroke Compression',
+          min: 0,
+          max: 100,
+          step: 5,
+          defaultValue: 50,
+          unit: '%',
+          description: 'Directly depresses the input plunger (d₁) and raises the output ram by d₂ = d₁ / (A₂/A₁).',
+          affects: 'objectPosition',
+          targetPartId: 'input-plunger-piston',
+          scaleFactor: 0.01,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Transparent Cylinder Cutaway',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Shows internal hydraulic oil level and piston heads inside both cylinders.',
+        },
+      },
+      equations: [
+        'P = F₁ / A₁ = F₂ / A₂ (Pascal’s Hydrostatic Pressure Law)',
+        'F₂ = F₁ × (A₂ / A₁) (Hydraulic Force Multiplication)',
+        'W = F₁ · d₁ = F₂ · d₂  ⇒  d₂ = d₁ × (A₁ / A₂) (Conservation of Mechanical Work)',
+      ],
+      curiosityPrompts: [
+        'If the large ram has 10 times the area of the small plunger, why does the large ram only move 1/10th the distance?',
+        'Why must a hydraulic press use an incompressible liquid like oil instead of air?',
+        'How does a hydraulic press obey Conservation of Energy while multiplying force tenfold?',
+      ],
+    };
+  }
+
+  // 10B. HUMAN KIDNEY NEPHRON (GLOMERULUS, BOWMAN'S CAPSULE, LOOP OF HENLE & COLLECTING DUCT)
+  if (
+    q.includes('nephron') ||
+    q.includes('glomerul') ||
+    q.includes('loop of henle') ||
+    q.includes('bowman') ||
+    (q.includes('kidney') && (q.includes('tubule') || q.includes('filtration') || q.includes('nephron')))
+  ) {
+    return {
+      id: 'custom-kidney-nephron',
+      title: 'Human Kidney Nephron: Ultrafiltration & Countercurrent Multiplier',
+      concept: 'Renal Physiology, Glomerular Ultrafiltration, Tubular Reabsorption & Osmoregulation',
+      subjectDomain: 'Anatomy',
+      structuralArchetype: 'tubular-physiological-network',
+      description:
+        "Interactive 3D anatomical and physiological model of a functional human kidney nephron showing the wide afferent arteriole, high-pressure glomerular capillary tuft, cup-shaped Bowman's capsule, narrower efferent arteriole, proximal convoluted tubule (PCT), hairpin Loop of Henle (descending and thick ascending limbs), distal convoluted tubule (DCT), cortical-medullary collecting duct, and animated renal filtrate boluses.",
+      whatIsIt:
+        'The microscopic functional filtering unit of the human kidney (~1 million per kidney) that filters blood plasma and regulates water, electrolyte, and acid-base balance to form urine.',
+      howDoesItWork:
+        "Hydrostatic blood pressure in the glomerulus (P_GC ≈ 55 mmHg, created because the afferent arteriole is wider than the efferent arteriole) forces water, glucose, amino acids, ions, and urea across the filtration membrane into Bowman's capsule (ultrafiltration). The Proximal Convoluted Tubule reabsorbs 100% of glucose and ~67% of water/Na⁺; the Loop of Henle acts as a countercurrent multiplier to build a hyperosmotic medullary gradient (up to 1200 mOsm/L); and the Collecting Duct adjusts final water reabsorption under Antidiuretic Hormone (ADH) control.",
+      realLifeExample:
+        'Every 24 hours, human nephrons filter ~180 liters of blood plasma, reabsorbing ~99% so only ~1.5 liters of concentrated urine is excreted.',
+      examConnection:
+        'Ultrafiltration retains red blood cells and large plasma proteins (albumin) in the blood while filtering water, glucose, ions, and urea. Selective reabsorption in the PCT recovers 100% of glucose via Na⁺-glucose cotransporters.',
+      scaleNote:
+        "Educational scale: tubular segments and glomerular capillaries are magnified with a cutaway Bowman's capsule to trace the complete filtrate pathway.",
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 1.8, 9.2], target: [0, -0.2, 0] },
+      parts: [
+        {
+          id: 'afferent-arteriole-vessel',
+          name: 'Afferent Arteriole (High-Caliber Renal Inlet)',
+          label: 'Afferent Arteriole (Inlet)',
+          shape: 'cylinder',
+          dimensions: [0.22, 1.45],
+          position: [-3.15, 1.65, 0.25],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#ef4444',
+          material: 'tissue',
+          connectedTo: ['glomerulus-capillary-tuft'],
+          description: 'Wide-lumen arterial vessel supplying oxygenated, unfiltered blood under high hydrostatic pressure into the glomerulus.',
+          whatIsIt: 'Incoming renal blood vessel with a wider diameter.',
+          whatDoesItDo: 'Delivers blood at high hydrostatic pressure (~55 mmHg) to drive glomerular ultrafiltration.',
+        },
+        {
+          id: 'glomerulus-capillary-tuft',
+          name: 'Glomerulus Fenestrated Capillary Tuft',
+          label: 'Glomerulus (Capillary Tuft)',
+          shape: 'sphere',
+          dimensions: [0.62],
+          position: [-2.25, 1.45, 0],
+          color: '#dc2626',
+          material: 'tissue',
+          connectedTo: ['afferent-arteriole-vessel', 'efferent-arteriole-vessel', 'bowmans-glomerular-capsule'],
+          description: 'Dense ball of fenestrated capillaries inside Bowman’s capsule where blood plasma is pressure-filtered across basement membranes and podocyte foot processes.',
+          whatIsIt: 'High-pressure capillary knot that filters blood plasma.',
+          whatDoesItDo: 'Forces water, ions, glucose, and urea out of the blood while retaining cells and large proteins.',
+          animation: { type: 'pulse', axis: 'y', speed: 2.4, amplitude: 0.08 },
+        },
+        {
+          id: 'efferent-arteriole-vessel',
+          name: 'Efferent Arteriole (Narrow-Lumen Outlet & Vasa Recta Feed)',
+          label: 'Efferent Arteriole (Narrow Outlet)',
+          shape: 'cylinder',
+          dimensions: [0.13, 1.55],
+          position: [-2.95, 0.88, 0.35],
+          rotation: [0, 0, 1.15],
+          color: '#b91c1c',
+          material: 'tissue',
+          connectedTo: ['glomerulus-capillary-tuft', 'peritubular-capillary-plexus'],
+          description: 'Narrower-lumen arteriole draining filtered blood from the glomerulus into the peritubular capillaries and vasa recta.',
+          whatIsIt: 'Outgoing arteriole with a narrower diameter than the afferent arteriole.',
+          whatDoesItDo: 'Creates upstream back-pressure inside the glomerulus to sustain ultrafiltration.',
+        },
+        {
+          id: 'bowmans-glomerular-capsule',
+          name: "Bowman's Capsule (Renal Corpuscle Cup)",
+          label: "Bowman's Capsule (Filtration Cup)",
+          shape: 'sphere',
+          dimensions: [0.88],
+          position: [-2.25, 1.45, 0],
+          color: '#fde047',
+          material: 'glass',
+          opacity: 0.45,
+          connectedTo: ['glomerulus-capillary-tuft', 'proximal-convoluted-tubule'],
+          description: 'Double-walled epithelial cup lined with podocytes that surrounds the glomerulus and collects raw glomerular filtrate.',
+          whatIsIt: 'Cup-like sac enclosing the glomerulus in the renal cortex.',
+          whatDoesItDo: 'Captures cell-free, protein-free glomerular filtrate and funnels it into the proximal tubule.',
+        },
+        {
+          id: 'proximal-convoluted-tubule',
+          name: 'Proximal Convoluted Tubule (PCT — Cortical Reabsorption)',
+          label: 'Proximal Convoluted Tubule (PCT)',
+          shape: 'torus',
+          dimensions: [0.78, 0.2],
+          position: [-1.15, 1.45, 0],
+          rotation: [0.35, 0.2, 0],
+          color: '#f59e0b',
+          material: 'tissue',
+          connectedTo: ['bowmans-glomerular-capsule', 'loop-of-henle-descending'],
+          description: 'Coiled cortical tubule lined with brush-border microvilli and mitochondria-rich cuboidal epithelium.',
+          whatIsIt: 'First coiled tubular segment after Bowman’s capsule.',
+          whatDoesItDo: 'Selectively reabsorbs 100% of filtered glucose and amino acids plus ~67% of water, Na⁺, and Cl⁻ back into the blood.',
+        },
+        {
+          id: 'loop-of-henle-descending',
+          name: 'Loop of Henle — Thin Descending Limb (Water Permeable)',
+          label: 'Descending Loop of Henle (H₂O Exit)',
+          shape: 'cylinder',
+          dimensions: [0.13, 2.75],
+          position: [-0.65, -0.25, 0],
+          color: '#38bdf8',
+          material: 'tissue',
+          connectedTo: ['proximal-convoluted-tubule', 'loop-of-henle-ascending'],
+          description: 'Thin descending segment plunging deep into the salty renal medulla; highly permeable to water via aquaporin-1 channels but impermeable to solutes.',
+          whatIsIt: 'Downward-plunging medullary limb of the Loop of Henle.',
+          whatDoesItDo: 'Allows water to leave the filtrate by osmosis into the hypertonic medulla, concentrating the tubular fluid.',
+        },
+        {
+          id: 'loop-of-henle-ascending',
+          name: 'Loop of Henle — Thick Ascending Limb (Active Na⁺/K⁺/2Cl⁻ Pump)',
+          label: 'Ascending Loop of Henle (NaCl Pump)',
+          shape: 'cylinder',
+          dimensions: [0.18, 2.75],
+          position: [0.25, -0.25, 0],
+          color: '#fbbf24',
+          material: 'tissue',
+          connectedTo: ['loop-of-henle-descending', 'distal-convoluted-tubule'],
+          description: 'Water-impermeable ascending limb that actively pumps Na⁺, K⁺, and Cl⁻ ions out into the medullary interstitium.',
+          whatIsIt: 'Upward-returning thick limb of the Loop of Henle.',
+          whatDoesItDo: 'Establishes the hyperosmotic medullary gradient (countercurrent multiplication) while diluting the ascending tubular fluid.',
+        },
+        {
+          id: 'distal-convoluted-tubule',
+          name: 'Distal Convoluted Tubule (DCT — Aldosterone / pH Fine-Tuning)',
+          label: 'Distal Convoluted Tubule (DCT)',
+          shape: 'torus',
+          dimensions: [0.68, 0.18],
+          position: [1.05, 1.38, 0],
+          rotation: [-0.35, 0.2, 0],
+          color: '#a855f7',
+          material: 'tissue',
+          connectedTo: ['loop-of-henle-ascending', 'medullary-collecting-duct'],
+          description: 'Cortical segment regulated by aldosterone and parathyroid hormone (PTH) for fine-tuning Na⁺, K⁺, Ca²⁺, and H⁺ secretion.',
+          whatIsIt: 'Second coiled tubule in the renal cortex.',
+          whatDoesItDo: 'Performs hormone-controlled fine adjustment of blood salt and pH levels.',
+        },
+        {
+          id: 'medullary-collecting-duct',
+          name: 'Cortical & Medullary Collecting Duct (ADH Regulated)',
+          label: 'Collecting Duct (ADH Water Control)',
+          shape: 'cylinder',
+          dimensions: [0.26, 3.45],
+          position: [2.15, -0.05, 0],
+          color: '#eab308',
+          material: 'tissue',
+          connectedTo: ['distal-convoluted-tubule'],
+          description: 'Vertical duct descending through the cortex and medulla to the renal pelvis; inserts Aquaporin-2 water channels in response to ADH (vasopressin).',
+          whatIsIt: 'Final urine-concentrating duct shared by several nephrons.',
+          whatDoesItDo: 'Determines final urine volume and concentration depending on body hydration and ADH hormone levels.',
+        },
+        {
+          id: 'peritubular-capillary-plexus',
+          name: 'Peritubular Capillaries & Vasa Recta Countercurrent Exchanger',
+          label: 'Vasa Recta & Peritubular Capillaries',
+          shape: 'cylinder',
+          dimensions: [0.09, 2.55],
+          position: [-0.2, -0.3, -0.35],
+          color: '#3b82f6',
+          material: 'tissue',
+          connectedTo: ['efferent-arteriole-vessel'],
+          description: 'Hairpin microvascular network running parallel to the Loop of Henle that reabsorbs water and solutes back into systemic venous blood.',
+          whatIsIt: 'Blood capillary network wrapping around the nephron tubules.',
+          whatDoesItDo: 'Returns reabsorbed water, glucose, and electrolytes to the bloodstream without washing out the medullary osmotic gradient.',
+        },
+        {
+          id: 'filtrate-transport-bolus',
+          name: 'Active Tubular Filtrate & Solute Bolus',
+          label: 'Tubular Filtrate Flow (GFR)',
+          shape: 'sphere',
+          dimensions: [0.24],
+          position: [-0.2, -1.55, 0.18],
+          color: '#38bdf8',
+          material: 'glow',
+          connectedTo: ['loop-of-henle-descending', 'loop-of-henle-ascending'],
+          description: 'Dynamic indicator of tubular fluid moving from Bowman’s capsule through the Loop of Henle toward the collecting duct.',
+          whatIsIt: 'Flowing renal filtrate inside the nephron lumen.',
+          whatDoesItDo: 'Visualizes the Glomerular Filtration Rate (GFR) and tubular transport velocity.',
+          animation: { type: 'oscillate', axis: 'y', speed: 2.2, amplitude: 0.85 },
+        },
+      ],
+      parameters: {
+        glomerularPressureMmHg: {
+          id: 'glomerularPressureMmHg',
+          name: 'Glomerular Hydrostatic Pressure (P_GC)',
+          min: 40,
+          max: 75,
+          step: 1,
+          defaultValue: 55,
+          unit: 'mmHg',
+          description: 'Capillary blood pressure inside the glomerulus driving Net Filtration Pressure (NFP) and GFR.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.04,
+        },
+        medullaryGradientMOsM: {
+          id: 'medullaryGradientMOsM',
+          name: 'Medullary Osmotic Gradient (Loop of Henle)',
+          min: 300,
+          max: 1200,
+          step: 50,
+          defaultValue: 900,
+          unit: 'mOsm/L',
+          description: 'Interstitial osmolarity established by active NaCl pumping in the thick ascending limb.',
+          affects: 'objectScale',
+          targetPartId: 'loop-of-henle-ascending',
+          scaleFactor: 1.0,
+        },
+        adhHormoneLevelPct: {
+          id: 'adhHormoneLevelPct',
+          name: 'ADH (Vasopressin) Hormone Level',
+          min: 10,
+          max: 100,
+          step: 5,
+          defaultValue: 60,
+          unit: '%',
+          description: 'Controls Aquaporin-2 water channel permeability in the Collecting Duct, concentrating urine.',
+          affects: 'objectScale',
+          targetPartId: 'medullary-collecting-duct',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: "Cutaway Bowman's Capsule View",
+          type: 'boolean',
+          defaultValue: true,
+          description: "Makes Bowman's capsule semi-transparent to expose the internal glomerular capillary tuft.",
+        },
+      },
+      equations: [
+        'NFP = P_GC − P_BC − π_GC ≈ 55 − 15 − 30 = 10 mmHg (Net Filtration Pressure)',
+        'GFR = K_f × NFP ≈ 125 mL/min (Glomerular Filtration Rate)',
+        'Clearance C_x = (U_x · V) / P_x (Renal Plasma Clearance Equation)',
+      ],
+      curiosityPrompts: [
+        'Why is the afferent arteriole wider than the efferent arteriole, and how does this help filtration?',
+        'Why does glucose appear in the glomerular filtrate inside Bowman’s capsule but NOT in healthy urine?',
+        'How do desert mammals use extra-long Loops of Henle to survive without drinking water?',
+      ],
+    };
+  }
+
+  // 10C. JET ENGINE CUTAWAY / HIGH-BYPASS TURBOFAN ENGINE
+  if (
+    q.includes('jet engine') ||
+    q.includes('turbofan') ||
+    q.includes('turbojet') ||
+    q.includes('gas turbine')
+  ) {
+    return {
+      id: 'custom-jet-engine-cutaway',
+      title: 'Jet Engine Cutaway: Axial Turbofan & Brayton Cycle Propulsion',
+      concept: "Thermodynamics (Brayton Cycle), Axial Compressors, Combustion & Newton's Third Law Thrust",
+      subjectDomain: 'Physics',
+      structuralArchetype: 'axial-turbomachinery-cutaway',
+      description:
+        'Interactive 3D aerospace engineering cutaway of an axial-flow turbofan jet engine ("Suck, Squeeze, Bang, Blow") featuring the aerodynamic intake nacelle cowl, titanium front bypass fan stage, multi-stage low-pressure and high-pressure axial compressors, annular fuel-air combustion chamber, high-pressure and low-pressure axial turbine stages, concentric twin-spool drive shaft, convergent exhaust nozzle, and supersonic Mach exhaust plume.',
+      whatIsIt:
+        'An air-breathing reaction heat engine that generates forward thrust by accelerating a large mass of air and hot combustion gas rearward at high velocity.',
+      howDoesItWork:
+        "Operating on the open Brayton thermodynamic cycle: (1) Intake & Fan draw in ambient air and split it into bypass and core streams; (2) Axial Compressor stages adiabatically compress core air to 30–40× atmospheric pressure; (3) Isobaric Combustor injects aviation kerosene (Jet-A) and burns it continuously at ~1,700 °C; (4) Axial Turbine extracts just enough shaft work from the expanding gas to drive the front compressor and fan via the concentric spool shaft; (5) Exhaust Nozzle accelerates the remaining high-enthalpy gas rearward, producing forward thrust F = ṁ·(v_exit − v_0).",
+      realLifeExample:
+        'GE9X, Rolls-Royce Trent XWB, and Pratt & Whitney turbofan engines powering commercial airliners.',
+      examConnection:
+        "Jet propulsion operates by Conservation of Linear Momentum and Newton's Third Law: accelerating mass flow ṁ rearward from velocity v₀ to v_e produces forward reaction thrust F = ṁ·(v_e − v₀).",
+      scaleNote:
+        'Educational scale: outer nacelle cowling is rendered as a translucent cutaway shell so all internal axial rotor stages and the annular combustor can be inspected.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0.5, 2.6, 8.8], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'intake-nacelle-cowling',
+          name: 'Aerodynamic Intake Lip & Cutaway Nacelle Casing',
+          label: 'Cutaway Engine Nacelle Cowl',
+          shape: 'cylinder',
+          dimensions: [1.55, 5.6],
+          position: [-0.2, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#94a3b8',
+          material: 'glass',
+          opacity: 0.32,
+          connectedTo: ['titanium-turbofan-rotor', 'exhaust-convergent-nozzle'],
+          description: 'Streamlined outer nacelle housing and bypass duct rendered in cutaway view to expose the internal core stages.',
+          whatIsIt: 'Outer aerodynamic engine housing and bypass air duct.',
+          whatDoesItDo: 'Guides freestream air smoothly into the fan while enclosing the bypass flow channel.',
+        },
+        {
+          id: 'concentric-twin-spool-shaft',
+          name: 'Concentric N₁/N₂ Twin-Spool Main Drive Shaft',
+          label: 'Concentric Twin-Spool Shaft',
+          shape: 'cylinder',
+          dimensions: [0.2, 5.4],
+          position: [-0.1, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#e2e8f0',
+          material: 'metal',
+          kinematicRole: 'rotor',
+          connectedTo: [
+            'titanium-turbofan-rotor',
+            'low-pressure-axial-compressor',
+            'high-pressure-axial-compressor',
+            'high-pressure-axial-turbine',
+            'low-pressure-axial-turbine',
+          ],
+          description: 'High-strength superalloy coaxial drive shaft mechanically coupling the rear turbine stages to the front compressor and fan stages.',
+          whatIsIt: 'Central rotating axle running the length of the jet engine.',
+          whatDoesItDo: 'Transfers megawatts of mechanical shaft power from the hot rear turbines to spin the front compressors and fan.',
+          animation: { type: 'spin', axis: 'x', speed: 4.5, amplitude: 0.1 },
+        },
+        {
+          id: 'titanium-turbofan-rotor',
+          name: 'Front Titanium Wide-Chord Turbofan Stage (N₁)',
+          label: 'Front Titanium Fan Stage',
+          shape: 'cylinder',
+          dimensions: [1.42, 0.38],
+          position: [-2.65, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'metal',
+          parentId: 'concentric-twin-spool-shaft',
+          kinematicRole: 'rotor',
+          connectedTo: ['concentric-twin-spool-shaft', 'low-pressure-axial-compressor'],
+          description: 'Large-diameter front fan with twisted titanium-carbon blades that accelerates both core air and high-volume bypass air.',
+          whatIsIt: 'Primary front intake fan of a modern turbofan engine.',
+          whatDoesItDo: 'Produces up to 75–80% of total takeoff thrust by accelerating a massive volume of cool bypass air around the core.',
+          animation: { type: 'spin', axis: 'x', speed: 3.8, amplitude: 0.1 },
+        },
+        {
+          id: 'low-pressure-axial-compressor',
+          name: 'Low-Pressure Axial Compressor (LPC Booster Stages)',
+          label: 'Low-Pressure Compressor (LPC)',
+          shape: 'cylinder',
+          dimensions: [1.05, 0.78],
+          position: [-1.75, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#0284c7',
+          material: 'metal',
+          parentId: 'concentric-twin-spool-shaft',
+          kinematicRole: 'rotor',
+          connectedTo: ['titanium-turbofan-rotor', 'high-pressure-axial-compressor'],
+          description: 'Alternating rows of rotating rotor blades and stationary stator vanes that initiate core air compression.',
+          whatIsIt: 'First multi-stage axial air compressor.',
+          whatDoesItDo: 'Decelerates and compresses incoming core air before it enters the high-pressure spool.',
+          animation: { type: 'spin', axis: 'x', speed: 4.2, amplitude: 0.1 },
+        },
+        {
+          id: 'high-pressure-axial-compressor',
+          name: 'High-Pressure Axial Compressor (HPC Core Stages)',
+          label: 'High-Pressure Compressor (HPC)',
+          shape: 'cylinder',
+          dimensions: [0.85, 0.85],
+          position: [-0.8, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#0369a1',
+          material: 'metal',
+          parentId: 'concentric-twin-spool-shaft',
+          kinematicRole: 'rotor',
+          connectedTo: ['low-pressure-axial-compressor', 'annular-combustion-chamber'],
+          description: 'High-speed N₂ axial compressor squeezing air to 30–45 bar and raising its temperature to ~600 °C prior to fuel injection.',
+          whatIsIt: 'High-pressure core compression stage ("Squeeze").',
+          whatDoesItDo: 'Maximizes air density and pressure so combustion releases maximum thermal work (Brayton efficiency).',
+          animation: { type: 'spin', axis: 'x', speed: 6.0, amplitude: 0.1 },
+        },
+        {
+          id: 'annular-combustion-chamber',
+          name: 'Annular Combustor & Fuel Atomizer Ring ("Bang")',
+          label: 'Annular Combustion Chamber',
+          shape: 'torus',
+          dimensions: [0.68, 0.28],
+          position: [0.2, 0.1, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#f97316',
+          material: 'glow',
+          connectedTo: ['high-pressure-axial-compressor', 'high-pressure-axial-turbine'],
+          description: 'High-temperature nickel-superalloy annular burner ring where atomized aviation kerosene mixes with compressed air and burns continuously at ~1,700 °C.',
+          whatIsIt: 'Isobaric constant-pressure combustion chamber.',
+          whatDoesItDo: 'Adds massive chemical heat energy Q_in to the compressed airflow, causing rapid gas expansion.',
+          animation: { type: 'pulse', axis: 'x', speed: 3.5, amplitude: 0.1 },
+        },
+        {
+          id: 'high-pressure-axial-turbine',
+          name: 'High-Pressure Single-Crystal Turbine Stage (HPT)',
+          label: 'High-Pressure Turbine (HPT)',
+          shape: 'cylinder',
+          dimensions: [0.86, 0.45],
+          position: [1.05, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#dc2626',
+          material: 'copper',
+          parentId: 'concentric-twin-spool-shaft',
+          kinematicRole: 'rotor',
+          connectedTo: ['annular-combustion-chamber', 'low-pressure-axial-turbine', 'concentric-twin-spool-shaft'],
+          description: 'Film-cooled single-crystal superalloy turbine blades spun by the 1,700 °C gas exiting the combustor.',
+          whatIsIt: 'Primary high-temperature turbine stage.',
+          whatDoesItDo: 'Extracts rotational work from the expanding hot gas to drive the High-Pressure Compressor on the N₂ spool.',
+          animation: { type: 'spin', axis: 'x', speed: 6.0, amplitude: 0.1 },
+        },
+        {
+          id: 'low-pressure-axial-turbine',
+          name: 'Low-Pressure Multi-Stage Axial Turbine (LPT)',
+          label: 'Low-Pressure Turbine (LPT)',
+          shape: 'cylinder',
+          dimensions: [1.02, 0.65],
+          position: [1.75, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#ea580c',
+          material: 'copper',
+          parentId: 'concentric-twin-spool-shaft',
+          kinematicRole: 'rotor',
+          connectedTo: ['high-pressure-axial-turbine', 'exhaust-convergent-nozzle', 'concentric-twin-spool-shaft'],
+          description: 'Downstream turbine stage that extracts torque to drive the large front titanium turbofan and low-pressure compressor.',
+          whatIsIt: 'Secondary expansion turbine stage on the N₁ inner shaft.',
+          whatDoesItDo: 'Powers the front turbofan stage while dropping gas pressure and temperature toward the nozzle.',
+          animation: { type: 'spin', axis: 'x', speed: 3.8, amplitude: 0.1 },
+        },
+        {
+          id: 'exhaust-convergent-nozzle',
+          name: 'Convergent Exhaust Nozzle & Acoustic Mixer ("Blow")',
+          label: 'Convergent Exhaust Nozzle',
+          shape: 'cone',
+          dimensions: [0.95, 1.15],
+          position: [2.65, 0.1, 0],
+          rotation: [0, 0, -Math.PI / 2],
+          color: '#475569',
+          material: 'metal',
+          connectedTo: ['low-pressure-axial-turbine', 'mach-exhaust-plume'],
+          description: 'Tapered exhaust duct that constricts the flow area to convert remaining gas pressure and enthalpy into high-velocity kinetic jet exhaust.',
+          whatIsIt: 'Rear propelling nozzle of the jet engine.',
+          whatDoesItDo: 'Accelerates hot exhaust gas to high subsonic or supersonic exit velocity v_exit to generate reaction thrust.',
+        },
+        {
+          id: 'mach-exhaust-plume',
+          name: 'High-Velocity Thermal Exhaust Plume & Mach Cone',
+          label: 'High-Velocity Exhaust Jet (v_exit)',
+          shape: 'cone',
+          dimensions: [0.68, 1.85],
+          position: [3.85, 0.1, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'glow',
+          opacity: 0.75,
+          connectedTo: ['exhaust-convergent-nozzle'],
+          description: 'High-momentum exhaust gas stream exiting the nozzle, producing equal and opposite forward thrust on the aircraft.',
+          whatIsIt: 'High-speed rear exhaust jet plume.',
+          whatDoesItDo: 'Carries rearward momentum flux ṁ·v_exit, propelling the engine forward.',
+          animation: { type: 'pulse', axis: 'x', speed: 4.5, amplitude: 0.16 },
+        },
+      ],
+      parameters: {
+        throttleRpmPct: {
+          id: 'throttleRpmPct',
+          name: 'Engine Spool Throttle (N₁ / N₂ RPM)',
+          min: 20,
+          max: 100,
+          step: 5,
+          defaultValue: 75,
+          unit: '%',
+          description: 'Controls fuel flow, spool rotational speed, mass airflow rate ṁ, and net thrust.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.04,
+        },
+        pressureRatioOpr: {
+          id: 'pressureRatioOpr',
+          name: 'Overall Compressor Pressure Ratio (r_p)',
+          min: 10,
+          max: 45,
+          step: 1,
+          defaultValue: 32,
+          unit: ':1',
+          description: 'Ratio of combustor stagnation pressure to intake pressure; governs Brayton thermal efficiency.',
+          affects: 'objectScale',
+          targetPartId: 'annular-combustion-chamber',
+          scaleFactor: 1.0,
+        },
+        bypassRatioBpr: {
+          id: 'bypassRatioBpr',
+          name: 'Turbofan Bypass Ratio (ṁ_bypass / ṁ_core)',
+          min: 1,
+          max: 10,
+          step: 0.5,
+          defaultValue: 8.0,
+          unit: ':1',
+          description: 'Ratio of air bypassing the core to air passing through the combustor; increases propulsive efficiency.',
+          affects: 'objectScale',
+          targetPartId: 'titanium-turbofan-rotor',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Cutaway Nacelle Casing',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Makes the outer nacelle cowling translucent to expose the internal compressor, combustor, and turbine stages.',
+        },
+      },
+      equations: [
+        'F_thrust = ṁ_core·(v_e − v₀) + ṁ_bypass·(v_f − v₀) + (P_e − P₀)·A_e (Turbofan Net Thrust Equation)',
+        'η_Brayton = 1 − 1 / r_p^((γ − 1)/γ) (Ideal Brayton Cycle Thermal Efficiency, γ = 1.4)',
+      ],
+      curiosityPrompts: [
+        'What do the four stages "Suck, Squeeze, Bang, Blow" correspond to inside a jet engine?',
+        'Why do modern airliners use wide high-bypass turbofan engines instead of narrow turbojets?',
+        'How can single-crystal turbine blades survive inside gas that is hotter than the melting point of the metal itself?',
+      ],
+    };
+  }
+
+  // 10D. MULTI-AXIS INDUSTRIAL ROBOTIC ARM (6-DOF ARTICULATED KINEMATIC MANIPULATOR)
+  if (
+    q.includes('robotic arm') ||
+    q.includes('robot arm') ||
+    q.includes('manipulator') ||
+    (q.includes('robot') && (q.includes('joint') || q.includes('gripper') || q.includes('axis') || q.includes('dof')))
+  ) {
+    return {
+      id: 'custom-robotic-arm-manipulator',
+      title: 'Multi-Axis Industrial Robotic Arm & Forward Kinematics',
+      concept: 'Robotics, Serial Kinematic Chains, Servo Joint Actuation, Forward Kinematics & Torque',
+      subjectDomain: 'Physics',
+      structuralArchetype: 'articulated-kinematic-chain',
+      description:
+        'Interactive 3D robotics and mechanical engineering model of an articulated multi-axis industrial manipulator featuring a bolted floor pedestal, rotating waist azimuth turret (Joint J₁), high-torque shoulder pitch servo actuator (Joint J₂), rigid humeral lower-arm link (L₁), elbow pitch rotary actuator (Joint J₃), forearm link (L₂), spherical wrist roll/pitch assembly (Joint J₄/J₅), parallel pneumatic end-effector gripper jaws, and a target precision workpiece.',
+      whatIsIt:
+        'A programmable serial kinematic chain of rigid links connected by motorized revolute (rotary) joints that positions and orientates an end-effector tool in 3D workspace.',
+      howDoesItWork:
+        'Brushless servo motors equipped with harmonic-drive gearboxes and optical encoders control each joint angle (θ₁ waist azimuth, θ₂ shoulder pitch, θ₃ elbow pitch, and wrist orientation). By Forward Kinematics (Denavit–Hartenberg transformation matrices), the 3D position (X, Y, Z) of the end-effector gripper is uniquely determined by the cumulative trigonometric sum of the link lengths and joint angles, while each joint motor must supply torque τ = r × F to counterbalance gravity and payload inertia.',
+      realLifeExample:
+        'FANUC, KUKA, and ABB 6-axis industrial robotic arms used in automotive spot-welding, semiconductor wafer handling, and surgical robotics.',
+      examConnection:
+        'Theshoulder joint (J₂) experiences the largest gravitational holding torque τ = m·g·d_⊥ because it supports the combined weight and moment arms of all distal links, actuators, and the payload.',
+      scaleNote:
+        'Educational scale: revolute joint housings and pneumatic gripper jaws are color-coded so each degree of freedom (DOF) can be tracked independently.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [3.2, 2.8, 8.2], target: [0.4, 0.4, 0] },
+      parts: [
+        {
+          id: 'robot-anchoring-pedestal',
+          name: 'Heavy Cast-Iron Floor Mounting Base',
+          label: 'Anchored Base Pedestal',
+          shape: 'cylinder',
+          dimensions: [1.35, 0.42],
+          position: [-0.8, -2.15, 0],
+          color: '#1e293b',
+          material: 'metal',
+          kinematicRole: 'fixed-anchor',
+          connectedTo: ['waist-azimuth-turret-j1'],
+          description: 'Bolted structural foundation plate anchoring the robotic manipulator against overturning reaction moments.',
+          whatIsIt: 'Fixed world-coordinate origin base (Frame 0).',
+          whatDoesItDo: 'Transfers static weight and dynamic reaction torques into the factory floor.',
+        },
+        {
+          id: 'waist-azimuth-turret-j1',
+          name: 'Joint 1 (J₁): Rotating Waist Azimuth Turret (θ₁)',
+          label: 'Waist Turret Joint J₁ (θ₁)',
+          shape: 'cylinder',
+          dimensions: [0.85, 0.72],
+          position: [-0.8, -1.58, 0],
+          color: '#f59e0b',
+          material: 'metal',
+          parentId: 'robot-anchoring-pedestal',
+          kinematicRole: 'pivot-joint',
+          connectedTo: ['robot-anchoring-pedestal', 'shoulder-servo-joint-j2'],
+          description: 'Vertical-axis rotary turntable driven by Servo 1, sweeping the entire arm horizontally through azimuth angle θ₁.',
+          whatIsIt: 'First revolute degree of freedom (vertical yaw axis).',
+          whatDoesItDo: 'Rotates the manipulator plane across the horizontal XY floor workspace.',
+        },
+        {
+          id: 'shoulder-servo-joint-j2',
+          name: 'Joint 2 (J₂): High-Torque Shoulder Pitch Actuator (θ₂)',
+          label: 'Shoulder Pitch Servo J₂ (θ₂)',
+          shape: 'cylinder',
+          dimensions: [0.46, 0.88],
+          position: [-0.8, -1.0, 0],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#0284c7',
+          material: 'metal',
+          parentId: 'waist-azimuth-turret-j1',
+          kinematicRole: 'pivot-joint',
+          connectedTo: ['waist-azimuth-turret-j1', 'lower-humeral-link-l1'],
+          description: 'Horizontal-axis harmonic-drive servo actuator that elevates and lowers the primary structural arm link L₁.',
+          whatIsIt: 'Second revolute degree of freedom (shoulder pitch axis).',
+          whatDoesItDo: 'Supplies peak gravitational holding torque τ₂ to lift the entire arm and payload.',
+        },
+        {
+          id: 'lower-humeral-link-l1',
+          name: 'Primary Structural Arm Link 1 (Length L₁ = 1.9 m)',
+          label: 'Lower Arm Link L₁',
+          shape: 'box',
+          dimensions: [0.36, 1.9, 0.36],
+          position: [-0.52, -0.1, 0],
+          rotation: [0, 0, -0.32],
+          color: '#f97316',
+          material: 'metal',
+          parentId: 'shoulder-servo-joint-j2',
+          kinematicRole: 'upper-link',
+          connectedTo: ['shoulder-servo-joint-j2', 'elbow-servo-joint-j3'],
+          description: 'Hollow cast-aluminum structural beam connecting the shoulder actuator J₂ to the elbow actuator J₃.',
+          whatIsIt: 'Primary proximal kinematic link (L₁).',
+          whatDoesItDo: 'Establishes the vertical reach and radial extension of the elbow joint.',
+        },
+        {
+          id: 'elbow-servo-joint-j3',
+          name: 'Joint 3 (J₃): Articulated Elbow Pitch Actuator (θ₃)',
+          label: 'Elbow Pitch Servo J₃ (θ₃)',
+          shape: 'cylinder',
+          dimensions: [0.38, 0.74],
+          position: [-0.22, 0.8, 0],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#0284c7',
+          material: 'metal',
+          parentId: 'lower-humeral-link-l1',
+          kinematicRole: 'lower-joint',
+          connectedTo: ['lower-humeral-link-l1', 'upper-forearm-link-l2'],
+          description: 'Intermediate rotary servo joint bending the forearm link L₂ relative to the lower arm link L₁.',
+          whatIsIt: 'Third revolute degree of freedom (elbow flexion/extension axis).',
+          whatDoesItDo: 'Controls radial reach and vertical height of the wrist and end-effector.',
+        },
+        {
+          id: 'upper-forearm-link-l2',
+          name: 'Secondary Forearm Structural Link 2 (Length L₂ = 1.65 m)',
+          label: 'Forearm Link L₂',
+          shape: 'cylinder',
+          dimensions: [0.18, 1.65],
+          position: [0.55, 0.95, 0],
+          rotation: [0, 0, -1.35],
+          color: '#fb923c',
+          material: 'metal',
+          parentId: 'elbow-servo-joint-j3',
+          kinematicRole: 'lower-link',
+          connectedTo: ['elbow-servo-joint-j3', 'wrist-roll-pitch-unit-j4'],
+          description: 'Lightweight tubular forearm link extending from the elbow joint J₃ to the spherical wrist unit.',
+          whatIsIt: 'Distal kinematic arm link (L₂).',
+          whatDoesItDo: 'Positions the spherical wrist over the target pick-and-place coordinates.',
+        },
+        {
+          id: 'wrist-roll-pitch-unit-j4',
+          name: 'Joints 4 & 5: Spherical Wrist Roll/Pitch Gimbal',
+          label: 'Spherical Wrist Actuator',
+          shape: 'sphere',
+          dimensions: [0.32],
+          position: [1.35, 1.12, 0],
+          color: '#38bdf8',
+          material: 'metal',
+          parentId: 'upper-forearm-link-l2',
+          connectedTo: ['upper-forearm-link-l2', 'gripper-finger-left', 'gripper-finger-right'],
+          description: 'Compact multi-axis wrist assembly orienting the tool mounting flange in roll, pitch, and yaw.',
+          whatIsIt: 'Distal orientation gimbal at the end of the forearm.',
+          whatDoesItDo: 'Keeps the parallel gripper jaws aligned perpendicular to the target workpiece.',
+        },
+        {
+          id: 'gripper-finger-left',
+          name: 'Parallel Pneumatic End-Effector Jaw (Left Finger)',
+          label: 'Pneumatic Gripper Jaw A',
+          shape: 'box',
+          dimensions: [0.1, 0.48, 0.14],
+          position: [1.55, 0.78, 0.22],
+          color: '#10b981',
+          material: 'metal',
+          parentId: 'wrist-roll-pitch-unit-j4',
+          connectedTo: ['wrist-roll-pitch-unit-j4'],
+          description: 'Precision linear-sliding gripper finger with high-friction elastomer pads for grasping payloads.',
+          whatIsIt: 'Actuated left finger of the end-effector gripper.',
+          whatDoesItDo: 'Translates inward and outward to clamp or release the payload object.',
+        },
+        {
+          id: 'gripper-finger-right',
+          name: 'Parallel Pneumatic End-Effector Jaw (Right Finger)',
+          label: 'Pneumatic Gripper Jaw B',
+          shape: 'box',
+          dimensions: [0.1, 0.48, 0.14],
+          position: [1.55, 0.78, -0.22],
+          color: '#10b981',
+          material: 'metal',
+          parentId: 'wrist-roll-pitch-unit-j4',
+          connectedTo: ['wrist-roll-pitch-unit-j4'],
+          description: 'Synchronized opposing gripper finger providing balanced normal clamping force F_clamp.',
+          whatIsIt: 'Actuated right finger of the end-effector gripper.',
+          whatDoesItDo: 'Closes symmetrically with Jaw A so μ_s·F_clamp exceeds payload weight m·g.',
+        },
+        {
+          id: 'workpiece-target-payload',
+          name: 'Precision Payload Workpiece & Pedestal',
+          label: 'Target Workpiece Payload',
+          shape: 'box',
+          dimensions: [0.42, 0.42, 0.42],
+          position: [1.65, -1.75, 0],
+          color: '#a855f7',
+          material: 'plastic',
+          description: 'Instrumented test cube positioned in the robot’s reachable workspace envelope.',
+          whatIsIt: 'Target payload object in the workspace.',
+          whatDoesItDo: 'Serves as the reference target for forward and inverse kinematic positioning.',
+        },
+      ],
+      parameters: {
+        baseAzimuthDeg: {
+          id: 'baseAzimuthDeg',
+          name: 'Waist Turret Azimuth Angle (θ₁)',
+          min: -75,
+          max: 75,
+          step: 5,
+          defaultValue: 0,
+          unit: '°',
+          description: 'Rotates the entire robotic arm horizontally around the vertical waist axis J₁.',
+          affects: 'objectRotation',
+          targetPartId: 'waist-azimuth-turret-j1',
+          scaleFactor: 1.0,
+        },
+        shoulderPitchDeg: {
+          id: 'shoulderPitchDeg',
+          name: 'Shoulder Joint Pitch Angle (θ₂)',
+          min: -35,
+          max: 55,
+          step: 5,
+          defaultValue: 18,
+          unit: '°',
+          description: 'Pitches the lower arm link L₁ and carries all connected distal joints (J₃, L₂, wrist, gripper).',
+          affects: 'objectRotation',
+          targetPartId: 'lower-humeral-link-l1',
+          scaleFactor: 1.0,
+        },
+        elbowPitchDeg: {
+          id: 'elbowPitchDeg',
+          name: 'Elbow Joint Pitch Angle (θ₃)',
+          min: -50,
+          max: 65,
+          step: 5,
+          defaultValue: 25,
+          unit: '°',
+          description: 'Flexes or extends the forearm link L₂ and connected wrist/gripper relative to the elbow.',
+          affects: 'objectRotation',
+          targetPartId: 'upper-forearm-link-l2',
+          scaleFactor: 1.0,
+        },
+        gripperApertureMm: {
+          id: 'gripperApertureMm',
+          name: 'End-Effector Gripper Jaw Opening',
+          min: 10,
+          max: 80,
+          step: 5,
+          defaultValue: 45,
+          unit: 'mm',
+          description: 'Adjusts the parallel spacing between Gripper Jaw A and Gripper Jaw B.',
+          affects: 'objectPosition',
+          targetPartId: 'gripper-finger-left',
+          scaleFactor: 0.005,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Cyclical Pick-and-Place Motion',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Superimposes smooth coordinated multi-joint trajectory motion onto the selected joint angles.',
+        },
+      },
+      equations: [
+        'r = L₁·sin(θ₂) + L₂·cos(θ₂ − θ₃),  y = h₀ + L₁·cos(θ₂) − L₂·sin(θ₂ − θ₃) (3D Forward Kinematics)',
+        'τ_shoulder = m₁·g·(L₁/2)·sin(θ₂) + m₂·g·r (Gravitational Joint Torque Equilibrium)',
+      ],
+      curiosityPrompts: [
+        'What is the difference between Forward Kinematics (angles ➔ position) and Inverse Kinematics (position ➔ angles)?',
+        'Why does the shoulder motor need to be much stronger and heavier than the wrist motor?',
+        'Why does a robotic arm need 6 degrees of freedom (3 for position + 3 for orientation) to reach any pose in 3D space?',
+      ],
+    };
+  }
+
+  // 10E. HYDRAULIC DISC BRAKING SYSTEM (AUTOMOTIVE PASCAL BRAKE CIRCUIT)
+  if (
+    q.includes('hydraulic brak') ||
+    q.includes('disc brake') ||
+    (q.includes('brake') && (q.includes('caliper') || q.includes('hydraulic') || q.includes('rotor')))
+  ) {
+    return {
+      id: 'custom-hydraulic-braking-system',
+      title: 'Hydraulic Disc Braking System & Kinetic Energy Dissipation',
+      concept: "Pascal's Law, Lever Mechanical Advantage, Kinetic Friction & Thermal Dissipation",
+      subjectDomain: 'Physics',
+      structuralArchetype: 'coupled-hydraulic-press',
+      description:
+        'Interactive 3D automotive engineering model of a hydraulic disc brake system showing the driver brake pedal lever, pushrod, tandem master cylinder, incompressible DOT-4 hydraulic brake line, floating brake caliper housing, opposing hydraulic caliper pistons, high-friction ceramic brake pads, and a spinning ventilated cast-iron brake rotor disc.',
+      whatIsIt:
+        'A two-stage force-multiplying braking mechanism (mechanical lever + hydraulic Pascal multiplier) that clamps friction pads against a rotating wheel disc to convert vehicle kinetic energy into heat.',
+      howDoesItWork:
+        'Depressing the brake pedal multiplies foot force via a Class-2 mechanical lever before pushing the master cylinder piston. Pressurized brake fluid transmits hydrostatic pressure P through the brake lines to larger-area caliper pistons, which clamp the friction pads against both faces of the spinning rotor disc, creating braking torque τ_brake = 2·μ_k·F_normal·R_eff.',
+      realLifeExample:
+        'Front and rear ventilated disc brakes on passenger cars, high-speed trains, and aircraft landing gear.',
+      examConnection:
+        'Braking distance scales with the square of initial speed (d = ½·m·v² / F_brake) because kinetic energy K = ½mv² must be completely converted into thermal internal energy ΔU = F_friction · d in the rotor and pads.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.5, 8.6], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'brake-pedal-lever',
+          name: 'Driver Brake Pedal & Class-2 Lever Arm',
+          label: 'Brake Pedal Lever (F_foot)',
+          shape: 'box',
+          dimensions: [0.22, 1.65, 0.35],
+          position: [-2.85, 0.35, 0],
+          rotation: [0, 0, 0.28],
+          color: '#334155',
+          material: 'metal',
+          connectedTo: ['master-brake-cylinder'],
+          description: 'Pivoting pedal lever providing a ~4:1 mechanical advantage before entering the master cylinder.',
+          whatIsIt: 'Mechanical input lever operated by the driver’s foot.',
+          whatDoesItDo: 'Multiplies foot force and pushes the master cylinder pushrod.',
+        },
+        {
+          id: 'master-brake-cylinder',
+          name: 'Hydraulic Master Cylinder & Reservoir',
+          label: 'Master Cylinder (Area A₁)',
+          shape: 'cylinder',
+          dimensions: [0.34, 1.45],
+          position: [-1.75, 0.15, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#0284c7',
+          material: 'glass',
+          opacity: 0.65,
+          connectedTo: ['brake-pedal-lever', 'high-pressure-brake-line'],
+          description: 'Small-bore cylinder that converts mechanical pushrod force into hydraulic line pressure P = F₁ / A₁.',
+          whatIsIt: 'Primary hydraulic pressure generator.',
+          whatDoesItDo: 'Pressurizes incompressible brake fluid whenever the pedal is depressed.',
+        },
+        {
+          id: 'high-pressure-brake-line',
+          name: 'Braided Steel Hydraulic Brake Line Conduit',
+          label: 'Hydraulic Brake Line (P)',
+          shape: 'cylinder',
+          dimensions: [0.11, 2.25],
+          position: [-0.2, 0.15, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'liquid',
+          connectedTo: ['master-brake-cylinder', 'brake-caliper-housing'],
+          description: 'Sealed hydraulic tubing filled with high-boiling-point glycol-ether brake fluid.',
+          whatIsIt: 'Incompressible fluid transmission line.',
+          whatDoesItDo: 'Transmits hydrostatic pressure P undiminished from the master cylinder to the wheel caliper.',
+        },
+        {
+          id: 'ventilated-brake-rotor',
+          name: 'Ventilated Cast-Iron Brake Rotor Disc',
+          label: 'Spinning Brake Rotor Disc',
+          shape: 'cylinder',
+          dimensions: [1.65, 0.24],
+          position: [1.75, 0.0, 0],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#94a3b8',
+          material: 'metal',
+          kinematicRole: 'rotor',
+          connectedTo: ['friction-brake-pad-inner', 'friction-brake-pad-outer'],
+          description: 'Heavy grey cast-iron disc bolted to the rotating wheel hub; absorbs and radiates frictional heat.',
+          whatIsIt: 'Rotating wheel disc that slows the vehicle when clamped.',
+          whatDoesItDo: 'Converts rotational kinetic energy (½Iω²) into thermal energy via friction with the pads.',
+          animation: { type: 'spin', axis: 'z', speed: 4.5, amplitude: 0.1 },
+        },
+        {
+          id: 'brake-caliper-housing',
+          name: 'Hydraulic Brake Caliper Bridge Housing',
+          label: 'Brake Caliper Housing',
+          shape: 'box',
+          dimensions: [1.15, 0.85, 0.95],
+          position: [1.15, 0.85, 0],
+          color: '#dc2626',
+          material: 'metal',
+          connectedTo: ['high-pressure-brake-line', 'friction-brake-pad-inner', 'friction-brake-pad-outer'],
+          description: 'Rigid red aluminum caliper straddling the top edge of the brake rotor and housing the slave pistons.',
+          whatIsIt: 'Stationary hydraulic clamp assembly mounted to the steering knuckle.',
+          whatDoesItDo: 'Directs opposing slave pistons to squeeze the friction pads against the spinning rotor.',
+        },
+        {
+          id: 'friction-brake-pad-inner',
+          name: 'Inboard Ceramic Friction Brake Pad & Slave Piston',
+          label: 'Inboard Brake Pad & Piston',
+          shape: 'box',
+          dimensions: [0.65, 0.48, 0.14],
+          position: [1.35, 0.72, -0.24],
+          color: '#f59e0b',
+          material: 'copper',
+          connectedTo: ['brake-caliper-housing', 'ventilated-brake-rotor'],
+          description: 'High-coefficient-of-friction (μ_k ≈ 0.42) composite pad driven against the inner face of the rotor.',
+          whatIsIt: 'Replaceable high-friction wear pad.',
+          whatDoesItDo: 'Generates kinetic friction force F_f = μ_k·F_N to decelerate the rotor.',
+        },
+        {
+          id: 'friction-brake-pad-outer',
+          name: 'Outboard Ceramic Friction Brake Pad & Slave Piston',
+          label: 'Outboard Brake Pad & Piston',
+          shape: 'box',
+          dimensions: [0.65, 0.48, 0.14],
+          position: [1.35, 0.72, 0.24],
+          color: '#f59e0b',
+          material: 'copper',
+          connectedTo: ['brake-caliper-housing', 'ventilated-brake-rotor'],
+          description: 'Opposing composite brake pad clamping the outer face of the rotor disc.',
+          whatIsIt: 'Opposing outboard friction pad.',
+          whatDoesItDo: 'Clamps symmetrically so no net axial bending load is applied to the wheel bearing.',
+        },
+      ],
+      parameters: {
+        pedalForceN: {
+          id: 'pedalForceN',
+          name: 'Applied Brake Pedal Force (F_pedal)',
+          min: 0,
+          max: 400,
+          step: 20,
+          defaultValue: 120,
+          unit: 'N',
+          description: 'Increases hydraulic clamping pressure, slowing the spinning rotor and heating the pads.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.01,
+        },
+        caliperAreaRatio: {
+          id: 'caliperAreaRatio',
+          name: 'Caliper-to-Master Piston Area Ratio',
+          min: 2,
+          max: 12,
+          step: 1,
+          defaultValue: 6,
+          unit: '×',
+          description: 'Hydraulic force multiplication factor between the master cylinder and caliper pistons.',
+          affects: 'objectScale',
+          targetPartId: 'brake-caliper-housing',
+          scaleFactor: 1.0,
+        },
+        frictionCoeffMu: {
+          id: 'frictionCoeffMu',
+          name: 'Pad Friction Coefficient (μ_k)',
+          min: 0.2,
+          max: 0.6,
+          step: 0.05,
+          defaultValue: 0.4,
+          unit: 'μ',
+          description: 'Coefficient of kinetic friction between the ceramic brake pads and cast-iron rotor.',
+          affects: 'objectPosition',
+          targetPartId: 'friction-brake-pad-inner',
+          scaleFactor: 0.2,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Transparent Master Cylinder View',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Reveals internal hydraulic fluid pressure inside the master cylinder.',
+        },
+      },
+      equations: [
+        'F_clamp = F_pedal × MA_lever × (A_caliper / A_master)',
+        'τ_brake = 2 · μ_k · F_clamp · R_effective (的双面 Disc Braking Torque)',
+        'ΔE_thermal = ½ · m · v² = F_friction · d_stop (Kinetic-to-Thermal Energy Conversion)',
+      ],
+      curiosityPrompts: [
+        'Why do vapour bubbles in brake fluid ("brake fade") cause the brake pedal to sink to the floor without stopping the car?',
+        'Why are front brake rotors ventilated with internal cooling vanes?',
+        'How do lever ratio and Pascal’s law work together to turn a 100 N foot push into 15,000 N of clamping force?',
+      ],
+    };
+  }
+
+  // 11. RESEARCH-DRIVEN MULTI-ARCHETYPE COMPONENT GRAPH SYNTHESIZER (FOR ALL OTHER UNSEEN PROMPTS)
+  return synthesizeResearchDrivenComponentGraph(prompt, researchRecord);
+}
+
+/**
+ * Phase 4 & 5: Research-Driven Component Graph Synthesizer.
+ * Never returns a generic hub-and-spoke fallback. Instead, analyzes the requested topic
+ * and the retrieved web research record (extractedComponents, retrievedFacts, equations)
+ * to select an appropriate 3D structural architecture and build a topic-specific assembly.
+ */
+function synthesizeResearchDrivenComponentGraph(
+  prompt: string,
+  researchRecord?: ResearchRecord
+): ScientificModelSpec {
   const cleanTitle = prompt
-    .replace(/^(create|generate|build|make|show|design)\s+(me\s+)?(a\s+|an\s+|the\s+)?(custom\s+)?(interactive\s+)?(3d\s+)?(model|simulation|explorer|diagram)\s+(of\s+|for\s+|showing\s+)?/i, '')
+    .replace(
+      /^(please\s+)?(create|generate|build|make|show|design|render|construct)\s+(me\s+)?(a\s+|an\s+|the\s+)?(custom\s+|new\s+)?(interactive\s+|scientific\s+)?(3d\s+)?(model|simulation|explorer|diagram|cutaway)\s+(of\s+|for\s+|showing\s+)?/i,
+      ''
+    )
     .trim();
   const formattedTitle =
     cleanTitle.length > 2
-      ? cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1)
-      : 'Custom 3D Scientific Apparatus';
+      ? cleanTitle
+          .split(/\s+/)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+      : 'Custom Scientific System';
 
-  const isBio =
-    q.includes('cell') ||
-    q.includes('organ') ||
-    q.includes('tissue') ||
-    q.includes('enzyme') ||
-    q.includes('protein') ||
-    q.includes('plant') ||
-    q.includes('leaf') ||
-    q.includes('flower') ||
-    q.includes('mitochondr') ||
-    q.includes('anatomy') ||
-    q.includes('biology');
+  const corpus = `${prompt} ${(researchRecord?.retrievedFacts || []).join(' ')} ${(researchRecord?.extractedComponents || []).join(' ')}`.toLowerCase();
 
-  const isChem =
-    q.includes('acid') ||
-    q.includes('reaction') ||
-    q.includes('bond') ||
-    q.includes('crystal') ||
-    q.includes('ion') ||
-    q.includes('polymer') ||
-    q.includes('catalyst') ||
-    q.includes('distill') ||
-    q.includes('chemistry');
+  // Classify into one of 5 distinct structural layout families based on topic & research evidence
+  type ArchetypeFamily =
+    | 'axial-flow-stages'
+    | 'layered-cross-section'
+    | 'articulated-linkage'
+    | 'tubular-flow-network'
+    | 'coupled-dual-vessel';
 
-  const subjectDomain = isBio
-    ? 'Biology & Physiological Structure'
-    : isChem
-      ? 'Chemistry & Molecular Systems'
-      : 'Physics & Engineering Mechanics';
+  let archetype: ArchetypeFamily = 'axial-flow-stages';
+  if (
+    /cross-section|crust|mantle|layer|strata|volcano|earth|atmosphere|glacier|soil|crater|sediment|core|anatomical slice|skin|leaf/i.test(
+      corpus
+    )
+  ) {
+    archetype = 'layered-cross-section';
+  } else if (
+    /arm|robot|crane|linkage|lever|pendulum|hinge|joint|piston|crank|suspension|scissor|catapult|trebuchet|prosthetic|jaw/i.test(
+      corpus
+    )
+  ) {
+    archetype = 'articulated-linkage';
+  } else if (
+    /tubule|nephron|vessel|artery|vein|capillary|villi|bronch|alveol|xylem|phloem|digestive|intestine|cochlea|lymph|vascular/i.test(
+      corpus
+    )
+  ) {
+    archetype = 'tubular-flow-network';
+  } else if (
+    /press|cell|battery|electrolysis|dialysis|osmosis|manometer|siphon|heat exchanger|distillation|titration|reactor|fuel cell/i.test(
+      corpus
+    )
+  ) {
+    archetype = 'coupled-dual-vessel';
+  }
 
-  const primaryColor = isBio ? '#10b981' : isChem ? '#06b6d4' : '#0284c7';
-  const accentColor = isBio ? '#f43f5e' : isChem ? '#f59e0b' : '#38bdf8';
+  // Extract or derive 6–8 meaningful component names specific to this topic
+  const rawExtracted = researchRecord?.extractedComponents || [];
+  const defaultArchetypeLabels: Record<ArchetypeFamily, string[]> = {
+    'axial-flow-stages': [
+      `${formattedTitle} Intake & Guide Housing`,
+      `${formattedTitle} Primary Rotor / Compression Stage`,
+      `${formattedTitle} Central Drive Shaft & Coupling`,
+      `${formattedTitle} Active Reaction / Energy Chamber`,
+      `${formattedTitle} Downstream Turbine / Stator Stage`,
+      `${formattedTitle} Exhaust / Output Nozzle`,
+    ],
+    'layered-cross-section': [
+      `${formattedTitle} Deep Basal Foundation Layer`,
+      `${formattedTitle} Subsurface Reservoir / Core Chamber`,
+      `${formattedTitle} Intermediate Stratified Mantle`,
+      `${formattedTitle} Primary Vertical Conduit Channel`,
+      `${formattedTitle} Upper Surface Crust / Cutaway Wall`,
+      `${formattedTitle} Active Surface Plume / Boundary Zone`,
+    ],
+    'articulated-linkage': [
+      `${formattedTitle} Anchored Pedestal Base`,
+      `${formattedTitle} Primary Rotary Pivot Joint`,
+      `${formattedTitle} Proximal Structural Arm Link`,
+      `${formattedTitle} Intermediate Articulated Hinge`,
+      `${formattedTitle} Distal Forearm / Actuator Link`,
+      `${formattedTitle} End-Effector / Load Stage`,
+    ],
+    'tubular-flow-network': [
+      `${formattedTitle} Afferent Inlet Vessel`,
+      `${formattedTitle} Primary Filtration / Exchange Capsule`,
+      `${formattedTitle} Proximal Coiled Transport Segment`,
+      `${formattedTitle} Countercurrent Hairpin Loop`,
+      `${formattedTitle} Distal Regulatory Duct`,
+      `${formattedTitle} Active Fluid Transport Bolus`,
+    ],
+    'coupled-dual-vessel': [
+      `${formattedTitle} Structural Support Bed`,
+      `${formattedTitle} Primary Input Chamber / Anode Vessel`,
+      `${formattedTitle} Active Input Piston / Electrode`,
+      `${formattedTitle} Interconnecting Transfer Manifold`,
+      `${formattedTitle} Secondary Output Chamber / Cathode Vessel`,
+      `${formattedTitle} Output Transducer / Collector Stage`,
+    ],
+  };
+
+  const componentNames: string[] = [];
+  for (const item of rawExtracted) {
+    if (!componentNames.some((existing) => existing.toLowerCase() === item.toLowerCase())) {
+      componentNames.push(item);
+    }
+    if (componentNames.length >= 7) break;
+  }
+  const fallbackList = defaultArchetypeLabels[archetype];
+  let idx = 0;
+  while (componentNames.length < 6 && idx < fallbackList.length) {
+    componentNames.push(fallbackList[idx]);
+    idx++;
+  }
+
+  const palette = ['#0284c7', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#38bdf8', '#f97316'];
+  const parts: ModelPartSpec[] = [];
+
+  if (archetype === 'axial-flow-stages') {
+    // Coaxial horizontal multi-stage engineering/physics assembly along the X axis
+    parts.push({
+      id: `${formattedTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-outer-casing`,
+      name: `${formattedTitle} Cutaway Outer Casing`,
+      label: `${formattedTitle} Cutaway Casing`,
+      shape: 'cylinder',
+      dimensions: [1.45, 5.2],
+      position: [0, 0.1, 0],
+      rotation: [0, 0, Math.PI / 2],
+      color: '#64748b',
+      material: 'glass',
+      opacity: 0.35,
+      description: `Translucent cutaway housing enclosing the coaxial stages of ${formattedTitle}.`,
+      whatIsIt: `Outer containment shell of ${formattedTitle}.`,
+      whatDoesItDo: 'Maintains axial alignment and pressure boundaries across all internal stages.',
+    });
+
+    componentNames.forEach((compName, i) => {
+      const xPos = -2.2 + i * (4.4 / Math.max(1, componentNames.length - 1));
+      const isCenter = i === Math.floor(componentNames.length / 2);
+      const isRotor = /rotor|fan|turbine|compressor|blade|impeller|shaft|wheel|coil/i.test(compName) || i % 2 === 1;
+      parts.push({
+        id: `stage-${i + 1}-${compName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`,
+        name: compName,
+        label: compName,
+        shape: isCenter ? 'torus' : i === componentNames.length - 1 ? 'cone' : 'cylinder',
+        dimensions: isCenter
+          ? [0.65, 0.24]
+          : i === componentNames.length - 1
+            ? [0.85, 1.0]
+            : [0.95 - i * 0.06, 0.55],
+        position: [+xPos.toFixed(2), 0.1, 0],
+        rotation: isCenter ? [0, Math.PI / 2, 0] : [0, 0, Math.PI / 2],
+        color: palette[i % palette.length],
+        material: isCenter ? 'glow' : isRotor ? 'metal' : 'copper',
+        connectedTo: i > 0 ? [`stage-${i}-${componentNames[i - 1].toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`] : undefined,
+        description:
+          researchRecord?.retrievedFacts?.[i % Math.max(1, researchRecord?.retrievedFacts?.length || 1)] ||
+          `Functional stage (${compName}) inside the ${formattedTitle} assembly.`,
+        whatIsIt: `Key structural component #${i + 1} of ${formattedTitle}.`,
+        whatDoesItDo: isRotor
+          ? `Rotates coaxially to transfer mechanical energy and momentum through ${formattedTitle}.`
+          : `Guides and transforms energy/fluid flux across stage ${i + 1}.`,
+        animation: isRotor
+          ? { type: 'spin', axis: 'x', speed: 3.2 + i * 0.4, amplitude: 0.1 }
+          : { type: 'pulse', axis: 'x', speed: 2.4, amplitude: 0.08 },
+      });
+    });
+  } else if (archetype === 'layered-cross-section') {
+    // Terraced vertical geological/anatomical cutaway strata + central conduit
+    componentNames.forEach((compName, i) => {
+      const yPos = -2.0 + i * 0.82;
+      const isConduit = /conduit|vent|channel|pipe|core|chamber/i.test(compName) || i === 2;
+      parts.push({
+        id: `layer-${i + 1}-${compName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`,
+        name: compName,
+        label: compName,
+        shape: isConduit ? 'cylinder' : i === componentNames.length - 1 ? 'sphere' : 'box',
+        dimensions: isConduit
+          ? [0.42, 3.2]
+          : i === componentNames.length - 1
+            ? [0.85]
+            : [4.8 - i * 0.55, 0.55, 3.4 - i * 0.35],
+        position: [0, isConduit ? -0.2 : +yPos.toFixed(2), isConduit ? 0.35 : 0],
+        color: palette[i % palette.length],
+        material: isConduit ? 'glow' : 'standard',
+        opacity: i === 3 ? 0.65 : 1.0,
+        description:
+          researchRecord?.retrievedFacts?.[i % Math.max(1, researchRecord?.retrievedFacts?.length || 1)] ||
+          `Stratified cross-sectional component (${compName}) of ${formattedTitle}.`,
+        whatIsIt: `Cross-sectional structural region (${compName}).`,
+        whatDoesItDo: `Forms horizon #${i + 1} in the internal cutaway structure of ${formattedTitle}.`,
+        animation:
+          isConduit || i === componentNames.length - 1
+            ? { type: 'pulse', axis: 'y', speed: 2.2, amplitude: 0.12 }
+            : undefined,
+      });
+    });
+  } else if (archetype === 'articulated-linkage') {
+    // Articulated kinematic chain with base, joints, links, and end-effector
+    componentNames.forEach((compName, i) => {
+      const isJoint = i % 2 === 1;
+      const xPos = -1.2 + i * 0.52;
+      const yPos = -1.85 + i * 0.62;
+      parts.push({
+        id: `link-${i + 1}-${compName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`,
+        name: compName,
+        label: compName,
+        shape: i === 0 ? 'box' : isJoint ? 'cylinder' : 'capsule',
+        dimensions: i === 0 ? [2.8, 0.38, 2.2] : isJoint ? [0.36, 0.7] : [0.22, 1.45],
+        position: [+xPos.toFixed(2), +yPos.toFixed(2), 0],
+        rotation: isJoint ? [Math.PI / 2, 0, 0] : [0, 0, -0.35 * i],
+        color: palette[i % palette.length],
+        material: 'metal',
+        description:
+          researchRecord?.retrievedFacts?.[i % Math.max(1, researchRecord?.retrievedFacts?.length || 1)] ||
+          `Articulated kinematic element (${compName}) of ${formattedTitle}.`,
+        whatIsIt: `Mechanical linkage stage #${i + 1} (${compName}).`,
+        whatDoesItDo: `Transmits torque and angular displacement along the kinematic chain of ${formattedTitle}.`,
+        animation:
+          i > 0
+            ? { type: 'oscillate', axis: 'z', speed: 1.8 + i * 0.2, amplitude: 0.18 }
+            : undefined,
+      });
+    });
+  } else if (archetype === 'tubular-flow-network') {
+    // Physiological / fluid tubular loop and capsule network
+    componentNames.forEach((compName, i) => {
+      const xPos = -2.4 + i * 0.95;
+      const yPos = i % 2 === 0 ? 0.85 : -0.45;
+      parts.push({
+        id: `vessel-${i + 1}-${compName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`,
+        name: compName,
+        label: compName,
+        shape: i === 1 ? 'sphere' : i % 2 === 0 ? 'torus' : 'cylinder',
+        dimensions: i === 1 ? [0.72] : i % 2 === 0 ? [0.62, 0.18] : [0.18, 2.3],
+        position: [+xPos.toFixed(2), +yPos.toFixed(2), 0],
+        color: palette[i % palette.length],
+        material: i === componentNames.length - 1 ? 'glow' : 'tissue',
+        description:
+          researchRecord?.retrievedFacts?.[i % Math.max(1, researchRecord?.retrievedFacts?.length || 1)] ||
+          `Physiological/fluid transport segment (${compName}) in ${formattedTitle}.`,
+        whatIsIt: `Tubular/vascular segment (${compName}).`,
+        whatDoesItDo: `Regulates selective transport, filtration, or circulation across ${formattedTitle}.`,
+        animation:
+          i === 1 || i === componentNames.length - 1
+            ? { type: 'pulse', axis: 'y', speed: 2.3, amplitude: 0.12 }
+            : undefined,
+      });
+    });
+  } else {
+    // Coupled dual-chamber / pressure-transfer apparatus
+    componentNames.forEach((compName, i) => {
+      const positions: [number, number, number][] = [
+        [0, -2.05, 0],
+        [-1.85, -0.5, 0],
+        [-1.85, 0.55, 0],
+        [0, -1.45, 0],
+        [1.85, -0.45, 0],
+        [1.85, 0.65, 0],
+      ];
+      const pos = positions[i % positions.length];
+      parts.push({
+        id: `chamber-${i + 1}-${compName.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`,
+        name: compName,
+        label: compName,
+        shape: i === 0 || i === 3 ? 'box' : 'cylinder',
+        dimensions:
+          i === 0
+            ? [5.6, 0.4, 2.6]
+            : i === 3
+              ? [3.6, 0.45, 0.9]
+              : i >= 4
+                ? [0.95, 1.7]
+                : [0.55, 1.6],
+        position: pos,
+        color: palette[i % palette.length],
+        material: i === 1 || i === 4 ? 'glass' : i === 3 ? 'liquid' : 'metal',
+        opacity: i === 1 || i === 4 ? 0.5 : 1.0,
+        description:
+          researchRecord?.retrievedFacts?.[i % Math.max(1, researchRecord?.retrievedFacts?.length || 1)] ||
+          `Coupled functional assembly (${compName}) of ${formattedTitle}.`,
+        whatIsIt: `Primary subsystem (${compName}) of ${formattedTitle}.`,
+        whatDoesItDo: `Couples input driving potential to output response across ${formattedTitle}.`,
+        animation:
+          i === 2 || i === 5
+            ? { type: 'oscillate', axis: 'y', speed: 1.9, amplitude: 0.28 }
+            : undefined,
+      });
+    });
+  }
+
+  const targetScalePartId = parts[Math.min(1, parts.length - 1)]?.id || parts[0]?.id;
+  const targetMotionPartId = parts[Math.min(2, parts.length - 1)]?.id || parts[0]?.id;
+
+  const researchDesc =
+    researchRecord?.retrievedFacts && researchRecord.retrievedFacts.length > 0
+      ? researchRecord.retrievedFacts.slice(0, 2).join(' ')
+      : `Interactive 3D scientific model of ${formattedTitle} constructed from its core structural components (${componentNames.slice(0, 4).join(', ')}).`;
 
   return {
-    id: `custom-ai-${formattedTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 36)}-${Date.now().toString(36).slice(-4)}`,
-    title: `${formattedTitle} (3D Interactive Model)`,
-    concept: `${subjectDomain} · ${formattedTitle}`,
-    description: `Custom interactive 3D scientific model of ${formattedTitle}. Explore the labeled structural components, inspect how each subassembly operates, and adjust the real-time parameters to observe dynamic physical and scientific behavior.`,
-    whatIsIt: `An interactive 3D multi-component scientific model illustrating the structure and working principles of ${formattedTitle}.`,
-    howDoesItWork: `The primary functional core interacts dynamically with the surrounding structural assemblies and energy/flow pathways. Adjusting the primary driving parameter modulates the kinematic rate, while scaling and cutaway controls reveal internal interactions.`,
-    realLifeExample: `Used across laboratory experiments, industrial engineering systems, and natural biological/physical processes involving ${formattedTitle}.`,
-    examConnection: `Focus on how structure determines function in ${formattedTitle}, and how conservation of energy/mass governs its dynamic response when input parameters change.`,
+    id: `custom-researched-${formattedTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 36)}`,
+    title: `${formattedTitle} — Interactive 3D Scientific Model`,
+    concept: `${formattedTitle} (${archetype.replace(/-/g, ' ')})`,
+    structuralArchetype: archetype,
+    description: researchDesc,
+    whatIsIt:
+      researchRecord?.retrievedFacts?.[0] ||
+      `A multi-part 3D scientific model illustrating the essential components and working mechanism of ${formattedTitle}.`,
+    howDoesItWork:
+      researchRecord?.extractedMechanism ||
+      researchRecord?.retrievedFacts?.[1] ||
+      `${formattedTitle} operates through coupled interactions among ${componentNames.slice(0, 4).join(', ')}. Adjusting the interactive parameters modulates the live kinematic rate and structural geometry.`,
+    realLifeExample: `Applied in scientific research, engineering systems, and educational analysis of ${formattedTitle}.`,
+    examConnection: `Identify each structural component (${componentNames.slice(0, 3).join(', ')}) and explain how changing the driving parameter alters the quantitative system output.`,
     functionalType: 'standard',
     simulationModel: 'predictive',
     prompt,
-    camera: { position: [0, 3.2, 8.2], target: [0, 0.2, 0] },
-    parts: [
-      {
-        id: 'apparatus-laboratory-base',
-        name: `${formattedTitle} Structural Mounting Base`,
-        label: 'Structural Base & Frame',
-        shape: 'box',
-        dimensions: [4.8, 0.35, 3.6],
-        position: [0, -1.85, 0],
-        color: '#334155',
-        material: 'metal',
-        description: `Precision reference base supporting the ${formattedTitle} assembly in 3D space.`,
-        whatIsIt: 'Primary structural foundation stage.',
-        whatDoesItDo: 'Anchors all mechanical and functional subassemblies in alignment.',
-      },
-      {
-        id: 'outer-containment-chamber',
-        name: `${formattedTitle} Outer Enclosure / Boundary Shell`,
-        label: 'Outer Boundary / Chamber',
-        shape: 'cylinder',
-        dimensions: [1.55, 2.6],
-        position: [0, -0.2, 0],
-        color: primaryColor,
-        material: 'glass',
-        opacity: 0.42,
-        description: `Translucent outer boundary housing of ${formattedTitle}, enabling direct visual inspection of internal mechanisms.`,
-        whatIsIt: 'Protective outer containment shell.',
-        whatDoesItDo: 'Defines the system boundary and isolates internal active components.',
-      },
-      {
-        id: 'primary-active-core',
-        name: `${formattedTitle} Primary Functional Core`,
-        label: 'Primary Active Core',
-        shape: 'sphere',
-        dimensions: [0.78],
-        position: [0, -0.1, 0],
-        color: accentColor,
-        material: 'glow',
-        description: `Central active hub of ${formattedTitle} where the primary energy conversion or scientific process occurs.`,
-        whatIsIt: 'Core operational element of the system.',
-        whatDoesItDo: 'Drives the primary physical, chemical, or biological transformation.',
-        animation: { type: 'pulse', axis: 'y', speed: 2.2, amplitude: 0.12 },
-      },
-      {
-        id: 'dynamic-rotor-ring',
-        name: `${formattedTitle} Dynamic Circulation / Flux Ring`,
-        label: 'Dynamic Flux / Circulation Ring',
-        shape: 'torus',
-        dimensions: [1.15, 0.12],
-        position: [0, -0.1, 0],
-        rotation: [Math.PI / 3, 0.2, 0],
-        color: '#facc15',
-        material: 'metal',
-        description: `Continuous dynamic pathway illustrating energy transfer, circulation, or field coupling around the core.`,
-        whatIsIt: 'Dynamic circulation and coupling loop.',
-        whatDoesItDo: 'Visualizes the rate and direction of active system flux as parameters change.',
-        animation: { type: 'spin', axis: 'y', speed: 2.0, amplitude: 0.15 },
-      },
-      {
-        id: 'input-conduit-assembly',
-        name: 'Primary Input Conduit / Regulator',
-        label: 'Input Feed / Regulator',
-        shape: 'cylinder',
-        dimensions: [0.22, 1.8],
-        position: [-1.65, 0.15, 0],
-        rotation: [0, 0, Math.PI / 2],
-        color: '#38bdf8',
-        material: 'metal',
-        description: `Input pathway delivering driving energy, signals, or reactants into the ${formattedTitle} core.`,
-        whatIsIt: 'Upstream input delivery assembly.',
-        whatDoesItDo: 'Regulates the incoming rate of energy or material entering the active zone.',
-      },
-      {
-        id: 'output-collector-assembly',
-        name: 'Secondary Output Collector / Sensor',
-        label: 'Output Collector / Transducer',
-        shape: 'cylinder',
-        dimensions: [0.22, 1.8],
-        position: [1.65, 0.15, 0],
-        rotation: [0, 0, Math.PI / 2],
-        color: '#10b981',
-        material: 'copper',
-        description: `Downstream collector measuring and transmitting the output response of ${formattedTitle}.`,
-        whatIsIt: 'Output transducer and delivery channel.',
-        whatDoesItDo: 'Extracts useful work, products, or signals from the primary core.',
-      },
-      {
-        id: 'axial-stabilizer-column',
-        name: 'Vertical Axial Column & Sensor Head',
-        label: 'Axial Control Column',
-        shape: 'cylinder',
-        dimensions: [0.16, 2.9],
-        position: [0, -0.2, 0],
-        color: '#cbd5e1',
-        material: 'metal',
-        description: 'Central vertical axis maintaining concentric alignment between the base, core, and upper sensor.',
-        whatIsIt: 'Central alignment shaft.',
-        whatDoesItDo: 'Supports rotational and oscillatory kinematics along the vertical axis.',
-      },
-    ],
+    camera: { position: [0, 2.8, 8.6], target: [0, 0, 0] },
+    parts,
     parameters: {
-      operatingRate: {
-        id: 'operatingRate',
-        name: 'Primary Operating Rate / Frequency',
+      drivingRate: {
+        id: 'drivingRate',
+        name: `${formattedTitle} Operating Rate / Input Drive`,
         min: 0.2,
         max: 5.0,
         step: 0.2,
         defaultValue: 2.0,
         unit: 'Hz',
-        description: `Controls the active process speed and dynamic circulation frequency in ${formattedTitle}.`,
+        description: `Controls the active kinematic velocity and process rate across ${formattedTitle}.`,
         affects: 'animationSpeed',
         scaleFactor: 1.0,
       },
-      coreAmplitudeScale: {
-        id: 'coreAmplitudeScale',
-        name: 'Active Core Intensity & Volume',
-        min: 0.6,
+      primaryGeometryScale: {
+        id: 'primaryGeometryScale',
+        name: `${componentNames[0] || 'Primary Assembly'} Scale Factor`,
+        min: 0.65,
         max: 1.5,
         step: 0.05,
         defaultValue: 1.0,
         unit: '×',
-        description: 'Scales the active core size and interaction magnitude.',
+        description: `Scales the geometric dimensions of ${componentNames[0] || 'the primary stage'}.`,
         affects: 'objectScale',
-        targetPartId: 'primary-active-core',
+        targetPartId: targetScalePartId,
         scaleFactor: 1.0,
       },
-      fluxOrientationAngle: {
-        id: 'fluxOrientationAngle',
-        name: 'Coupling Axis Orientation Angle',
-        min: -45,
-        max: 45,
-        step: 5,
+      stageDisplacement: {
+        id: 'stageDisplacement',
+        name: `${componentNames[1] || 'Active Stage'} Position / Stroke`,
+        min: -1.0,
+        max: 1.0,
+        step: 0.1,
         defaultValue: 0,
-        unit: '°',
-        description: 'Tilts the dynamic flux ring orientation relative to the central axis.',
-        affects: 'objectRotation',
-        targetPartId: 'dynamic-rotor-ring',
-        scaleFactor: 0.017,
+        unit: 'm',
+        description: `Displaces ${componentNames[1] || 'the active stage'} along its primary coordinate axis.`,
+        affects: 'objectPosition',
+        targetPartId: targetMotionPartId,
+        scaleFactor: 0.45,
       },
     },
     conditions: {
@@ -4361,17 +5809,21 @@ function synthesizeProceduralScientificModelInternal(prompt: string): Scientific
         name: 'Internal Cutaway Transparency',
         type: 'boolean',
         defaultValue: true,
-        description: 'Makes the outer enclosure translucent to inspect the internal core and flux ring.',
+        description: 'Toggles semi-transparent outer boundaries to inspect internal stages.',
       },
     },
-    equations: [
-      'P_out = η · P_in (System Energy Conversion & Efficiency Relation)',
-      'Φ(t) = Φ₀ · sin(2π · f · t) (Dynamic Harmonic Response)',
-    ],
+    equations:
+      researchRecord?.extractedEquations && researchRecord.extractedEquations.length > 0
+        ? researchRecord.extractedEquations
+        : [
+            'P_out = η · P_in (System Energy Conversion & Efficiency)',
+            'Φ(t) = Φ₀ · sin(2π · f · t) (Coupled Dynamic Response)',
+          ],
     curiosityPrompts: [
-      `How does each component of ${formattedTitle} contribute to its overall scientific function?`,
-      `What happens to the system output when the Primary Operating Rate is doubled?`,
-      `Where is ${formattedTitle} applied in real-world science and engineering?`,
+      `What is the primary scientific role of ${componentNames[0] || 'the first stage'} in ${formattedTitle}?`,
+      `How do ${componentNames[0] || 'the input stage'} and ${componentNames[1] || 'the active stage'} interact during operation?`,
+      `What happens to the quantitative output of ${formattedTitle} when the operating drive is doubled?`,
     ],
   };
 }
+

@@ -5628,6 +5628,121 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
             if (actinRight) actinRight.position.x = 1.9 - slideOffset;
             const heads = meshMap.get('myosin-heads');
             if (heads) heads.rotation.z = Math.sin(simTime * 4.5 * (atp / 5.0)) * 0.22 * (ca / 10.0);
+          } else if (modelSpec.id.includes('hydraulic-press')) {
+            const F1 = Number(parameters.inputForceN ?? 200);
+            const areaRatio = Math.max(2, Number(parameters.areaRatio ?? 10));
+            const strokePct = Number(parameters.plungerStrokePct ?? 50) / 100;
+            const cycleStroke = 0.5 + 0.5 * Math.sin(simTime * (1.2 + F1 / 250));
+            const activeStroke = 0.4 * strokePct + 0.6 * cycleStroke;
+            const d1 = activeStroke * 0.65; // Downward plunger travel
+            const d2 = d1 / Math.sqrt(areaRatio) * 1.15; // Upward slave ram travel (scaled for visibility)
+
+            const plunger = meshMap.get('input-plunger-piston');
+            if (plunger) plunger.position.y = 0.25 - d1;
+            const lever = meshMap.get('actuating-pump-lever');
+            if (lever) {
+              lever.position.y = 1.15 - d1;
+              lever.rotation.z = 1.18 + d1 * 0.35;
+            }
+            const ram = meshMap.get('output-hydraulic-ram');
+            const radiusScale = Math.max(0.8, Math.min(1.35, Math.sqrt(areaRatio / 10)));
+            if (ram) {
+              ram.position.y = -0.25 + d2;
+              ram.scale.set(radiusScale, 1, radiusScale);
+            }
+            const slaveCyl = meshMap.get('output-slave-cylinder');
+            if (slaveCyl) {
+              slaveCyl.scale.set(radiusScale, 1, radiusScale);
+            }
+            const billet = meshMap.get('workpiece-compression-billet');
+            if (billet) {
+              const compressY = Math.max(0.55, 1.0 - d2 * 0.65);
+              const bulgeXZ = 1.0 / Math.sqrt(compressY);
+              billet.position.y = 0.85 + d2 * 0.5;
+              billet.scale.set(bulgeXZ, compressY, bulgeXZ);
+            }
+          } else if (modelSpec.id.includes('robotic-arm')) {
+            const azimDeg = Number(parameters.baseAzimuthDeg ?? 0);
+            const shDeg = Number(parameters.shoulderPitchDeg ?? 18);
+            const elDeg = Number(parameters.elbowPitchDeg ?? 25);
+            const gripMm = Number(parameters.gripperApertureMm ?? 45);
+            const cyclic = Boolean(conditions.internalView ?? true);
+
+            const dynAzim = cyclic ? Math.sin(simTime * 0.9) * 18 : 0;
+            const dynSh = cyclic ? Math.sin(simTime * 1.35) * 14 : 0;
+            const dynEl = cyclic ? Math.cos(simTime * 1.35) * 18 : 0;
+
+            const theta1 = ((azimDeg + dynAzim) * Math.PI) / 180;
+            const theta2 = ((shDeg + dynSh) * Math.PI) / 180;
+            const theta3 = ((elDeg + dynEl) * Math.PI) / 180;
+
+            // Base origin at (-0.8, -1.0, 0)
+            const ox = -0.8;
+            const oy = -1.0;
+            const L1 = 1.85;
+            const L2 = 1.6;
+
+            const turret = meshMap.get('waist-azimuth-turret-j1');
+            if (turret) turret.rotation.y = theta1;
+
+            const shJoint = meshMap.get('shoulder-servo-joint-j2');
+            if (shJoint) shJoint.rotation.y = theta1;
+
+            // Elbow position in 3D from shoulder pitch theta2 and waist yaw theta1
+            const r1 = L1 * Math.sin(theta2);
+            const y1 = oy + L1 * Math.cos(theta2);
+            const x1 = ox + r1 * Math.cos(theta1);
+            const z1 = -r1 * Math.sin(theta1);
+
+            const link1 = meshMap.get('lower-humeral-link-l1');
+            if (link1) {
+              link1.position.set((ox + x1) / 2, (oy + y1) / 2, z1 / 2);
+              link1.rotation.set(0, theta1, -theta2);
+            }
+
+            const elJoint = meshMap.get('elbow-servo-joint-j3');
+            if (elJoint) {
+              elJoint.position.set(x1, y1, z1);
+              elJoint.rotation.set(Math.PI / 2, theta1, 0);
+            }
+
+            // Wrist position in 3D from cumulative pitch (theta2 + theta3 + 50 deg nominal forearm bend)
+            const totalPitch = theta2 + theta3 + 0.85;
+            const r2 = r1 + L2 * Math.sin(totalPitch);
+            const y2 = y1 + L2 * Math.cos(totalPitch);
+            const x2 = ox + r2 * Math.cos(theta1);
+            const z2 = -r2 * Math.sin(theta1);
+
+            const link2 = meshMap.get('upper-forearm-link-l2');
+            if (link2) {
+              link2.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+              link2.rotation.set(0, theta1, -totalPitch);
+            }
+
+            const wrist = meshMap.get('wrist-roll-pitch-unit-j4');
+            if (wrist) {
+              wrist.position.set(x2, y2, z2);
+            }
+
+            const halfGap = Math.max(0.08, (gripMm / 1000) * 4.5);
+            const jawL = meshMap.get('gripper-finger-left');
+            if (jawL) {
+              jawL.position.set(
+                x2 + 0.22 * Math.cos(theta1) - halfGap * Math.sin(theta1),
+                y2 - 0.28,
+                z2 - 0.22 * Math.sin(theta1) + halfGap * Math.cos(theta1)
+              );
+              jawL.rotation.y = theta1;
+            }
+            const jawR = meshMap.get('gripper-finger-right');
+            if (jawR) {
+              jawR.position.set(
+                x2 + 0.22 * Math.cos(theta1) + halfGap * Math.sin(theta1),
+                y2 - 0.28,
+                z2 - 0.22 * Math.sin(theta1) - halfGap * Math.cos(theta1)
+              );
+              jawR.rotation.y = theta1;
+            }
           } else {
             modelSpec.parts.forEach((part, partIdx) => {
               const mesh = meshMap.get(part.id);
@@ -8474,6 +8589,106 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                               </div>
                             </div>
                           );
+                        })() : modelSpec.id.includes('hydraulic-press') ? (() => {
+                          const F1 = Number(parameters.inputForceN ?? 200);
+                          const ratio = Number(parameters.areaRatio ?? 10);
+                          const strokePct = Number(parameters.plungerStrokePct ?? 50);
+                          const F2 = F1 * ratio;
+                          const pressureKpa = (F1 / 0.002) / 1000;
+                          const d1Cm = (strokePct / 100) * 12.0;
+                          const d2Cm = d1Cm / ratio;
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Multiplied Output Force F₂</span>
+                                <strong className="text-emerald-300">{F2.toFixed(0)} N ({ratio}× MA)</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Hydrostatic Pressure P</span>
+                                <strong className="text-sky-300">{pressureKpa.toFixed(1)} kPa</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Stroke Displacement d₁ ➔ d₂</span>
+                                <strong className="text-amber-300">{d1Cm.toFixed(1)} cm ➔ {d2Cm.toFixed(2)} cm</strong>
+                              </div>
+                            </div>
+                          );
+                        })() : modelSpec.id.includes('kidney-nephron') ? (() => {
+                          const Pgc = Number(parameters.glomerularPressureMmHg ?? 55);
+                          const osm = Number(parameters.medullaryGradientMOsM ?? 900);
+                          const adh = Number(parameters.adhHormoneLevelPct ?? 60);
+                          const nfp = Math.max(0, Pgc - 15 - 30);
+                          const gfr = nfp * 12.5;
+                          const urineOsm = Math.round(100 + (osm - 100) * (adh / 100));
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Net Filtration Pressure NFP</span>
+                                <strong className="text-sky-300">{nfp.toFixed(1)} mmHg</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Glomerular Filtration GFR</span>
+                                <strong className="text-emerald-300">{gfr.toFixed(1)} mL/min</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Final Urine Osmolarity</span>
+                                <strong className="text-amber-300">{urineOsm} mOsm/L (ADH {adh}%)</strong>
+                              </div>
+                            </div>
+                          );
+                        })() : modelSpec.id.includes('jet-engine') ? (() => {
+                          const thr = Number(parameters.throttleRpmPct ?? 75);
+                          const opr = Number(parameters.pressureRatioOpr ?? 32);
+                          const bpr = Number(parameters.bypassRatioBpr ?? 8.0);
+                          const etaBrayton = (1 - Math.pow(opr, -0.2857)) * 100;
+                          const netThrustKn = (thr / 100) * (120 + bpr * 22) * (opr / 30);
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Net Turbofan Thrust F</span>
+                                <strong className="text-emerald-300">{netThrustKn.toFixed(1)} kN</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Brayton Thermal Efficiency η</span>
+                                <strong className="text-sky-300">{etaBrayton.toFixed(1)}% (OPR {opr}:1)</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Bypass Mass Ratio</span>
+                                <strong className="text-amber-300">{bpr.toFixed(1)}:1 • Throttle {thr}%</strong>
+                              </div>
+                            </div>
+                          );
+                        })() : modelSpec.id.includes('robotic-arm') ? (() => {
+                          const az = Number(parameters.baseAzimuthDeg ?? 0);
+                          const sh = Number(parameters.shoulderPitchDeg ?? 18);
+                          const el = Number(parameters.elbowPitchDeg ?? 25);
+                          const grip = Number(parameters.gripperApertureMm ?? 45);
+                          const t1 = (az * Math.PI) / 180;
+                          const t2 = (sh * Math.PI) / 180;
+                          const t3 = (el * Math.PI) / 180;
+                          const reachR = 1.85 * Math.sin(t2) + 1.6 * Math.sin(t2 + t3 + 0.85);
+                          const eeX = -0.8 + reachR * Math.cos(t1);
+                          const eeY = -1.0 + 1.85 * Math.cos(t2) + 1.6 * Math.cos(t2 + t3 + 0.85);
+                          const eeZ = -reachR * Math.sin(t1);
+                          const torqueNm = Math.abs(45 * Math.sin(t2) + 28 * Math.sin(t2 + t3 + 0.85)) + 12;
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">End-Effector Coordinates</span>
+                                <strong className="text-sky-300">
+                                  ({eeX.toFixed(2)}, {eeY.toFixed(2)}, {eeZ.toFixed(2)}) m
+                                </strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Shoulder Holding Torque τ₂</span>
+                                <strong className="text-amber-300">{torqueNm.toFixed(1)} N·m</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Gripper Jaw Aperture</span>
+                                <strong className="text-emerald-300">{grip} mm ({grip < 25 ? 'Clamped' : 'Open'})</strong>
+                              </div>
+                            </div>
+                          );
                         })() : (
                           <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
                             {Object.values(modelSpec.parameters).slice(0, 4).map((param) => {
@@ -8493,20 +8708,53 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                       </div>
                     )}
 
-                    {/* Structured Internal Scientific Concept Specification */}
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
-                      <div className="flex items-center justify-between flex-wrap gap-1">
+                    {/* Phase 8: Research Transparency & Model Validation Panel */}
+                    <div
+                      data-testid="research-transparency-panel"
+                      className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-sky-600" />
-                          <span>Scientific Concept Specification</span>
+                          <span>Research & Scientific Specification</span>
                         </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">
-                          {sciSpec.scientificDomain}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            data-testid="research-status-badge"
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                              (modelSpec.researchRecord?.status || sciSpec.researchStatus) === 'web-researched'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {(modelSpec.researchRecord?.status || sciSpec.researchStatus) === 'web-researched'
+                              ? `Web-researched (${(modelSpec.researchRecord?.sources || sciSpec.researchSources || []).length} ref)`
+                              : 'Knowledge-based'}
+                          </span>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">
+                            {sciSpec.scientificDomain}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-slate-600 leading-relaxed">
-                        <strong className="text-slate-800">Interpretation:</strong> {sciSpec.chosenInterpretation}
-                      </p>
+
+                      <div className="space-y-1 text-[11px] text-slate-600 leading-relaxed">
+                        <p>
+                          <strong className="text-slate-800">Requested Concept:</strong>{' '}
+                          <span className="font-medium text-slate-900">{modelSpec.prompt || modelSpec.title}</span>
+                          {sciSpec.modelCategory ? ` (${sciSpec.modelCategory})` : ''}
+                        </p>
+                        <p>
+                          <strong className="text-slate-800">Structure & Interpretation:</strong>{' '}
+                          {sciSpec.chosenInterpretation}
+                        </p>
+                        {sciSpec.governingBehavior && (
+                          <p>
+                            <strong className="text-slate-800">Working Mechanism:</strong>{' '}
+                            {sciSpec.governingBehavior}
+                          </p>
+                        )}
+                      </div>
+
                       {sciSpec.governingEquations && sciSpec.governingEquations.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 pt-0.5">
                           {sciSpec.governingEquations.slice(0, 3).map((eq, idx) => (
@@ -8519,9 +8767,77 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                           ))}
                         </div>
                       )}
-                      {sciSpec.limitations && sciSpec.limitations.length > 0 && (
+
+                      {/* Retrieved Scientific Evidence & Verifiable Web Sources */}
+                      {(() => {
+                        const sources = modelSpec.researchRecord?.sources || sciSpec.researchSources || [];
+                        const facts = modelSpec.researchRecord?.retrievedFacts || sciSpec.retrievedFacts || [];
+                        const checks = modelSpec.validationReport?.checks || [];
+                        return (
+                          <div className="space-y-2 pt-1 border-t border-slate-200/70">
+                            {facts.length > 0 && (
+                              <div className="text-[11px] text-slate-600 space-y-1">
+                                <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-wider">
+                                  Extracted Scientific Findings:
+                                </span>
+                                <ul className="list-disc pl-4 space-y-0.5">
+                                  {facts.slice(0, 2).map((fact, idx) => (
+                                    <li key={idx} className="leading-snug">
+                                      {fact}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {sources.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="font-bold text-slate-800 block text-[10px] uppercase tracking-wider">
+                                  Verified Research Sources:
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {sources.map((src, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={src.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white border border-slate-200 hover:border-sky-400 text-[10px] font-medium text-sky-700 hover:text-sky-900 transition-colors"
+                                      title={src.snippet}
+                                    >
+                                      <span>{src.title}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {checks.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                {checks.map((chk) => (
+                                  <span
+                                    key={chk.id}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
+                                      chk.passed
+                                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/70'
+                                        : 'bg-amber-50 text-amber-800 border border-amber-200/70'
+                                    }`}
+                                    title={chk.detail}
+                                  >
+                                    <Check className="w-2.5 h-2.5" />
+                                    <span>{chk.label}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {sciSpec.limitations && (
                         <p className="text-[10px] text-slate-500 leading-snug pt-0.5">
-                          <strong className="text-slate-700">Assumptions & Scope:</strong> {sciSpec.limitations[0]}
+                          <strong className="text-slate-700">Assumptions & Scope:</strong>{' '}
+                          {Array.isArray(sciSpec.limitations) ? sciSpec.limitations[0] : sciSpec.limitations}
                         </p>
                       )}
                     </div>

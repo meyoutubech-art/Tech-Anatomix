@@ -9,6 +9,9 @@ import {
   buildScientificConceptSpecification,
   isSpecializedProceduralConcept,
 } from '../utils/proceduralModelSynthesizer';
+import { performScientificWebResearch } from './scientificResearchService';
+import { validateResearchGroundedModel } from '../utils/modelValidator';
+import { ResearchRecord } from '../types/aiModel';
 
 let ai: GoogleGenAI | null = null;
 let currentKey = '';
@@ -954,13 +957,14 @@ export function matchVerifiedScientificModel(query: string): any | null {
     return CURATED_AI_MODELS.pendulum;
   }
   if (
-    combined.includes('motor') ||
-    combined.includes('electric motor') ||
-    combined.includes('armature') ||
-    combined.includes('stator') ||
-    combined.includes('rotor') ||
-    combined.includes('lorentz') ||
-    combined.includes('commutator')
+    (combined.includes('dc motor') ||
+      combined.includes('electric motor') ||
+      combined.includes('armature') ||
+      combined.includes('commutator')) &&
+    !combined.includes('custom') &&
+    !combined.includes('brushless') &&
+    !combined.includes('stepper') &&
+    !combined.includes('servo')
   ) {
     return CURATED_AI_MODELS.motor;
   }
@@ -1012,15 +1016,6 @@ export function matchVerifiedScientificModel(query: string): any | null {
     return CURATED_AI_MODELS.water;
   }
   if (
-    combined.includes('nephron') ||
-    combined.includes('kidney') ||
-    combined.includes('renal') ||
-    combined.includes('glomerulus') ||
-    combined.includes('loop of henle')
-  ) {
-    return CURATED_AI_MODELS.nephron;
-  }
-  if (
     combined.includes('heart') ||
     combined.includes('cardiac') ||
     combined.includes('ventricle') ||
@@ -1053,15 +1048,14 @@ export function matchVerifiedScientificModel(query: string): any | null {
     combined.includes('incline') ||
     combined.includes('ramp') ||
     combined.includes('slope') ||
-    (combined.includes('friction') && !combined.includes('circuit'))
+    (combined.includes('friction') && !combined.includes('circuit') && !combined.includes('brake'))
   ) {
     return CURATED_AI_MODELS.inclinedPlane;
   }
   if (
-    combined.includes('hydraulic') ||
-    combined.includes('pascal') ||
-    combined.includes('piston') ||
-    combined.includes('hydraulic lift')
+    combined.includes('hydraulic lift') ||
+    combined.includes('hydraulic jack') ||
+    (combined.includes('hydraulic') && combined.includes('lift'))
   ) {
     return CURATED_AI_MODELS.hydraulicLift;
   }
@@ -1369,13 +1363,20 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
     subjectDomain: raw.subjectDomain || undefined,
   };
 
+  sanitizedSpec.researchRecord = raw.researchRecord || undefined;
+  sanitizedSpec.validationReport = validateResearchGroundedModel(
+    prompt,
+    sanitizedSpec,
+    sanitizedSpec.researchRecord
+  );
   sanitizedSpec.scientificSpecification =
-    raw.scientificSpecification || buildScientificConceptSpecification(prompt, sanitizedSpec);
+    raw.scientificSpecification ||
+    buildScientificConceptSpecification(prompt, sanitizedSpec, sanitizedSpec.researchRecord);
 
   return sanitizedSpec;
 }
 
-// 1. Generate 3D Model with Model Fallback + Procedural Scientific 3D Synthesizer
+// 1. Generate 3D Model with Research-First Pipeline + Model Fallback + Procedural Scientific 3D Synthesizer
 export async function generate3DModel(
   userQuery: string,
   options?: { forceFresh?: boolean; requestId?: string }
@@ -1400,15 +1401,31 @@ export async function generate3DModel(
     }
   }
 
-  // 2. Specialized Procedural Scientific Concept Blueprints (Double Pendulum, Atwood Machine, Solenoid, CRT, Cyclotron, Synapse, Replication Fork, ATP Synthase, Sarcomere, VSEPR Molecules, etc.)
+  const aiClient = getAiClient();
+
+  // 2. PHASE 2 — REAL WEB RESEARCH
+  // Perform live scientific web research (Wikipedia MediaWiki API + Gemini Search Grounding)
+  // before building the specification or 3D model.
+  const researchRecord = await performScientificWebResearch(userQuery, aiClient);
+
+  // 3. Specialized Procedural Scientific Concept Blueprints (Double Pendulum, Atwood Machine, Hydraulic Press, Nephron, Jet Engine, Volcano, Robotic Arm, Wind Turbine, Hydraulic Brake, Solenoid, CRT, Cyclotron, Synapse, Replication Fork, ATP Synthase, Sarcomere, VSEPR Molecules, etc.)
   if (!options?.forceFresh && isSpecializedProceduralConcept(userQuery)) {
-    const specializedSpec = synthesizeProceduralScientificModel(userQuery);
+    const specializedSpec = synthesizeProceduralScientificModel(userQuery, researchRecord);
+    const validationReport = validateResearchGroundedModel(
+      userQuery,
+      specializedSpec,
+      researchRecord
+    );
     const spec = {
       ...specializedSpec,
       prompt: userQuery,
-      scientificSpecification:
-        specializedSpec.scientificSpecification ||
-        buildScientificConceptSpecification(userQuery, specializedSpec),
+      researchRecord,
+      validationReport,
+      scientificSpecification: buildScientificConceptSpecification(
+        userQuery,
+        specializedSpec,
+        researchRecord
+      ),
     };
     modelCache.set(normKey, { spec, timestamp: Date.now() });
     return {
@@ -1420,17 +1437,26 @@ export async function generate3DModel(
     };
   }
 
-  // 3. Verified Model Template Router (Only when not forcing a custom fresh synthesis)
+  // 4. Verified Model Template Router (Only when not forcing a custom fresh synthesis)
   if (!options?.forceFresh) {
     const verifiedMatch = matchVerifiedScientificModel(userQuery);
     if (verifiedMatch) {
+      const validationReport = validateResearchGroundedModel(
+        userQuery,
+        verifiedMatch,
+        researchRecord
+      );
       const spec = {
         ...verifiedMatch,
         prompt: userQuery,
         generationSource: 'curated-preset' as const,
-        scientificSpecification:
-          verifiedMatch.scientificSpecification ||
-          buildScientificConceptSpecification(userQuery, verifiedMatch),
+        researchRecord,
+        validationReport,
+        scientificSpecification: buildScientificConceptSpecification(
+          userQuery,
+          verifiedMatch,
+          researchRecord
+        ),
       };
       modelCache.set(normKey, { spec, timestamp: Date.now() });
       return {
@@ -1443,17 +1469,25 @@ export async function generate3DModel(
     }
   }
 
-  const aiClient = getAiClient();
   if (!aiClient) {
-    // Synthesize custom multi-part 3D model using the Procedural Scientific 3D Synthesizer
-    const synthesized = findCuratedFallback(userQuery, options?.forceFresh);
+    // Synthesize custom multi-part 3D model using the Research-Driven Procedural Scientific 3D Synthesizer
+    const synthesized = findCuratedFallback(userQuery, options?.forceFresh, researchRecord);
+    const validationReport = validateResearchGroundedModel(
+      userQuery,
+      synthesized,
+      researchRecord
+    );
     const spec = {
       ...synthesized,
       prompt: userQuery,
       generationSource: synthesized.generationSource || ('procedural-synthesizer' as const),
-      scientificSpecification:
-        synthesized.scientificSpecification ||
-        buildScientificConceptSpecification(userQuery, synthesized),
+      researchRecord,
+      validationReport,
+      scientificSpecification: buildScientificConceptSpecification(
+        userQuery,
+        synthesized,
+        researchRecord
+      ),
     };
     modelCache.set(normKey, { spec, timestamp: Date.now() });
     return {
@@ -1465,16 +1499,24 @@ export async function generate3DModel(
     };
   }
 
-  const systemInstruction = `You are Tech-Anatomix's Structured 3D Scientific Model Synthesizer.
-Translate the user's scientific prompt into a valid, rich, modular 3D model specification to be rendered with Three.js in WebGL.
+  const researchContextPrompt = `
+RESEARCH EVIDENCE FOR "${userQuery}" (Status: ${researchRecord.status}):
+- Extracted Essential Components: ${researchRecord.extractedComponents.join(', ') || 'Infer topic-specific scientific components'}
+- Retrieved Scientific Facts:
+${researchRecord.retrievedFacts.map((f, i) => `  ${i + 1}. ${f}`).join('\n')}
+${researchRecord.extractedEquations?.length ? `- Governing Equations: ${researchRecord.extractedEquations.join(' ; ')}` : ''}
+`;
+
+  const systemInstruction = `You are Tech-Anatomix's Research-First 3D Scientific Model Synthesizer.
+Translate the user's scientific prompt and the retrieved research evidence into a valid, rich, modular 3D model specification to be rendered with Three.js in WebGL.
 
 SCIENTIFIC MODEL INTEGRITY RULES:
-1. Provide between 6 and 12 recognizable, logically assembled components positioned in 3D coordinate space around [0,0,0].
-2. NO FLOATING OBJECTS: Every component must connect physically or spatially to a mounting base, stand, pivot, axle, molecular bond, or biological membrane.
-3. REAL RELATIVE PROPORTIONS: Respect authentic scale relationships between parts (e.g. telescope tube length vs lens diameter, motor axle vs armature, molecular bond lengths and angles, cell nucleus vs organelles).
-4. SCIENTIFIC MATERIALS: Use authentic PBR materials: "metal" (conductors/hardware), "copper" (windings), "glass" (lenses/membranes/vessels), "rubber" (seals/insulators), "tissue" (muscles/organs), "liquid" (fluids/cytoplasm), "bone" (skeletal/supports), "glow" (energy/photons/signals), "plastic", "standard".
-5. ASSIGN FUNCTIONAL TYPE: If the model represents an established preset mechanism, set "functionalType" accordingly, or "standard" for custom assemblies so every part in "parts" is rendered with full animations and interactive parameters.
-6. EXPERIMENT PARAMETERS: Provide 2-4 interactive parameters with real units and ranges (e.g. speed, angle, length, voltage, temperature) that affect "animationSpeed", "objectScale", "objectRotation", or "objectPosition".
+1. Provide between 6 and 12 recognizable, logically assembled components positioned in 3D coordinate space around [0,0,0] that match the exact requested topic and retrieved research components.
+2. NEVER generate a generic hub-and-spoke pedestal or reuse unrelated components.
+3. NO FLOATING OBJECTS: Every component must connect physically or spatially to a mounting base, stand, pivot, axle, molecular bond, or biological membrane.
+4. REAL RELATIVE PROPORTIONS: Respect authentic scale relationships between parts.
+5. SCIENTIFIC MATERIALS: Use authentic PBR materials: "metal", "copper", "glass", "rubber", "tissue", "liquid", "bone", "glow", "plastic", "standard".
+6. EXPERIMENT PARAMETERS: Provide 2-4 interactive parameters with real units and ranges that affect "animationSpeed", "objectScale", "objectRotation", or "objectPosition".
 
 Return ONLY a valid strict JSON object matching this schema:
 {
@@ -1553,25 +1595,27 @@ Return ONLY a valid strict JSON object matching this schema:
     async (modelId) => {
       const response = await aiClient.models.generateContent({
         model: modelId,
-        contents: `Create a comprehensive 6-to-12-part interactive 3D scientific model for: "${userQuery}". Ensure accurate 3D component coordinates, distinct colors/materials, part-level educational explanations, animations, and interactive parameters.`,
+        contents: `Create a comprehensive 6-to-12-part interactive 3D scientific model for: "${userQuery}".\n${researchContextPrompt}\nEnsure accurate 3D component coordinates, distinct colors/materials, part-level educational explanations, animations, and interactive parameters.`,
         config: {
           systemInstruction,
           responseMimeType: 'application/json',
-          temperature: options?.forceFresh ? 0.4 : 0.25,
+          temperature: options?.forceFresh ? 0.35 : 0.2,
         },
       });
 
       const rawJson = cleanJsonText(response.text || '{}');
       const parsed = JSON.parse(rawJson);
+      parsed.researchRecord = researchRecord;
       const sanitized = validateAndSanitizeModelSpec(parsed, userQuery);
 
-      if (!sanitized || sanitized.parts.length < 4) {
-        throw new Error('Model spec returned insufficient parts or failed validation criteria');
+      if (!sanitized || sanitized.parts.length < 5 || !sanitized.validationReport?.isValid) {
+        throw new Error('Model spec returned insufficient parts or failed research validation criteria');
       }
 
       return {
         ...sanitized,
         generationSource: 'ai-live' as const,
+        researchRecord,
       };
     },
     15000,
@@ -1591,15 +1635,24 @@ Return ONLY a valid strict JSON object matching this schema:
     };
   }
 
-  // Synthesize rich procedural 3D scientific model tailored to the prompt
-  const fallbackModel = findCuratedFallback(userQuery, options?.forceFresh);
+  // Synthesize rich research-grounded procedural 3D scientific model tailored to the prompt
+  const fallbackModel = findCuratedFallback(userQuery, options?.forceFresh, researchRecord);
+  const validationReport = validateResearchGroundedModel(
+    userQuery,
+    fallbackModel,
+    researchRecord
+  );
   const finalModel = {
     ...fallbackModel,
     prompt: userQuery,
     generationSource: fallbackModel.generationSource || ('procedural-synthesizer' as const),
-    scientificSpecification:
-      fallbackModel.scientificSpecification ||
-      buildScientificConceptSpecification(userQuery, fallbackModel),
+    researchRecord,
+    validationReport,
+    scientificSpecification: buildScientificConceptSpecification(
+      userQuery,
+      fallbackModel,
+      researchRecord
+    ),
   };
   modelCache.set(normKey, { spec: finalModel, timestamp: Date.now() });
   return {
@@ -1611,22 +1664,29 @@ Return ONLY a valid strict JSON object matching this schema:
   };
 }
 
-export function findCuratedFallback(query: string, forceFresh?: boolean): any {
+export function findCuratedFallback(
+  query: string,
+  forceFresh?: boolean,
+  researchRecord?: ResearchRecord
+): any {
   if (!forceFresh && !isSpecializedProceduralConcept(query)) {
     const verified = matchVerifiedScientificModel(query);
     if (verified) {
       return {
         ...verified,
         generationSource: 'curated-preset',
-        scientificSpecification:
-          verified.scientificSpecification ||
-          buildScientificConceptSpecification(query, verified),
+        researchRecord,
+        scientificSpecification: buildScientificConceptSpecification(
+          query,
+          verified,
+          researchRecord
+        ),
       };
     }
   }
 
-  // Synthesize a complete, multi-part, interactive 3D scientific model tailored to the user's prompt
-  return synthesizeProceduralScientificModel(query);
+  // Synthesize a complete, multi-part, interactive 3D scientific model tailored to the user's prompt & research
+  return synthesizeProceduralScientificModel(query, researchRecord);
 }
 
 // 2. Chat with Lab Mentor
