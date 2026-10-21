@@ -1,0 +1,35 @@
+import './modelGenerationReliability.test';
+import './modelsBatch2.test';
+import './modelsBatch3.test';
+import './modelsBatch4.test';
+import './labelVisibility.test';
+import './offlinePresetVerification.test';
+import './modelsBatch5Restoration.test';
+import './frogAnatomy.test';
+import './humanAnatomy.test';
+import './humanVirtualDissection.test';
+import './presentationGenerator.test';
+import './modelRefinementPart1.test';
+import './modelRefinementPart2.test';
+import './modelRefinementPart3HeatTransfer.test';
+import './modelRefinementPart4ElectricBell.test';
+import './chemicalReactionsLabUpgrade.test';
+import './modelRefinementPart5BloodTransport.test';
+import './modelCleanupPart6.test';
+import './modelViewerLayoutFix.test';
+import './externalModelAiWorkspace.test';
+import './universal3DModelPositionController.test';
+import './sketchfabCapabilityAudit.test';
+import './humanDissectionRefinements.test';
+import './chemistryLabAuditAndRepair.test';
+import './advancedPhysicsBatch1.test';
+import './viewerUiCleanupAndHighlighting.test';
+import './advancedPhysicsBatch2.test';
+import './preBatch1VisualUpgrade.test';
+import './advancedPhysicsBatch3.test';
+import './advancedPhysicsBatch4.test';
+import './chemistryBatch1.test';
+import './chemistryBatch2.test';
+import './canonicalDisplayNames.test';
+
+

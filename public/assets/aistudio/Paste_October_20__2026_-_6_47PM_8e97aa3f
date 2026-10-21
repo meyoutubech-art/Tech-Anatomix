@@ -1,0 +1,814 @@
+TECH-ANATOMIX: DISECT YOUR CELL!
+
+MASTER IMPLEMENTATION PROMPT — CHEMISTRY BATCH 2
+
+Proposed Models 76–82 | Chemical Kinetics, Equilibrium, Reaction Energetics, Catalysis, Titration and Solubility
+
+Continue working on my existing Tech-Anatomix: Disect Your Cell! project in Google AI Studio. You already know the project's identity, codebase and established architecture. Extend the existing application directly; do not create a separate application or rebuild the project from scratch.
+
+Implement seven advanced, interactive Chemistry laboratories corresponding to the proposed Models 76–82.
+
+These are proposed IDs only. The actual registry must be inspected before implementation.
+
+The goal is to create scientifically meaningful, high-quality interactive 3D educational laboratories with working controls, correct equations, dynamic calculations, clear component selection, detailed explanations and smooth performance.
+
+Do not produce seven static illustrations. Every model must provide meaningful interaction and a working scientific learning experience.
+
+---
+
+PHASE 1 — MANDATORY CODEBASE AND DUPLICATE AUDIT
+
+1.1 Inspect the actual application
+
+Before modifying any code, inspect the existing project and establish how its models, registry, rendering components, Parameter Panel, Details system, animations, chemical reactions and shared viewer controls work.
+
+Inspect:
+
+- The complete model registry and all existing model IDs.
+- All Chemistry models implemented in earlier batches, including the proposed Batch 1 concepts.
+- Existing chemical reaction demonstrations and reaction-energy visualizations.
+- Existing molecular, atomic, particle, laboratory and graph visualizations.
+- Existing kinetic, equilibrium, titration, acid–base and solubility functionality.
+- Existing component naming, component selection, highlighting and explanation conventions.
+- The existing Three.js scene lifecycle, camera controls, materials and animation management.
+- Existing educational interfaces, formula displays, sliders, input validation and graphing utilities.
+
+Search the actual implementation rather than relying only on model titles or navigation labels. A concept may already exist under a different name or inside a broader laboratory.
+
+1.2 Duplicate-exclusion rules
+
+Audit every proposed model in this prompt individually.
+
+If an identical or substantially similar implementation already exists:
+
+1. Exclude that concept from this new batch.
+2. Do not implement it again under a new title or ID.
+3. Do not delete, rename, disable or overwrite the existing model.
+4. Select a genuinely different Chemistry concept as its replacement.
+5. Audit the replacement against the entire registry before implementation.
+6. Record the excluded concept, the existing model covering it and the replacement selected.
+
+A shared subject alone does not automatically mean duplication. Two models may coexist when their scientific objectives and interactive learning experiences are genuinely different.
+
+If an existing model is partially implemented, inspect its current functionality before making a decision. Do not overwrite it merely because it is unfinished.
+
+The target is seven distinct and functional Chemistry laboratories, not seven compulsory copies of the proposed concepts.
+
+1.3 Registry integrity
+
+The proposed IDs 76–82 are not permission to overwrite existing entries.
+
+- Inspect the actual registry before assigning IDs.
+- Preserve every existing model ID and registry entry.
+- Follow the project's established ID convention if a proposed ID is occupied.
+- Update all required imports, registry references and metadata.
+- Register each new model exactly once.
+- Avoid duplicate aliases and parallel registries.
+
+Perform the audit and continue directly into implementation in the same task unless a genuine technical blocker prevents safe progress.
+
+---
+
+PHASE 2 — DETAILED MODEL SPECIFICATIONS
+
+Implement each concept below only if it passes the duplicate audit. If a replacement is necessary, apply the same standards of scientific accuracy, interactive 3D visualization, working calculations and educational depth to the replacement.
+
+MODEL 76 — CHEMICAL KINETICS SIMULATOR
+
+Core objective
+
+Build an interactive laboratory explaining how reaction rates depend on concentration, temperature, catalysts and other relevant conditions.
+
+The experience should connect the microscopic behaviour of reacting particles with macroscopic concentration-time graphs and reaction-rate calculations.
+
+A. 3D reaction environment
+
+Create a bounded reaction vessel containing a controlled population of reactant particles and, where appropriate, product particles.
+
+Include:
+
+- Clearly differentiated reactant and product species.
+- A visual indication of successful reaction events.
+- Particle movement and collision behaviour.
+- A reaction-progress indicator.
+- A compact concentration-time graph.
+- A rate-versus-time or rate-versus-concentration graph when applicable.
+
+Use a defined simplified reaction model. Do not imply that decorative random particle collisions reproduce real chemical kinetics.
+
+B. Reaction selection
+
+Provide several educational reaction models, such as:
+
+- A simplified first-order reaction.
+- A simplified second-order reaction.
+- A generic reversible or multi-step reaction if its kinetics are correctly defined.
+
+Do not assume that reaction order can be inferred directly from a balanced chemical equation. State whether each model's order is an experimentally established input or an explicitly assumed educational example.
+
+C. Interactive parameters
+
+Implement functional controls for:
+
+1. Initial Concentration: change the starting concentration within valid bounds.
+2. Temperature: adjust the reaction temperature.
+3. Catalyst Toggle: compare an appropriate catalysed and uncatalysed pathway when supported by the selected model.
+4. Reaction Selector: switch between supported kinetic models.
+5. Simulation Speed: control the playback rate without falsely changing the scientific time scale of displayed calculations.
+6. Pause and Resume: stop and continue the simulation.
+7. Reset: restore the initial particle population and graphs.
+8. Graph Visibility: show or hide the concentration-time and rate-related graphs.
+
+All inputs must update the corresponding visual and numerical states consistently.
+
+D. Kinetic calculations
+
+For a first-order reaction, use:
+
+[
+[A]_t=[A]_0e^{-kt}
+]
+
+The half-life is:
+
+[
+t_{1/2}=\frac{\ln 2}{k}
+]
+
+For a second-order reaction under an appropriate single-reactant rate-law assumption, use:
+
+[
+\frac{1}{[A]_t}=\frac{1}{[A]_0}+kt
+]
+
+Clearly identify the assumptions and units of the rate constant for the selected reaction order.
+
+Where appropriate, explain the general rate law:
+
+[
+r=k[A]^m[B]^n
+]
+
+Clarify that the exponents are reaction orders determined by the selected kinetic model, not necessarily the stoichiometric coefficients.
+
+If temperature-dependent kinetics are included, use an appropriately defined Arrhenius relationship:
+
+[
+k=Ae^{-E_a/(RT)}
+]
+
+Use consistent units for activation energy, gas constant and absolute temperature.
+
+E. Microscopic versus macroscopic behaviour
+
+The 3D particles may be a simplified educational visualization, but calculated concentration curves must be generated from the selected mathematical model.
+
+Do not claim that a small, arbitrary number of animated particles provides statistically accurate molecular kinetics.
+
+Explain:
+
+- Reaction rate.
+- Rate constant.
+- Reaction order.
+- Activation energy.
+- Temperature dependence.
+- Concentration-time curves.
+- The difference between a microscopic animation and a macroscopic kinetic prediction.
+
+F. Component selection
+
+Provide selectable components such as:
+
+- Reaction Vessel.
+- Reactant Particles.
+- Product Particles.
+- Reaction Progress Indicator.
+- Concentration-Time Graph.
+- Rate Constant Display.
+
+Only show components relevant to the active experiment. Their names must remain consistent across the viewer, Details and Parameter Panel.
+
+---
+
+MODEL 77 — CHEMICAL EQUILIBRIUM EXPLORER
+
+Core objective
+
+Create an interactive 3D laboratory demonstrating dynamic chemical equilibrium, the equilibrium constant, reaction quotient and the effects of changing conditions.
+
+A. 3D reaction system
+
+Create a visually clear reaction vessel containing reactant and product species.
+
+Use a reversible reaction with a defined stoichiometry, such as a simplified gas-phase reaction, provided that the mathematical model is internally consistent.
+
+Represent forward and reverse reaction events separately using distinguishable motion indicators.
+
+The visualization must communicate that dynamic equilibrium means equal forward and reverse reaction rates—not that the reaction has stopped or that reactant and product concentrations must be equal.
+
+B. Reaction model and equations
+
+For a general reaction:
+
+[
+aA+bB\rightleftharpoons cC+dD
+]
+
+Display the correct equilibrium expression:
+
+[
+K_c=\frac{[C]^c[D]^d}{[A]^a[B]^b}
+]
+
+Use the appropriate equilibrium expression for the selected reaction, excluding pure solids and pure liquids where appropriate.
+
+Distinguish equilibrium constants expressed in concentration from those expressed using pressure. Do not mix (K_c) and (K_p) without a valid conversion and stated assumptions.
+
+C. Interactive controls
+
+Implement:
+
+1. Reaction Selector: select a supported reversible reaction.
+2. Initial Composition: adjust the starting reactant and product amounts.
+3. Concentration Display: show the current concentrations or clearly labelled normalized quantities.
+4. Temperature Control: modify temperature only when the selected equilibrium model defines the temperature dependence of its equilibrium constant.
+5. Volume or Pressure Control: enable only for a model where the selected reaction and phase assumptions make the control scientifically meaningful.
+6. Disturbance Control: add or remove a specified reactant or product.
+7. Equilibrium Progress: display the approach to the calculated equilibrium state.
+8. Pause and Reset: control the animation and restore the starting state.
+9. Graph Toggle: display concentration-versus-time curves.
+
+D. Reaction quotient and equilibrium
+
+Calculate the reaction quotient (Q) using the same reaction expression as the corresponding equilibrium constant.
+
+Explain:
+
+- If (Q<K), the forward direction is favoured under the defined conditions.
+- If (Q>K), the reverse direction is favoured.
+- If (Q=K), the system is at equilibrium.
+
+Use correct reaction direction labels and update them when the state changes.
+
+If numerical equilibrium concentrations are shown, obtain them from a defined mass-balance and equilibrium calculation. Do not arbitrarily animate concentrations towards a guessed equilibrium.
+
+E. Le Chatelier's principle
+
+Provide controlled demonstrations of relevant changes:
+
+- Adding a reactant.
+- Adding a product.
+- Changing volume or pressure for an appropriate gaseous reaction.
+- Changing temperature for a reaction with a specified enthalpy of reaction.
+
+Explain that a catalyst changes the rates at which equilibrium is reached but does not change the equilibrium constant at a fixed temperature.
+
+Do not claim that a catalyst shifts the final equilibrium composition.
+
+F. Educational interface
+
+Show the balanced equation, equilibrium expression, current (Q), applicable (K), reaction direction and the explanation for the observed change.
+
+Distinguish illustrative particle counts from actual molar concentrations.
+
+All equations and labels must update when the reaction changes.
+
+---
+
+MODEL 78 — REACTION ENERGY PROFILE EXPLORER
+
+Core objective
+
+Build an interactive laboratory for understanding reaction energy profiles, activation energy, reaction enthalpy and reaction pathways.
+
+A. 3D molecular and energy representation
+
+Create a scene containing:
+
+- A reactant region.
+- A product region.
+- A reaction-progress pathway.
+- A clearly displayed energy-profile graph.
+- A transition-state indicator.
+- An activation-energy marker.
+- A reaction-enthalpy marker.
+
+Where feasible, show a simplified molecular arrangement transitioning along a reaction coordinate. Clearly identify it as a conceptual representation unless an actual validated molecular calculation is used.
+
+B. Energy profile
+
+Display the energy profile with labelled axes:
+
+- Reaction coordinate.
+- Relative potential energy or enthalpy, with the selected quantity clearly identified.
+
+Show:
+
+- Reactant energy.
+- Product energy.
+- Transition-state energy.
+- Forward activation energy.
+- Reverse activation energy.
+- Reaction energy difference.
+
+For a single-step simplified pathway, maintain the correct relationship:
+
+[
+\Delta H=H_{\mathrm{products}}-H_{\mathrm{reactants}}
+]
+
+For the selected pathway, define activation energies consistently with the chosen energy profile.
+
+C. Reaction selection
+
+Include distinct examples of:
+
+- An exothermic reaction profile.
+- An endothermic reaction profile.
+- A multistep reaction profile when correctly represented.
+
+Do not imply that every exothermic reaction has a low activation energy or that every endothermic reaction is necessarily slow.
+
+D. Functional controls
+
+Implement:
+
+1. Reaction Profile Selector: change the selected reaction model.
+2. Activation Energy Control: adjust the activation barrier within the defined educational model.
+3. Reactant/Product Energy Control: update the profile consistently when energies are adjustable.
+4. Pathway Inspection: select and highlight the transition state or an individual step.
+5. Forward/Reverse View: compare the forward and reverse activation barriers.
+6. Animation Control: animate a marker along the reaction coordinate.
+7. Graph Visibility: show or hide the profile and its annotations.
+8. Reset: restore the selected model's original values.
+
+Changing a parameter must update the graph, energy markers, labels and any linked explanatory animation together.
+
+E. Scientific explanations
+
+Explain:
+
+- Activation energy.
+- Reaction enthalpy.
+- Transition states.
+- Exothermic versus endothermic reactions.
+- Forward versus reverse activation energy.
+- The difference between a reaction pathway and a time-dependent trajectory.
+
+If the model uses arbitrary illustrative energy values, label them as illustrative and use consistent units.
+
+---
+
+MODEL 79 — CATALYSIS EXPLORER
+
+Core objective
+
+Create an interactive laboratory demonstrating how catalysts provide alternative reaction pathways and affect reaction kinetics without changing the overall thermodynamic equilibrium at a fixed temperature.
+
+A. 3D catalyst scene
+
+Construct a scientifically interpretable catalytic environment appropriate to the chosen example.
+
+Where a heterogeneous catalyst is demonstrated, include:
+
+- A catalyst surface.
+- Reactant species approaching the surface.
+- Adsorbed or interacting species, where relevant.
+- A simplified sequence of reaction steps.
+- Product formation and release.
+
+If a homogeneous catalyst is chosen, use a suitable molecular representation rather than forcing it into a solid-surface model.
+
+Do not mix incompatible mechanisms into a single supposedly universal catalyst.
+
+B. Reaction-pathway comparison
+
+Display two comparable energy profiles:
+
+- Uncatalysed pathway.
+- Catalysed pathway.
+
+Maintain the same initial and final energy states when comparing a catalyst that changes only the pathway.
+
+Show the difference in activation energy and explain that the detailed mechanism may involve intermediate species or multiple steps.
+
+C. Functional interactions
+
+Implement:
+
+1. Catalyst Toggle: switch between the catalysed and uncatalysed pathways.
+2. Catalyst Type Selector: offer supported examples with appropriate mechanisms.
+3. Surface Inspection: select the catalyst surface or a relevant molecular component.
+4. Reaction-Step Control: inspect individual steps of the selected pathway.
+5. Energy Profile Toggle: compare the pathways.
+6. Particle Animation: play, pause and reset the selected conceptual mechanism.
+7. Rate Comparison: show a quantitative rate comparison only when the underlying kinetic model justifies it.
+
+Do not equate a lower activation barrier with a universal, fixed rate multiplier independent of the model and temperature.
+
+D. Scientific integrity
+
+Explain:
+
+- Alternative reaction pathways.
+- Activation energy reduction.
+- Homogeneous versus heterogeneous catalysis.
+- Catalyst regeneration and why catalysts are not consumed overall in an ideal catalytic cycle.
+- The difference between kinetic acceleration and thermodynamic equilibrium.
+
+A catalyst does not change the equilibrium constant at a fixed temperature. It can accelerate the approach to equilibrium by affecting the forward and reverse kinetics.
+
+Do not suggest that a catalyst changes the equilibrium position simply by lowering activation energy.
+
+---
+
+MODEL 80 — ACID–BASE TITRATION LABORATORY
+
+Core objective
+
+Create an interactive titration laboratory demonstrating how titrant addition changes solution composition and pH, and how the titration curve can be used to understand the equivalence point.
+
+A. 3D laboratory apparatus
+
+Build a clear laboratory setup containing:
+
+- A burette containing titrant.
+- A receiving flask containing the analyte.
+- A visible liquid level in the burette.
+- A controllable titrant-delivery mechanism.
+- An appropriate indicator representation where relevant.
+- A pH readout.
+- A titration-curve graph.
+- A clearly marked equivalence-point indicator.
+
+Use realistic, uncluttered apparatus geometry. The model must remain an educational visualization, not a substitute for laboratory safety instructions.
+
+B. Supported titration models
+
+Include scientifically defined examples, such as:
+
+- Strong acid–strong base titration.
+- Weak acid–strong base titration.
+- Strong acid–weak base titration if implemented with appropriate equilibrium calculations.
+
+For each example, define the analyte, titrant, concentrations, volumes and reaction stoichiometry.
+
+Do not use a single pH formula for all titration types.
+
+C. Interactive controls
+
+Implement:
+
+1. Titration Type: select a supported acid–base system.
+2. Titrant Volume: add titrant incrementally.
+3. Initial Concentration: adjust valid analyte and titrant concentrations.
+4. Analyte Volume: modify the initial sample volume.
+5. Indicator Selector: select an appropriate indicator where supported.
+6. pH Display: calculate the current pH using the selected chemical model.
+7. Titration Curve: plot pH against titrant volume.
+8. Equivalence Marker: identify the stoichiometric equivalence volume.
+9. Pause and Reset: control the dispensing animation and restore the initial state.
+
+Changing a titration type must update the reaction, concentration data, pH calculation, indicator behaviour and curve.
+
+D. Chemical calculations
+
+For a simple monoprotic strong-acid–strong-base titration, use stoichiometry and excess strong acid or base to calculate pH in the relevant regions.
+
+For a weak-acid titration, account for the weak-acid equilibrium and the appropriate buffer region.
+
+For a weak acid and its conjugate base in the applicable buffer region, the Henderson–Hasselbalch equation may be used:
+
+[
+\mathrm{pH}=\mathrm{p}K_a+
+\log_{10}\left(\frac{[\mathrm{A^-}]}{[\mathrm{HA}]}\right)
+]
+
+Clearly identify the region in which this approximation is applicable. Do not use it indiscriminately at the initial state or equivalence point.
+
+Calculate the equivalence volume using the actual reaction stoichiometry and specified concentrations. Do not assume that every acid–base titration has an equivalence-point pH of exactly 7.
+
+E. Graphing and educational feedback
+
+The curve must update as titrant is added.
+
+Display:
+
+- Current titrant volume.
+- Current pH.
+- Equivalence volume.
+- Relevant reaction equation.
+- Indicator behaviour, where appropriate.
+- A concise explanation of the current titration region.
+
+The indicator colour must be consistent with its specified transition range. Do not use arbitrary colour changes unrelated to the selected indicator.
+
+---
+
+MODEL 81 — SOLUBILITY AND PRECIPITATION EXPLORER
+
+Core objective
+
+Create an interactive 3D laboratory demonstrating dissolution, ionic equilibria, precipitation and the effect of concentration on the formation of a sparingly soluble compound.
+
+A. 3D solution environment
+
+Create a transparent or translucent vessel showing:
+
+- Solvent.
+- Dissolved cations and anions.
+- Undissolved solid where applicable.
+- Precipitate formation.
+- A concentration or saturation indicator.
+- A compact ion-concentration and solubility-equilibrium display.
+
+Clearly distinguish dissolved ions from solid particles. Do not depict a precipitate as smoke or as an arbitrary colour cloud.
+
+B. Reaction examples
+
+Use appropriate examples of sparingly soluble ionic compounds, such as silver chloride or another suitable salt, if their solubility model is implemented correctly.
+
+For a generic salt:
+
+[
+\mathrm{A_mB_n(s)\rightleftharpoons mA^{n+}(aq)+nB^{m-}(aq)}
+]
+
+Use the correct stoichiometry and charges for the selected compound. The displayed equation must match the actual ion representation.
+
+C. Solubility product
+
+For an appropriate equilibrium, calculate the ion product (Q_{sp}) and compare it with the solubility product (K_{sp}).
+
+Explain:
+
+- (Q_{sp}<K_{sp}): the solution is unsaturated under the defined model.
+- (Q_{sp}=K_{sp}): the solution is at saturation equilibrium.
+- (Q_{sp}>K_{sp}): precipitation is thermodynamically favoured under the defined conditions.
+
+Do not claim that a precipitate forms instantaneously in every real system as soon as the ion product exceeds the solubility product. Nucleation and kinetic effects may influence observed behaviour.
+
+D. Functional controls
+
+Implement:
+
+1. Salt Selector: select a supported sparingly soluble compound.
+2. Ion Concentrations: adjust relevant ion concentrations.
+3. Volume Control: adjust solution volume when the model supports the corresponding dilution calculation.
+4. Mixing Control: combine two defined ionic solutions.
+5. Precipitation Animation: show the formation of solid particles when supported by the selected equilibrium model.
+6. Ion Visibility: toggle dissolved-ion markers.
+7. Equilibrium Display: show (Q_{sp}), (K_{sp}) and the saturation interpretation.
+8. Reset: restore the initial composition and visual state.
+
+Any mixing operation must update the total volume, species amounts and concentrations consistently.
+
+E. Scientific accuracy
+
+Use consistent concentration units and valid solubility data for the selected examples.
+
+If activities are approximated by concentrations, state that the calculation is an introductory ideal-solution approximation.
+
+Do not invent (K_{sp}) values. Use reliable constants available in the project or provide a clearly labelled illustrative model when accurate data are unavailable.
+
+Explain the difference between:
+
+- Dissolution.
+- Saturation.
+- Precipitation.
+- Dynamic equilibrium.
+- Solubility product.
+- Common-ion effects, if supported.
+
+---
+
+MODEL 82 — BUFFER SOLUTION SIMULATOR
+
+Core objective
+
+Build an interactive laboratory showing how buffer solutions resist changes in pH when small amounts of acid or base are added.
+
+This model must provide a distinct learning experience from the titration laboratory, even though both may use acid–base chemistry.
+
+A. 3D solution environment
+
+Create a vessel containing an appropriate weak-acid/conjugate-base or weak-base/conjugate-acid buffer system.
+
+Display:
+
+- The weak acid or weak base.
+- Its conjugate partner.
+- Added acid or base species.
+- A pH indicator or digital pH readout.
+- A buffer-capacity or resistance-to-pH-change visualization.
+- A compact concentration-composition display.
+
+Use distinguishable, consistently labelled molecular or ionic representations.
+
+B. Buffer selection
+
+Include a scientifically suitable buffer example, such as an acetic acid/acetate buffer, where reliable equilibrium data are available.
+
+Allow the user to adjust the ratio of buffer components and their total concentration.
+
+Do not label an arbitrary mixture of any acid and base as a buffer. Ensure the selected system has a valid conjugate pair and an appropriate pH range.
+
+C. Functional controls
+
+Implement:
+
+1. Buffer System Selector: choose among supported buffer systems.
+2. Weak Component Concentration: adjust the relevant weak acid or weak base concentration.
+3. Conjugate Component Concentration: adjust its conjugate partner.
+4. Acid Addition: add a defined amount of strong acid to the system.
+5. Base Addition: add a defined amount of strong base to the system.
+6. pH Display: calculate and update the solution pH.
+7. Composition Display: show the remaining buffer components after addition.
+8. Buffer Capacity Comparison: compare two defined buffer compositions under the same acid or base addition.
+9. Reset: restore the initial composition.
+
+All additions must be reflected in species amounts, volume where applicable, concentration calculations and pH.
+
+D. Scientific calculations
+
+For a suitable weak-acid/conjugate-base buffer in the applicable region, use:
+
+[
+\mathrm{pH}=\mathrm{p}K_a+
+\log_{10}\left(\frac{[\mathrm{A^-}]}{[\mathrm{HA}]}\right)
+]
+
+Use appropriate stoichiometric neutralization before calculating the resulting buffer ratio when strong acid or base is added.
+
+Do not apply the Henderson–Hasselbalch equation outside its valid range or when the buffer components have been exhausted. Implement a suitable equilibrium calculation or clearly explain any approximation used near the limits.
+
+For a weak-base buffer, use the corresponding chemically appropriate relationship.
+
+E. Educational feedback
+
+Explain:
+
+- The role of a conjugate acid–base pair.
+- Why added acid consumes the basic buffer component.
+- Why added base consumes the acidic buffer component.
+- Why pH changes relatively little within the useful buffer range.
+- How the ratio of conjugate components influences pH.
+- How total buffer concentration affects resistance to added acid or base.
+- Why a buffer has finite capacity and cannot resist unlimited additions.
+
+Display the pH change before and after each addition. Avoid presenting buffer capacity as a universal number independent of the defined system and conditions.
+
+---
+
+PHASE 3 — SHARED IMPLEMENTATION REQUIREMENTS
+
+Apply the following requirements to all seven final models, including any replacement models.
+
+3.1 Preserve the existing project
+
+- Keep the exact project identity: Tech-Anatomix: Disect Your Cell!
+- Do not rename or rebrand the application.
+- Preserve all existing models, registry entries, chemical reaction implementations and viewer features.
+- Do not replace the existing architecture with a new framework.
+- Do not delete or rewrite unrelated features.
+- Reuse existing components when appropriate.
+- Avoid introducing unnecessary dependencies.
+
+3.2 Follow the existing architecture
+
+Inspect the actual model registration, rendering and interaction conventions before writing code.
+
+Use isolated model components where practical. Reuse existing shared rendering utilities, viewer controls, Parameter Panel systems and component-selection mechanisms.
+
+Avoid risky modifications to large shared renderers when a model-specific implementation is sufficient.
+
+Do not create duplicate model registries or register the same model more than once.
+
+3.3 Desktop layout
+
+Preserve the existing desktop arrangement:
+
+- Interactive 3D viewer on the left.
+- Parameter Panel on the right.
+- Viewer-position adjustment slider directly below the viewer.
+- Viewer options below the Parameter Panel.
+
+Do not convert the desktop interface into a full-width viewer with the Parameter Panel stacked beneath it.
+
+Make the layout responsive on mobile while retaining access to the scientific controls.
+
+3.4 Viewer controls
+
+Follow the existing viewer conventions for model titles, reset, camera positioning, rotation, zoom, animation, fullscreen and component selection.
+
+Do not add unnecessary decorative buttons or duplicate controls already provided by the shared viewer.
+
+Do not place yellow status or error messages over the 3D viewport. Correct underlying errors or display meaningful feedback outside the viewport.
+
+3.5 Component naming consistency
+
+The viewer's component-display name is the canonical display name.
+
+Use exactly the same name in:
+
+- 3D component labels.
+- Details heading.
+- Parameter Panel component list.
+- Selected-component heading.
+- Other UI elements identifying that component.
+
+Do not modify internal mesh IDs simply to change display names.
+
+Component selection must select the real object and apply the existing highlight behaviour. Deselecting must restore its original material and selection state.
+
+3.6 Scientific explanations
+
+Each model must contain:
+
+- A concise overview.
+- A clear explanation of the experiment.
+- Component-specific educational details.
+- Correct equations and units.
+- Meaningful parameter controls.
+- Relevant graphs or numerical displays.
+- An explanation of assumptions and simplifications.
+
+Keep labels readable and concise while retaining proper scientific terminology in the explanatory text.
+
+3.7 Functional controls and calculations
+
+All sliders, selectors, inputs, buttons, equations and graphs must remain synchronized.
+
+Validate numeric inputs and prevent invalid values from producing broken geometry or misleading results.
+
+Do not add controls that only change their appearance without affecting the actual model state.
+
+Whenever a selected reaction, buffer, salt or titration system changes, update all relevant geometry, equations, graphs, parameters and explanations.
+
+3.8 Performance and cleanup
+
+Optimize the models for school Chromebooks, ordinary laptops and mobile devices.
+
+- Reuse static geometries and materials where appropriate.
+- Avoid unnecessarily dense particle systems.
+- Prevent duplicate animation loops.
+- Dispose of resources correctly.
+- Clean up event listeners.
+- Prevent stale objects from accumulating when switching models.
+- Avoid unnecessary React re-renders.
+- Preserve existing viewer stability.
+
+---
+
+PHASE 4 — INTEGRATION AND VERIFICATION
+
+After implementation, verify each of the seven final models individually.
+
+Check:
+
+1. Unique model ID and exactly one registry entry.
+2. Correct model name and navigation integration.
+3. Successful rendering of the 3D scene.
+4. Appropriate initial camera framing.
+5. Working camera rotation, zoom and reset.
+6. Working model-specific controls.
+7. Accurate equations and scientific calculations.
+8. Consistency between displayed values and visual states.
+9. Correct component selection and deselection.
+10. Consistent component names across the viewer, Details and Parameter Panel.
+11. Correct graph updates and parameter validation.
+12. Correct animation start, pause, resume and reset behaviour.
+13. Cleanup when switching between models.
+14. Relevant console and TypeScript errors.
+15. Preservation of unrelated existing models and chemical reactions.
+16. Desktop layout and mobile responsiveness.
+
+Fix issues introduced by the implementation. Do not hide errors or claim that untested features have passed verification.
+
+---
+
+PHASE 5 — FINAL DELIVERY REPORT
+
+When finished, provide:
+
+A. Duplicate audit
+
+List any proposed concepts excluded because an equivalent implementation already exists, identify the existing implementation and explain the replacement chosen.
+
+B. Final model registry
+
+List the seven final model names and their actual assigned IDs.
+
+C. Implemented features
+
+Summarize the 3D structures, functional controls, equations, calculations and graphs implemented for each model.
+
+D. Verification
+
+Report which tests were actually performed, any existing functionality that was checked and any remaining limitations.
+
+FINAL EXECUTION INSTRUCTION
+
+Start by inspecting the existing Tech-Anatomix: Disect Your Cell! codebase and conducting the mandatory duplicate audit. Then implement seven distinct, fully integrated Chemistry laboratories using the specifications above.
+
+Do not stop after producing a plan. Do not duplicate existing models. Do not overwrite occupied IDs. Do not rename the application. Preserve existing functionality and verify the implementation before reporting completion.

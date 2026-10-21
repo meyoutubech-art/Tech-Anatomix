@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix Remix 19 anatomy",
+  "description": "An interactive 3D virtual laboratory for students to perform real-time scientific experiments and simulations with AI assistance.\n",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,832 @@
+TECH-ANATOMIX: DISECT YOUR CELL!
+
+CHEMISTRY MODEL DEVELOPMENT — BATCH 1
+
+Models 69–75 | Detailed 3D Implementation Specification
+
+You are continuing development of my existing Tech-Anatomix: Disect Your Cell! project in Google AI Studio. You already have access to the project's context and codebase. Work directly with the existing implementation rather than creating a new application.
+
+This batch introduces advanced Chemistry models to the existing interactive 3D science environment. Each model must be a functional educational laboratory, not a static 3D illustration with a few decorative buttons.
+
+Primary objectives: scientifically accurate structures, meaningful 3D interaction, working controls, correct calculations, detailed educational explanations, consistent component naming, smooth performance and zero regressions to existing models.
+
+---
+
+PHASE 1 — CODEBASE AUDIT AND DUPLICATE PREVENTION
+
+1.1 Inspect the complete existing implementation
+
+Before changing any code, inspect the actual project structure and determine how models are currently implemented, rendered, registered and selected.
+
+Audit:
+
+- The complete model registry, including every existing ID and model alias.
+- All existing Chemistry, atomic, molecular, materials-science and electrochemistry models.
+- Models that are implemented but hidden from the navigation.
+- Existing molecular viewers, chemical reaction systems, particle animations and scientific calculators.
+- Existing 3D rendering components, parameter panels, educational explanation systems, component callouts and model-selection logic.
+- Existing model files, imports, dependencies and naming conventions.
+- Existing controls for rotation, zoom, reset, animation, component selection and viewer-position adjustment.
+
+Do not assume that the registry ends at Model 68. Inspect the actual source code and determine which IDs are available.
+
+1.2 Mandatory duplicate audit for every proposed model
+
+Evaluate each of the seven proposed concepts individually before implementation.
+
+A duplicate includes an existing model with substantially the same scientific objective, visualization and core interactive functionality, even if its title, ID, internal component name or navigation category differs.
+
+For every duplicate found:
+
+1. Exclude that concept from this new batch.
+2. Do not implement another copy or rename an existing model to make it appear new.
+3. Preserve the original model and its existing functionality.
+4. Select a scientifically distinct replacement Chemistry model.
+5. Repeat the duplicate audit for the replacement.
+6. Document the excluded concept, the existing implementation that covers it and the replacement selected.
+
+Do not mistake related but genuinely distinct concepts for duplicates. For example, atomic orbitals and molecular orbitals may warrant separate models when they provide different visualizations and learning outcomes.
+
+If an existing model is incomplete, inspect whether the new proposal would duplicate its current purpose. Preserve the existing implementation unless a clearly justified repair is necessary; do not silently overwrite it.
+
+1.3 Model IDs and registry integrity
+
+The IDs 69–75 are provisional planning IDs, not permission to overwrite existing registry entries.
+
+- Use an available ID only after verifying that it is unused.
+- If an ID is occupied, follow the project's existing unique-ID convention.
+- Update every required import, registry reference and model metadata entry.
+- Register every new model exactly once.
+- Do not create duplicate aliases, shadow registries or conflicting IDs.
+- Report the final actual ID assigned to every implemented model.
+
+After completing the audit, continue with implementation in the same task. Do not stop after writing an audit report unless an actual technical blocker makes implementation unsafe.
+
+---
+
+PHASE 2 — DETAILED MODEL SPECIFICATIONS
+
+Implement seven distinct Chemistry laboratories using the following specifications. If a proposed concept fails the duplicate audit, substitute a distinct replacement and give it the same implementation depth.
+
+MODEL 69 — MOLECULAR ORBITAL EXPLORER
+
+Core objective: Demonstrate how atomic wavefunctions combine to produce molecular orbitals, and how orbital occupancy relates to bonding and antibonding interactions.
+
+A. Required 3D structure
+
+Create a scientifically interpretable molecular-orbital scene containing:
+
+- Two atomic centres with clearly indicated nuclei.
+- Separate atomic-orbital representations before combination.
+- A molecular-orbital representation after combination.
+- Distinguishable positive and negative wavefunction phases.
+- Node surfaces or nodal regions where appropriate.
+- A molecular axis and a clearly marked internuclear region.
+- A compact energy-level diagram beside or within the existing educational interface.
+
+Use translucent orbital surfaces, volumetric approximations or carefully constructed meshes to communicate wavefunction phase and orbital shape. Avoid opaque overlapping blobs that make the underlying structure impossible to understand.
+
+B. Molecular examples and states
+
+Provide a selection system for scientifically appropriate examples, including:
+
+- H₂ bonding molecular orbital.
+- H₂ antibonding molecular orbital.
+- A suitable additional example, such as a p-orbital-derived bonding and antibonding combination, if the implementation can represent it correctly.
+
+Clearly distinguish sigma and pi interactions when demonstrated. Do not imply that every pair of orbitals can combine in the same way.
+
+C. Interactive behaviour
+
+Implement the following functional controls:
+
+1. Orbital Selection: choose the supported atomic or molecular orbital.
+2. Combination Slider: transition between the separated atomic orbitals and the combined molecular-orbital representation.
+3. Phase Visibility: toggle phase colours and explanatory phase labels.
+4. Node Visibility: show or hide relevant nodal surfaces.
+5. Energy Diagram: highlight the selected orbital's position in the energy-level diagram.
+6. Electron Occupancy: allow valid electron configurations for the supported example.
+7. Animation Controls: play, pause and reset the transition.
+8. Camera Controls: reset the camera and inspect the structure from different angles.
+
+The controls must change the actual displayed state, not merely update text or button colours.
+
+D. Scientific calculations and explanations
+
+Explain:
+
+- Constructive and destructive wavefunction combination.
+- Bonding versus antibonding molecular orbitals.
+- Relative orbital energy.
+- Electron occupancy and the Pauli exclusion principle where relevant.
+- The distinction between wavefunction phase and electrical charge.
+- The difference between an orbital surface and an exact physical boundary.
+
+Where molecular-orbital energy values are displayed, use valid values or clearly labelled qualitative energy ordering. Do not invent precise energy values.
+
+E. Parameter Panel and component selection
+
+Provide selectable components such as:
+
+- Nucleus A
+- Nucleus B
+- Atomic Orbital A
+- Atomic Orbital B
+- Bonding Molecular Orbital
+- Antibonding Molecular Orbital
+- Nodal Surface
+- Molecular Axis
+
+Use only names appropriate to the active example. Every component name shown in the viewer must match its corresponding Details heading and Parameter Panel entry exactly.
+
+---
+
+MODEL 70 — ATOMIC ORBITAL PROBABILITY EXPLORER
+
+Core objective: Help students understand atomic orbitals as quantum-mechanical probability distributions rather than fixed electron trajectories.
+
+Implement this model only if the duplicate audit confirms that its purpose and interactive features are sufficiently distinct from existing orbital models.
+
+A. 3D atomic representation
+
+Create a central atomic nucleus and selectable orbital probability distributions.
+
+Support representative examples:
+
+- 1s orbital.
+- 2s orbital.
+- 2p orbitals in the x, y and z orientations.
+- Selected 3d orbitals, where correctly represented.
+
+The orbital representation must distinguish:
+
+- Radial structure.
+- Angular structure.
+- Probability-density distribution.
+- Radial nodes.
+- Angular nodes.
+- Orbital orientation.
+
+Use procedural surfaces, isosurfaces or another method compatible with the existing rendering system. Avoid using arbitrary decorative spheres as substitutes for orbital probability distributions.
+
+B. Orbital selection and visualization controls
+
+Implement:
+
+1. Orbital Selector: choose among supported orbitals.
+2. Orientation Selector: switch between valid orbital orientations.
+3. Probability Threshold: adjust the displayed isosurface threshold when supported by the representation.
+4. Node Visibility: toggle nodal surfaces or clearly marked nodal regions.
+5. Cross-Section View: inspect an appropriate planar slice of the selected orbital.
+6. Density View: switch between a probability-density surface and a simplified point-density representation if feasible.
+7. Reset View: restore the selected orbital's default presentation.
+
+All controls must be connected to the actual visualization state.
+
+C. Scientific correctness
+
+Use the appropriate quantum numbers and orbital relationships.
+
+Explain:
+
+- Principal quantum number (n).
+- Angular momentum quantum number (l).
+- Magnetic quantum number (m_l), where relevant.
+- Orbital shape and orientation.
+- The difference between an orbital and an orbit.
+- The meaning of a probability-density visualization.
+- Why an orbital's rendered boundary is not a hard physical wall.
+
+When showing node counts, use correct quantum-mechanical relationships. For a hydrogen-like orbital, the total number of radial nodes is (n-l-1), and the number of angular nodes is (l).
+
+Do not claim that the electron follows the displayed surface or travels along the lobes.
+
+D. Educational information
+
+For each selected orbital, display its:
+
+- Standard orbital name.
+- Relevant quantum numbers.
+- Qualitative shape description.
+- Radial and angular node counts.
+- Interpretation of the displayed density.
+- Important scientific limitations of the visualization.
+
+If the existing application already provides an equivalent atomic-orbital laboratory, replace this proposed model rather than duplicating it.
+
+---
+
+MODEL 71 — ADVANCED CRYSTAL LATTICE EXPLORER
+
+Core objective: Provide an interactive crystallography laboratory that explains unit cells, atomic positions, coordination and packing.
+
+A. Required crystal structures
+
+Implement the following structures where the existing architecture supports them:
+
+1. Simple cubic (SC).
+2. Body-centred cubic (BCC).
+3. Face-centred cubic (FCC).
+4. Hexagonal close-packed (HCP).
+
+Represent atoms as spheres and unit-cell boundaries as clearly visible geometric edges. Use a consistent visual convention to distinguish corner, face-centred, body-centred and other relevant atomic positions.
+
+B. Correct structural construction
+
+For each structure, calculate and display:
+
+- Number of atoms associated with a conventional unit cell.
+- Coordination number.
+- Atomic positions.
+- Appropriate lattice dimensions or geometric relationships.
+- Atomic packing factor where applicable.
+- A clear explanation of shared atoms at cell boundaries.
+
+Use the standard atom-sharing relationships:
+
+- Corner atom contribution: (1/8) per conventional unit cell.
+- Face-centred atom contribution: (1/2).
+- Body-centred atom contribution: (1).
+
+Apply these relationships correctly to the relevant structures.
+
+For idealized close-packed structures, use the appropriate geometry and packing relationships. Clearly distinguish the conventional hexagonal unit cell from a primitive cell when discussing atom counts.
+
+C. Interactive 3D controls
+
+Implement:
+
+1. Structure Selector: switch between SC, BCC, FCC and HCP.
+2. Unit Cell Visibility: toggle cell boundaries.
+3. Atomic Position Labels: show or hide position labels.
+4. Neighbour Highlighting: select an atom and highlight its nearest neighbours.
+5. Cell Expansion: separate a repeated lattice into identifiable unit cells.
+6. Packing View: display the atom arrangement with an appropriate packing representation.
+7. Comparison Mode: compare two structures using consistent scale conventions.
+8. Camera Reset: restore a useful default viewing angle.
+
+Do not fake an exploded view by simply enlarging the entire structure. The selected cell or repeated unit cells must visibly separate in a controlled and reversible manner.
+
+D. Parameter Panel
+
+Include scientifically useful parameters such as:
+
+- Lattice type.
+- Unit-cell dimensions.
+- Atomic radius, where relevant to the idealized model.
+- Atoms per conventional unit cell.
+- Coordination number.
+- Packing factor.
+
+Any numerical input must trigger consistent updates to the geometry and derived calculations. Prevent invalid values and clearly distinguish idealized assumptions from measured material data.
+
+E. Educational content
+
+Explain:
+
+- Crystal lattice versus basis.
+- Conventional versus primitive unit cells.
+- Coordination number.
+- Atomic packing efficiency.
+- Why crystal structure influences material properties.
+
+Do not imply that every material with a given structure has identical dimensions or physical properties.
+
+---
+
+MODEL 72 — MOLECULAR POLARITY EXPLORER
+
+Core objective: Demonstrate how bond polarity, molecular geometry and vector addition determine overall molecular polarity.
+
+A. Molecular scene
+
+Construct clear, rotatable 3D molecular structures for:
+
+- H₂O.
+- CO₂.
+- NH₃.
+- CH₄.
+- BF₃.
+
+Use appropriate approximate bond angles and molecular geometries. Avoid arranging atoms into visually convenient but chemically incorrect shapes.
+
+Clearly differentiate atoms, bonds, partial charges and dipole arrows. Provide a legend for all visual conventions.
+
+B. Dipole visualization
+
+For each supported molecule, show:
+
+- Bond dipole direction where applicable.
+- Relative electronegativity difference.
+- Partial-charge convention.
+- Molecular geometry.
+- Vector contributions from individual bonds.
+- Resultant molecular dipole direction when justified.
+
+Use a consistent convention for dipole arrows and explain it in the interface. Do not mix different arrow conventions without a clear legend.
+
+C. Interactive controls
+
+Implement:
+
+1. Molecule Selector: switch between the supported molecules.
+2. Geometry View: show the molecule's geometry and approximate bond angles.
+3. Bond Dipole Toggle: show or hide individual bond-dipole vectors.
+4. Resultant Dipole Toggle: show or hide the net molecular dipole.
+5. Vector Visualization: distinguish individual vector contributions from their resultant.
+6. Geometry Inspection: allow rotation and zooming.
+7. Component Selection: select atoms, bonds or dipole vectors where supported.
+8. Reset: restore the original molecular view.
+
+If bond-dipole magnitudes are only qualitative, represent the vectors qualitatively and do not report them as exact measured values.
+
+D. Scientific rules
+
+The explanation must make clear that:
+
+- Polar bonds do not automatically make the entire molecule polar.
+- Molecular geometry determines how bond-dipole vectors combine.
+- Symmetry can result in cancellation of bond-dipole contributions.
+- Partial charges are not equivalent to full ionic charges.
+- Molecular polarity is a property of the overall charge distribution.
+
+Explain the polarity outcomes of the supported examples accurately. In particular, distinguish the polar H₂O and NH₃ molecules from the symmetrical, nonpolar CO₂, CH₄ and BF₃ molecules in their idealized ground-state geometries.
+
+E. Parameter Panel and educational details
+
+Show the selected molecule, geometry, approximate bond angles, bond-polarity information and overall polarity classification.
+
+Ensure the selected component's display name is identical in the 3D callout, Details heading, Parameter Panel list and selected-component heading.
+
+---
+
+MODEL 73 — INTERMOLECULAR FORCES EXPLORER
+
+Core objective: Visualize how intermolecular attractions arise and how they influence physical properties.
+
+A. Molecular examples
+
+Include appropriate examples that distinguish:
+
+- London dispersion forces.
+- Dipole–dipole interactions.
+- Hydrogen bonding.
+
+Use scientifically suitable molecules, including water, hydrogen chloride and a nonpolar molecule such as a noble-gas atom or a suitable nonpolar molecular example.
+
+Make clear that London dispersion forces occur between all atoms and molecules, although their relative importance varies.
+
+B. 3D molecular arrangement
+
+Create a scene showing multiple molecules with:
+
+- Clearly identifiable atoms and bonds.
+- Partial-charge markers where applicable.
+- Molecular orientation.
+- Intermolecular separation.
+- Visual indicators for the selected type of interaction.
+
+Represent intermolecular attractions as explanatory overlays or force indicators rather than depicting them as ordinary covalent bonds.
+
+Do not draw a permanent chemical bond between molecules merely to indicate hydrogen bonding or dipole–dipole attraction.
+
+C. Interactive controls
+
+Implement:
+
+1. Interaction Selector: select the type of intermolecular force being studied.
+2. Molecule Selector: choose an appropriate example.
+3. Separation Control: adjust the distance between selected molecules.
+4. Orientation Control: adjust the relative orientation of molecules when relevant.
+5. Interaction Overlay: toggle explanatory force indicators.
+6. Thermal Motion Control: adjust the speed of a clearly labelled qualitative molecular-motion animation.
+7. Comparison Mode: compare two suitable molecular systems.
+8. Reset and Pause: restore the original state and control animation.
+
+The separation and orientation controls must affect the actual molecule positions. Do not present a purely decorative strength slider as a numerical physical force calculator.
+
+D. Physical interpretation
+
+Explain:
+
+- Why molecular attractions depend on charge distribution and molecular structure.
+- How London dispersion forces arise from instantaneous and induced dipoles.
+- Why dipole–dipole interactions depend on molecular orientation.
+- The conditions required for conventional hydrogen bonding.
+- How intermolecular forces influence boiling point, condensation and phase behaviour.
+
+Avoid claiming that one interaction is always strongest in every possible comparison. Molecular size, polarizability, geometry and the comparison being made matter.
+
+E. Quantitative integrity
+
+If a numerical force or potential-energy curve is included, use a clearly defined and appropriate physical model. Label its assumptions and limitations.
+
+Otherwise, use a qualitative visualization and clearly state that it is not a full molecular-dynamics simulation.
+
+---
+
+MODEL 74 — ELECTROCHEMICAL CELL SIMULATOR
+
+Core objective: Create a functional galvanic-cell laboratory showing how spontaneous redox reactions can generate electrical energy.
+
+A. Required 3D apparatus
+
+Build a clearly organized electrochemical cell containing:
+
+- Two separate half-cell containers.
+- Two electrodes.
+- Appropriate electrolyte solutions.
+- A salt bridge or suitable equivalent ionic connection.
+- An external conducting wire.
+- A voltmeter or voltage display.
+- Clearly marked anode and cathode.
+- Distinguishable electrons, ions and electrode materials.
+
+Use a zinc–copper cell as the primary example when it is not a duplicate of an existing implementation.
+
+Render solutions with suitable translucent materials, electrodes with distinguishable surfaces and the salt bridge as a visible connection between the half-cells.
+
+B. Electron and ion movement
+
+Show electron flow through the external circuit separately from ion movement through the electrolyte and salt bridge.
+
+For a standard zinc–copper galvanic cell:
+
+- Oxidation occurs at the zinc anode.
+- Reduction occurs at the copper cathode.
+- Electrons flow through the external wire from the zinc electrode towards the copper electrode.
+- Ions move within the electrolyte and salt bridge to maintain charge balance.
+
+Use moving indicators or particles to communicate these processes, but do not imply that electrons travel through the salt bridge.
+
+C. Chemical equations
+
+Display the appropriate half-reactions:
+
+Anode oxidation:
+
+[
+\mathrm{Zn(s)\rightarrow Zn^{2+}(aq)+2e^-}
+]
+
+Cathode reduction:
+
+[
+\mathrm{Cu^{2+}(aq)+2e^-\rightarrow Cu(s)}
+]
+
+Overall reaction:
+
+[
+\mathrm{Zn(s)+Cu^{2+}(aq)\rightarrow Zn^{2+}(aq)+Cu(s)}
+]
+
+Ensure that the equations match the active cell example. Do not leave zinc–copper equations visible when another cell is selected.
+
+D. Voltage calculations
+
+When standard reduction potentials are used, calculate the standard cell potential using:
+
+[
+E^\circ_{\mathrm{cell}}
+
+E^\circ_{\mathrm{cathode}}
+
+E^\circ_{\mathrm{anode}}
+]
+
+Use appropriate standard reduction potential data and clearly identify the conditions under which the values apply.
+
+For the standard zinc–copper cell, the expected standard potential is approximately (+1.10,\mathrm{V}) at standard conditions using commonly tabulated values.
+
+If nonstandard concentrations are introduced, either implement a scientifically correct Nernst-equation calculation or label the displayed voltage as a simplified illustrative value. Never confuse standard cell potential with an arbitrary live voltage.
+
+E. Interactive controls
+
+Implement:
+
+1. Cell Selector: choose from supported electrochemical-cell examples.
+2. Electron Flow Animation: play, pause and reset electron-flow visualization.
+3. Ion Visibility: toggle relevant ion representations.
+4. Electrode Selection: inspect the anode and cathode individually.
+5. Voltage Display: show the appropriate calculated or explicitly illustrative value.
+6. Concentration Controls: only if supported by the cell's calculation model.
+7. Reaction Display: show the matching oxidation, reduction and overall equations.
+8. Camera Reset: restore the full apparatus view.
+
+F. Component information
+
+Provide useful details for the selected electrode, electrolyte, salt bridge, wire and voltage meter.
+
+Ensure that the visual direction of the electron-flow animation, displayed equations, electrode labels and explanations remain consistent.
+
+---
+
+MODEL 75 — ELECTROLYSIS EXPLORER
+
+Core objective: Demonstrate how an external electrical energy source drives nonspontaneous chemical reactions in an electrolytic cell.
+
+A. Required apparatus
+
+Build a 3D electrolytic-cell scene containing:
+
+- An electrolyte container.
+- Two electrodes.
+- A suitable DC power source.
+- External wires.
+- A visible electrolyte region.
+- Clearly labelled anode and cathode.
+- Mobile-ion representations.
+- Product-formation regions where appropriate.
+
+Show the electrical connections accurately. In an electrolytic cell, the cathode is negative and the anode is positive under the conventional DC arrangement.
+
+B. Supported experiments
+
+Provide a selectable experiment system with scientifically valid examples such as:
+
+Experiment A — Molten sodium chloride
+
+Display the appropriate ions and electrode reactions:
+
+Cathode:
+
+[
+\mathrm{Na^+ + e^- \rightarrow Na}
+]
+
+Anode:
+
+[
+\mathrm{2Cl^- \rightarrow Cl_2 + 2e^-}
+]
+
+Overall reaction:
+
+[
+\mathrm{2NaCl(l)\rightarrow 2Na(l)+Cl_2(g)}
+]
+
+Clearly state that this example uses molten sodium chloride, not an aqueous sodium chloride solution.
+
+Experiment B — Water electrolysis
+
+Use a clearly specified and chemically appropriate setup. Explain the role of the electrolyte, electrode material and experimental conditions. Where the intended reaction produces hydrogen and oxygen, display correctly balanced electrode reactions and the overall reaction for the chosen conditions.
+
+Do not apply one universal set of electrode reactions to every electrolyte.
+
+C. Ion and electron movement
+
+Implement separate visual representations for:
+
+- Cations moving towards the cathode.
+- Anions moving towards the anode.
+- Electron transfer through the external circuit.
+- Chemical changes at the electrode surfaces.
+- Gas formation where appropriate to the selected reaction.
+
+Do not show electrons travelling freely through the bulk electrolyte. Ionic movement and external-circuit electron flow must be visually and conceptually distinct.
+
+D. Faraday's laws calculator
+
+Include a functional calculation panel for theoretical electrolysis products where the relevant reaction and inputs are defined.
+
+Use:
+
+[
+Q=It
+]
+
+where (Q) is charge in coulombs, (I) is current in amperes and (t) is time in seconds.
+
+For a product requiring (z) electrons per formula unit, calculate theoretical product mass using:
+
+[
+m=\frac{MIt}{zF}
+]
+
+where:
+
+- (m) is theoretical product mass.
+- (M) is molar mass.
+- (I) is current.
+- (t) is duration.
+- (z) is the electron-transfer number for the specified product reaction.
+- (F) is the Faraday constant, approximately (96485,\mathrm{C,mol^{-1}}).
+
+The calculator must use the correct reaction stoichiometry and appropriate units. Explain that actual yields may differ because of current efficiency, side reactions and other experimental factors.
+
+E. Interactive controls
+
+Implement:
+
+1. Experiment Selector: switch between supported electrolysis setups.
+2. Current Input: change the current using a validated numerical input or slider.
+3. Duration Input: change the operating duration.
+4. Ion Motion Animation: control and reset the visualization.
+5. Electrode Inspection: select an electrode to inspect its reaction.
+6. Equation Panel: show the correct reactions for the selected experiment.
+7. Product Display: indicate the expected products under the specified conditions.
+8. Calculation Panel: update charge and theoretical yield whenever valid inputs change.
+9. Reset Experiment: restore default conditions and animation state.
+
+All controls must work. Changing experiments must update the apparatus, electrode reactions, labels, ions, products and calculations together.
+
+---
+
+PHASE 3 — SHARED VISUAL AND INTERACTION ARCHITECTURE
+
+Apply these requirements to all seven final models, including any replacements.
+
+3.1 Follow the existing project architecture
+
+Use the actual existing React, TypeScript, Vite and Three.js architecture. Inspect the project's implementation before choosing component boundaries.
+
+- Follow established model-definition and registration patterns.
+- Reuse existing viewer components, educational explanation systems and parameter panels.
+- Prefer isolated model-specific components when practical.
+- Avoid risky, unnecessary modifications to large shared rendering components.
+- Do not introduce a second rendering engine or a parallel model registry.
+- Do not recreate features already provided by the shared viewer.
+
+Do not guess file paths or function names. Discover the actual files and use the existing conventions.
+
+3.2 Required desktop layout
+
+Preserve the established desktop arrangement:
+
+- Left: interactive 3D viewer.
+- Directly below the viewer: viewer-position adjustment slider.
+- Right: Parameter Panel.
+- Below the Parameter Panel: viewer options and relevant controls.
+
+Do not convert the desktop interface into a full-width viewer with the Parameter Panel stacked underneath it.
+
+On mobile, use a responsive arrangement that preserves access to all essential controls without clipping labels or overlapping the 3D canvas.
+
+3.3 Viewer header and controls
+
+Follow the existing viewer conventions:
+
+- Display the current model name in the viewer header.
+- Keep Reset as a compact icon-only control when that matches the existing design.
+- Provide the established Back to Full Model control where applicable.
+- Preserve existing rotation, zoom, fullscreen, axes, grid, animation-speed and other viewer capabilities.
+- Do not add unnecessary text or decorative buttons inside the 3D viewport.
+- Do not place yellow error or status messages over the rendered scene. Fix underlying errors or move meaningful feedback to an appropriate location outside the viewport.
+
+3.4 Component names must remain consistent
+
+The viewer's component-display name is the canonical name for the corresponding component.
+
+Reuse that exact display name in:
+
+- The 3D callout.
+- The Details heading.
+- The Parameter Panel component list.
+- The selected-component heading.
+- Any other UI element identifying the same component.
+
+Do not rename internal mesh IDs or object references to achieve visual consistency.
+
+When a user selects a component, select the actual corresponding 3D object and highlight it using the established selection behaviour. Restore the object's original material or highlight state when selection is cleared.
+
+Do not simulate component selection by changing only a label or button colour.
+
+3.5 Component-specific educational explanations
+
+For each selectable component, display useful scientific information, such as:
+
+- Its correct scientific name.
+- Its structural or chemical role.
+- Its relevant properties.
+- Its role in the current experiment.
+- Any applicable equations or calculated quantities.
+
+Keep the component name concise and consistent while allowing its explanation to use full scientific terminology.
+
+3.6 Materials, lighting and camera framing
+
+Use a consistent, clean scientific visualization style.
+
+- Use distinguishable materials for different atoms, electrodes, orbital phases, solutions and structural components.
+- Use transparency only when it improves understanding.
+- Ensure objects remain visible against the viewer background.
+- Provide suitable lighting, depth cues and camera framing.
+- Avoid excessive glow, bloom, decorative particles or unnecessarily complex effects.
+- Make sure the complete apparatus or structure is visible when the model first opens.
+- Prevent important components from being clipped or hidden behind labels.
+
+Use colours as a visual convention and explain their meanings where ambiguity could arise. Do not imply that illustrative colours are actual material colours.
+
+3.7 Scientific accuracy and data integrity
+
+Every equation, numerical result and scientific label must match the selected model and its current state.
+
+- Use correct units and dimensional consistency.
+- Use appropriate scientific constants and clearly identified assumptions.
+- Update equations and labels when the selected experiment changes.
+- Do not display stale equations from a previously selected model.
+- Distinguish qualitative animations from numerical simulations.
+- Never invent precise measurements merely to make the interface appear advanced.
+- Label idealized structures, approximations and illustrative values honestly.
+
+3.8 Functional controls only
+
+Every control must have a real purpose and a working implementation.
+
+- Sliders must update the corresponding geometry, parameter or calculation.
+- Selectors must update the active model or experiment.
+- Visibility toggles must show or hide the intended objects.
+- Animation buttons must actually control animation.
+- Reset must restore the intended initial state.
+- Component-selection controls must select the real object.
+- Numerical inputs must validate their range and units.
+
+Do not add placeholder controls that appear functional but have no effect.
+
+3.9 Performance and resource management
+
+Optimize the implementation for school Chromebooks, mobile devices and ordinary laptops.
+
+- Avoid unnecessary geometry complexity.
+- Reuse static geometries and materials where appropriate.
+- Prevent duplicate animation loops.
+- Clean up event listeners, geometries, materials and other resources correctly.
+- Avoid unnecessary React re-renders.
+- Ensure that switching between models does not accumulate old objects or animations.
+- Handle invalid parameters and unsupported selections safely.
+
+Use the existing rendering lifecycle and disposal patterns.
+
+---
+
+PHASE 4 — REGISTRATION, INTEGRATION AND TESTING
+
+Do not consider a model complete merely because its component file exists.
+
+For every final model:
+
+1. Confirm that it is registered exactly once.
+2. Confirm that its actual ID is unique.
+3. Verify imports, routes and component references.
+4. Verify that the viewer opens and renders the intended model.
+5. Test the default camera framing.
+6. Test rotation, zoom and reset.
+7. Test every model-specific control.
+8. Test component selection and deselection.
+9. Verify the component-name consistency across all relevant UI areas.
+10. Verify all equations, units and calculations.
+11. Confirm that experiment or molecule selection updates all dependent elements.
+12. Check animation cleanup and model switching.
+13. Check relevant browser-console errors and TypeScript errors.
+14. Verify desktop layout and mobile responsiveness.
+15. Confirm that unrelated existing models and chemical reaction demonstrations remain intact.
+
+Do not hide errors to make the interface look correct. Fix issues introduced by the implementation at their source.
+
+Do not claim a test passed unless it was actually performed.
+
+---
+
+PHASE 5 — FINAL DELIVERY REPORT
+
+When the work is complete, provide a concise but specific report containing:
+
+A. Duplicate audit
+
+- Which proposed concepts already existed.
+- Which concepts were excluded.
+- Which distinct replacement concepts were selected.
+
+B. Final model registry
+
+- Final model name.
+- Actual assigned model ID.
+- Main 3D visualization.
+- Main working interactions.
+
+C. Scientific functionality
+
+- Equations and calculations implemented.
+- Any simplified or qualitative representations.
+- Any limitations that affect scientific interpretation.
+
+D. Verification
+
+- Which rendering and interaction tests were actually performed.
+- Whether existing functionality remained intact.
+- Any unresolved errors or incomplete features.
+
+FINAL PRIORITIES
+
+1. Protect all existing working functionality.
+2. Audit the actual registry and exclude duplicates.
+3. Implement seven genuinely distinct Chemistry laboratories.
+4. Use scientifically correct geometry, equations and interactions.
+5. Integrate with the existing viewer and Parameter Panel.
+6. Maintain consistent component naming.
+7. Verify implementation rather than merely generating files.
+8. Report actual IDs and genuine completion status.
+
+Begin by inspecting the existing project and performing the duplicate audit. Then implement the seven final, non-duplicate Chemistry models using the existing architecture. Do not rename the project, rebuild the application, overwrite existing models or stop after producing a plan.
