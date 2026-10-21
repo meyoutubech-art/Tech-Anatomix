@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import {
   generate3DModel,
   chatWithLabMentor,
+  generateKeyTakeaways,
   explainSimulationChange,
   scanDiagram,
   interpretPromptChange,
@@ -43,9 +44,26 @@ app.post(['/api/ai/generate-model', '/ai/generate-model'], async (req, res) => {
   }
 });
 
-// Chatbot / Lab Mentor
+// Chatbot / Lab Mentor (also supports action: 'key_takeaways')
 app.post(['/api/ai/chat', '/ai/chat'], async (req, res) => {
   const body = req.body || {};
+  if (body.action === 'key_takeaways' || body.mode === 'key_takeaways') {
+    const answerText = body.answer || body.text || body.response || '';
+    const questionText = body.question || body.message || '';
+    const { modelTitle, subject, context } = body;
+    if (!answerText || typeof answerText !== 'string') {
+      return res.status(400).json({ error: 'Answer text is required for key takeaways' });
+    }
+    try {
+      const resolvedTitle = modelTitle || context?.title || 'Scientific Simulation';
+      const resolvedSubject = subject || context?.subject || 'Science';
+      const result = await generateKeyTakeaways(questionText, answerText, resolvedTitle, resolvedSubject, context);
+      return res.status(200).json(result);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   const rawQuestion = body.question || body.message || body.prompt;
   const { modelTitle, subject, context } = body;
   if (!rawQuestion || typeof rawQuestion !== 'string') {
@@ -55,6 +73,25 @@ app.post(['/api/ai/chat', '/ai/chat'], async (req, res) => {
     const resolvedTitle = modelTitle || context?.title || 'Scientific Simulation';
     const resolvedSubject = subject || context?.subject || 'Science';
     const result = await chatWithLabMentor(rawQuestion, resolvedTitle, resolvedSubject, context);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Key Takeaways / Important Points Extraction
+app.post(['/api/ai/key-takeaways', '/ai/key-takeaways'], async (req, res) => {
+  const body = req.body || {};
+  const answerText = body.answer || body.text || body.response || '';
+  const questionText = body.question || body.message || '';
+  const { modelTitle, subject, context } = body;
+  if (!answerText || typeof answerText !== 'string') {
+    return res.status(400).json({ error: 'Answer text is required' });
+  }
+  try {
+    const resolvedTitle = modelTitle || context?.title || 'Scientific Simulation';
+    const resolvedSubject = subject || context?.subject || 'Science';
+    const result = await generateKeyTakeaways(questionText, answerText, resolvedTitle, resolvedSubject, context);
     return res.status(200).json(result);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

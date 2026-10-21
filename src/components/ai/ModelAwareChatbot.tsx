@@ -19,6 +19,11 @@ import {
 } from 'lucide-react';
 import { classifyAiError } from '../../utils/aiErrorClassifier';
 import { FormattedAiMessage } from '../common/FormattedAiMessage';
+import { AiKeyTakeawaysPanel } from '../common/AiKeyTakeawaysPanel';
+import {
+  isEligibleForKeyTakeaways,
+  findPrecedingUserQuestion,
+} from '../../utils/keyTakeawaysService';
 
 export interface ModelChatContext {
   modelId: string;
@@ -61,6 +66,8 @@ interface Message {
   text: string;
   time: string;
   highlightedComponent?: string;
+  keyTakeaways?: string;
+  takeawaysOpen?: boolean;
 }
 
 interface ModelAwareChatbotProps {
@@ -473,6 +480,18 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
     }));
   };
 
+  const handleUpdateMessageTakeaways = (msgId: string, takeaways: string, isOpen: boolean) => {
+    setConversations((prev) => {
+      const list = prev[currentModelId] || currentMessages;
+      return {
+        ...prev,
+        [currentModelId]: list.map((msg) =>
+          msg.id === msgId ? { ...msg, keyTakeaways: takeaways, takeawaysOpen: isOpen } : msg
+        ),
+      };
+    });
+  };
+
   return (
     <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden ${className}`}>
       {/* Header with Distinct Model Identity Badge */}
@@ -520,7 +539,7 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
 
       {/* Messages Log */}
       <div ref={chatScrollContainerRef} className="p-4 overflow-y-auto space-y-3.5 max-h-[380px] min-h-[220px] bg-slate-50/30">
-        {currentMessages.map((m) => (
+        {currentMessages.map((m, idx) => (
           <div
             key={m.id}
             className={`flex items-start gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
@@ -543,6 +562,22 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
                 text={m.text}
                 variant={m.role === 'user' ? 'user' : 'light'}
               />
+              {isEligibleForKeyTakeaways(m, idx) && (
+                <AiKeyTakeawaysPanel
+                  messageId={m.id}
+                  question={findPrecedingUserQuestion(currentMessages, idx)}
+                  answer={m.text}
+                  modelTitle={context.title}
+                  subject={context.subject}
+                  context={context}
+                  variant="light"
+                  cachedTakeaways={m.keyTakeaways}
+                  cachedIsOpen={m.takeawaysOpen}
+                  onUpdateCache={(takeaways, isOpen) =>
+                    handleUpdateMessageTakeaways(m.id, takeaways, isOpen)
+                  }
+                />
+              )}
               <div
                 className={`text-[9px] mt-2 font-mono ${
                   m.role === 'user' ? 'text-slate-400 text-right' : 'text-slate-400'

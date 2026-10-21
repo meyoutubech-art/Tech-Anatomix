@@ -13,6 +13,11 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { FormattedAiMessage } from '../common/FormattedAiMessage';
+import { AiKeyTakeawaysPanel } from '../common/AiKeyTakeawaysPanel';
+import {
+  isEligibleForKeyTakeaways,
+  findPrecedingUserQuestion,
+} from '../../utils/keyTakeawaysService';
 
 export interface ExternalModelChatContext {
   modelId: string;
@@ -30,6 +35,8 @@ interface Message {
   role: 'user' | 'assistant';
   text: string;
   time: string;
+  keyTakeaways?: string;
+  takeawaysOpen?: boolean;
 }
 
 interface ExternalModelAiChatProps {
@@ -324,6 +331,15 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
     setErrorMessage(null);
   };
 
+  // Persist generated key takeaways in message history and cache
+  const handleUpdateMessageTakeaways = (msgId: string, takeaways: string, isOpen: boolean) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, keyTakeaways: takeaways, takeawaysOpen: isOpen } : m
+      )
+    );
+  };
+
   // Handle Enter key submit (Shift+Enter for newline)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -400,7 +416,7 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
           D. CONVERSATION AREA (Independent Vertical Scrolling)
           ========================================================================= */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
-        {messages.map((msg) => {
+        {messages.map((msg, idx) => {
           const isUser = msg.role === 'user';
           return (
             <div
@@ -425,6 +441,23 @@ export const ExternalModelAiChat: React.FC<ExternalModelAiChatProps> = ({
                   text={msg.text}
                   variant={isUser ? 'user' : 'dark'}
                 />
+
+                {isEligibleForKeyTakeaways(msg, idx) && (
+                  <AiKeyTakeawaysPanel
+                    messageId={msg.id}
+                    question={findPrecedingUserQuestion(messages, idx)}
+                    answer={msg.text}
+                    modelTitle={context.title}
+                    subject={context.subject || 'Biology & Anatomy'}
+                    context={context}
+                    variant="dark"
+                    cachedTakeaways={msg.keyTakeaways}
+                    cachedIsOpen={msg.takeawaysOpen}
+                    onUpdateCache={(takeaways, isOpen) =>
+                      handleUpdateMessageTakeaways(msg.id, takeaways, isOpen)
+                    }
+                  />
+                )}
 
                 <div
                   className={`text-[9px] font-mono text-right ${

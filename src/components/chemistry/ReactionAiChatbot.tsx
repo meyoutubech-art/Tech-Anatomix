@@ -19,12 +19,19 @@ import {
   FlaskConical,
 } from 'lucide-react';
 import { FormattedAiMessage } from '../common/FormattedAiMessage';
+import { AiKeyTakeawaysPanel } from '../common/AiKeyTakeawaysPanel';
+import {
+  isEligibleForKeyTakeaways,
+  findPrecedingUserQuestion,
+} from '../../utils/keyTakeawaysService';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
   time: string;
+  keyTakeaways?: string;
+  takeawaysOpen?: boolean;
 }
 
 interface ReactionAiChatbotProps {
@@ -502,6 +509,14 @@ export const ReactionAiChatbot: React.FC<ReactionAiChatbotProps> = ({
     }
   };
 
+  const handleUpdateMessageTakeaways = (msgId: string, takeaways: string, isOpen: boolean) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, keyTakeaways: takeaways, takeawaysOpen: isOpen } : m
+      )
+    );
+  };
+
   const quickPrompts = [
     'Explain current reagents',
     'Why does effervescence occur?',
@@ -579,7 +594,7 @@ export const ReactionAiChatbot: React.FC<ReactionAiChatbotProps> = ({
 
       {/* Messages Scroll Area */}
       <div ref={chatScrollRef} className="p-4 sm:p-5 space-y-3.5 max-h-[300px] overflow-y-auto bg-slate-900/60 text-xs">
-        {messages.map((m) => (
+        {messages.map((m, idx) => (
           <div
             key={m.id}
             className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-1`}
@@ -600,6 +615,30 @@ export const ReactionAiChatbot: React.FC<ReactionAiChatbotProps> = ({
                 text={m.text}
                 variant={m.role === 'user' ? 'user' : 'dark'}
               />
+              {isEligibleForKeyTakeaways(m, idx) && (
+                <AiKeyTakeawaysPanel
+                  messageId={m.id}
+                  question={findPrecedingUserQuestion(messages, idx)}
+                  answer={m.text}
+                  modelTitle="Chemical Reaction Laboratory"
+                  subject="Chemistry"
+                  context={{
+                    title: 'Chemical Reaction Laboratory',
+                    subject: 'Chemistry',
+                    parameters: {
+                      temperature: `${conditions.temperature}°C`,
+                      concentration: `${conditions.concentration.toFixed(1)} M`,
+                      catalyst: conditions.catalystId || 'None',
+                    },
+                  }}
+                  variant="dark"
+                  cachedTakeaways={m.keyTakeaways}
+                  cachedIsOpen={m.takeawaysOpen}
+                  onUpdateCache={(takeaways, isOpen) =>
+                    handleUpdateMessageTakeaways(m.id, takeaways, isOpen)
+                  }
+                />
+              )}
             </div>
           </div>
         ))}

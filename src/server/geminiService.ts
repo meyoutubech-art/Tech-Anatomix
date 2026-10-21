@@ -3,6 +3,7 @@ import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { BATCH_3_MODELS } from '../data/curatedModelsBatch5';
 import { GeminiModelRouter } from './geminiModelRouter';
 import { cleanAndFormatScientificText, convertLatexFragmentToUnicode } from '../utils/scientificTextFormatter';
+import { extractLocalScientificTakeaways } from '../utils/keyTakeawaysService';
 
 let ai: GoogleGenAI | null = null;
 let currentKey = '';
@@ -1694,6 +1695,95 @@ INSTRUCTIONS FOR VIZLAB AI:
     activeModel: 'deterministic-offline',
   };
 }
+
+// 2B. Extract Concise Key Takeaways / Important Points from an AI Response
+export async function generateKeyTakeaways(
+  question: string,
+  answer: string,
+  modelTitle?: string,
+  subject?: string,
+  context: any = {}
+) {
+  const aiClient = getAiClient();
+  const effectiveTitle =
+    modelTitle && modelTitle !== 'Scientific Simulation'
+      ? modelTitle
+      : context?.title || modelTitle || 'Scientific Simulation';
+  const effectiveSubject =
+    subject && subject !== 'Science'
+      ? subject
+      : context?.subject || subject || 'Science';
+
+  if (aiClient && answer && answer.trim().length > 20) {
+    const prompt = `STUDENT QUESTION: "${question || 'Explain this scientific concept'}"
+
+FULL AI EXPLANATION TO SUMMARIZE:
+"""
+${answer}
+"""
+
+ACTIVE 3D MODEL CONTEXT:
+- Model: ${effectiveTitle} (${effectiveSubject})
+${context?.selectedComponent?.name ? `- Selected Component: ${context.selectedComponent.name}` : ''}
+
+TASK FOR VIZLAB AI:
+Extract the most important, high-yield educational takeaways from the AI explanation above so a student can revise and remember the essential concepts in seconds.
+
+STRICT OUTPUT RULES:
+1. Output 3 to 4 concise bullet points (using "• ") summarizing the core scientific mechanism, structure-function role, or parameter relationship from the answer.
+2. Start each bullet point with a **Bold Key Concept** followed by a colon (e.g., "• **Core Mechanism**: ...").
+3. If the explanation involves a formula, equation, or quantitative law, include one bullet "• **Key Formula / Law**: \`...\`" using clean readable Unicode symbols (m/s², °, ×, ÷, →, ⇌, Δ, π, √, H₂O, CO₂). NEVER output raw LaTeX dollar-sign syntax like $...$ or \\frac.
+4. End with one final bullet "• **Exam Takeaway**: ..." giving a 1-sentence high-yield point to remember for tests.
+5. Keep every bullet to 1–2 crisp sentences. Stay 100% faithful to the provided explanation and scientific model.`;
+
+    const execution = await modelRouter.executeWithModelFallback(
+      'chat_assistant',
+      async (modelId) => {
+        const response = await aiClient.models.generateContent({
+          model: modelId,
+          contents: prompt,
+          config: {
+            systemInstruction:
+              'You are VIZLAB Revision Synthesizer. Distill scientific explanations into crisp, accurate, student-friendly Key Takeaways using bullet points, bold lead-in terms, and clean Unicode notation (never raw LaTeX).',
+            temperature: 0.2,
+          },
+        });
+
+        if (response.text && response.text.trim()) {
+          return cleanAndFormatScientificText(response.text.trim());
+        }
+        throw new Error('Empty takeaways response from model');
+      },
+      9000
+    );
+
+    if (execution && execution.result) {
+      return {
+        takeaways: execution.result,
+        answer: execution.result,
+        reply: execution.result,
+        text: execution.result,
+        activeModel: execution.modelId,
+      };
+    }
+  }
+
+  // Deterministic scientific key takeaways fallback
+  const fallbackTakeaways = extractLocalScientificTakeaways(answer, question, {
+    ...context,
+    title: effectiveTitle,
+    subject: effectiveSubject,
+  });
+
+  return {
+    takeaways: fallbackTakeaways,
+    answer: fallbackTakeaways,
+    reply: fallbackTakeaways,
+    text: fallbackTakeaways,
+    activeModel: 'deterministic-offline',
+  };
+}
+
 
 // 3. Explain Simulation Change (Automatic & Cause-and-Effect)
 export async function explainSimulationChange(payload: any) {

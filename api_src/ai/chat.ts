@@ -1,4 +1,4 @@
-import { chatWithLabMentor } from '../../src/server/geminiService';
+import { chatWithLabMentor, generateKeyTakeaways } from '../../src/server/geminiService';
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
@@ -14,6 +14,25 @@ export default async function handler(req: any, res: any) {
       body = JSON.parse(body);
     } catch {
       body = {};
+    }
+  }
+
+  if (body.action === 'key_takeaways' || body.mode === 'key_takeaways') {
+    const answerText = body.answer || body.text || body.response || '';
+    const questionText = body.question || body.message || '';
+    const { modelTitle, subject, context } = body;
+    if (!answerText || typeof answerText !== 'string') {
+      return res.status(400).json({ error: 'Answer text is required for key takeaways' });
+    }
+    try {
+      const resolvedTitle = modelTitle || context?.title || 'Scientific Simulation';
+      const resolvedSubject = subject || context?.subject || 'Science';
+      const result = await generateKeyTakeaways(questionText, answerText, resolvedTitle, resolvedSubject, context);
+      return res.status(200).json(result);
+    } catch (error: any) {
+      return res.status(500).json({
+        error: error.message || 'Internal AI server error',
+      });
     }
   }
 
@@ -34,3 +53,4 @@ export default async function handler(req: any, res: any) {
     });
   }
 }
+

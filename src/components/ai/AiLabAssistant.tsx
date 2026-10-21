@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Bot, Send, Sparkles, User, Lightbulb } from 'lucide-react';
 import { classifyAiError } from '../../utils/aiErrorClassifier';
 import { FormattedAiMessage } from '../common/FormattedAiMessage';
+import { AiKeyTakeawaysPanel } from '../common/AiKeyTakeawaysPanel';
+import {
+  isEligibleForKeyTakeaways,
+  findPrecedingUserQuestion,
+} from '../../utils/keyTakeawaysService';
 
 interface AiLabAssistantProps {
   context: {
@@ -13,9 +18,12 @@ interface AiLabAssistantProps {
 }
 
 interface Message {
+  id?: string;
   role: 'user' | 'assistant';
   text: string;
   time: string;
+  keyTakeaways?: string;
+  takeawaysOpen?: boolean;
 }
 
 export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
@@ -162,6 +170,28 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
                 text={m.text}
                 variant={m.role === 'user' ? 'user' : 'light'}
               />
+              {isEligibleForKeyTakeaways(m, idx) && (
+                <AiKeyTakeawaysPanel
+                  messageId={m.id || `msg-${idx}`}
+                  question={findPrecedingUserQuestion(messages, idx)}
+                  answer={m.text}
+                  modelTitle={context.title}
+                  subject={context.subject}
+                  context={context}
+                  variant="light"
+                  cachedTakeaways={m.keyTakeaways}
+                  cachedIsOpen={m.takeawaysOpen}
+                  onUpdateCache={(takeaways, isOpen) => {
+                    setMessages((prev) =>
+                      prev.map((item, i) =>
+                        i === idx
+                          ? { ...item, keyTakeaways: takeaways, takeawaysOpen: isOpen }
+                          : item
+                      )
+                    );
+                  }}
+                />
+              )}
               <div
                 className={`text-[9px] mt-1.5 ${
                   m.role === 'user' ? 'text-slate-400 text-right' : 'text-slate-400'

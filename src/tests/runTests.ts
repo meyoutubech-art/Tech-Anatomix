@@ -31,5 +31,7 @@ import './advancedPhysicsBatch4.test';
 import './chemistryBatch1.test';
 import './chemistryBatch2.test';
 import './canonicalDisplayNames.test';
+import './keyTakeaways.test';
+
 
 
