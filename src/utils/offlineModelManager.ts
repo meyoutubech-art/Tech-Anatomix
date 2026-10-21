@@ -1,5 +1,6 @@
 import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { ScientificModelSpec } from '../types/aiModel';
+import { isSpecializedProceduralConcept } from './proceduralModelSynthesizer';
 
 export interface PresetSummary {
   id: string;
@@ -311,6 +312,11 @@ export function matchOfflinePreset(query: string): {
       presetTitle: directMatch.title,
       matchType: 'direct_id',
     };
+  }
+
+  // Defer specialized custom procedural concepts (e.g. Double Pendulum, Atwood Machine, Solenoid, CRT, Cyclotron, DNA Replication Fork, Chemical Synapse, ATP Synthase, Sarcomere, VSEPR molecules, etc.) to the Procedural Scientific 3D Synthesizer
+  if (isSpecializedProceduralConcept(query)) {
+    return { matched: false };
   }
 
   // =========================================================================
@@ -1059,7 +1065,16 @@ export function matchOfflinePreset(query: string): {
   }
 
   // Models 31–40 (Physics & Engineering Batch 3 Priority)
-  if (combined.includes('ac generator') || combined.includes('alternating current generator') || (combined.includes('generator') && (combined.includes('armature') || combined.includes('slip ring')))) {
+  if (
+    combined.includes('ac generator') ||
+    combined.includes('electric generator') ||
+    combined.includes('electrical generator') ||
+    combined.includes('alternating current generator') ||
+    combined.includes('alternator') ||
+    combined.includes('dynamo') ||
+    norm === 'generator' ||
+    (combined.includes('generator') && (combined.includes('armature') || combined.includes('slip ring') || combined.includes('sine') || combined.includes('magnetic') || combined.includes('induction') || combined.includes('coil')))
+  ) {
     return { matched: true, spec: CURATED_AI_MODELS['ac-generator'], presetTitle: 'AC Electric Generator', matchType: 'concept' };
   }
   if (combined.includes('electromagnetic induction') || combined.includes('induction explorer') || combined.includes('faraday') || combined.includes('lenz') || (combined.includes('galvanometer') && combined.includes('magnet'))) {

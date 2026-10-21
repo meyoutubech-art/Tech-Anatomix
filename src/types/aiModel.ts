@@ -40,6 +40,23 @@ export interface ModelPartSpec {
   whatDoesItDo?: string; // Short explanation of what this component does
   realLifeExample?: string; // Everyday example connected to this component
   groupId?: string; // e.g. 'rotor' in motor, 'pendulum-arm' in pendulum
+  parentId?: string; // Parent part ID for connected hierarchical kinematics
+  connectedTo?: string[]; // Topological connections to other part IDs
+  kinematicRole?:
+    | 'fixed-anchor'
+    | 'pivot-joint'
+    | 'upper-link'
+    | 'upper-mass'
+    | 'lower-joint'
+    | 'lower-link'
+    | 'lower-mass'
+    | 'rotor'
+    | 'stator'
+    | 'piston'
+    | 'crank'
+    | 'orbital-body'
+    | 'wave-node'
+    | 'standard';
   opticalRole?: 'objective' | 'eyepiece' | 'diagonal' | 'screen' | 'target' | 'emitter';
   animation?: {
     type: 'spin' | 'oscillate' | 'orbit' | 'pulse';
@@ -47,6 +64,22 @@ export interface ModelPartSpec {
     speed?: number; // radians/sec or cycles/sec
     amplitude?: number;
   };
+}
+
+export interface ScientificConceptSpecification {
+  scientificDomain: string;
+  chosenInterpretation: string;
+  purpose: string;
+  essentialComponents: string[];
+  topologyAndConnections: string[];
+  governingBehavior: string;
+  governingEquations: string[];
+  expectedOutputs: {
+    label: string;
+    formulaOrRule: string;
+    unit?: string;
+  }[];
+  limitations: string;
 }
 
 export interface ModelParameterSpec {
@@ -192,4 +225,5 @@ export interface ScientificModelSpec {
   embedHtml?: string;
   generationSource?: 'ai-live' | 'procedural-synthesizer' | 'curated-preset';
   subjectDomain?: 'Physics' | 'Chemistry' | 'Biology' | 'Anatomy' | 'General Science';
+  scientificSpecification?: ScientificConceptSpecification;
 }

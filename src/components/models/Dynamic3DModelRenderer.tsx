@@ -12,6 +12,7 @@ import { Sliders, Sparkles, Tag, Check, Eye, HelpCircle, FileSpreadsheet, Flame,
 import { PresentationExportModal } from '../common/PresentationExportModal';
 import { PresentationExportOptions } from '../../utils/presentationGenerator';
 import { ExternalModelWorkspace } from './ExternalModelWorkspace';
+import { buildScientificConceptSpecification } from '../../utils/proceduralModelSynthesizer';
 import {
   HEAT_MATERIALS,
   ConductionState,
@@ -5527,93 +5528,195 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
         ];
 
         if (!handledDomainTypes.includes(modelSpec.functionalType || '')) {
-          modelSpec.parts.forEach((part, partIdx) => {
-            const mesh = meshMap.get(part.id);
-            if (!mesh) return;
+          const isDoublePendulum =
+            modelSpec.id.includes('double-pendulum') ||
+            modelSpec.parts.some((p) => p.kinematicRole === 'pendulum-arm-1' || p.kinematicRole === 'pendulum-arm-2');
+          const isAtwoodMachine =
+            modelSpec.id.includes('atwood') ||
+            modelSpec.parts.some((p) => p.kinematicRole === 'counterweight-left' || p.kinematicRole === 'counterweight-right');
+          const isSarcomere = modelSpec.id.includes('sarcomere');
 
-            let speedMultiplier = 1.0;
-            let scaleMult = 1.0;
-            let posOffset = 0;
-            let rotOffset = 0;
+          if (isDoublePendulum) {
+            const theta0Deg = Number(parameters.initialAngle ?? 65);
+            const rodRatio = Number(parameters.rodRatio ?? 1.0);
+            const massRatio = Number(parameters.massRatio ?? 1.0);
+            const g = Number(parameters.gravity ?? 9.81);
+            const theta0 = (theta0Deg * Math.PI) / 180;
+            const L1 = 1.65;
+            const L2 = 1.55 * Math.max(0.5, Math.min(1.6, rodRatio));
+            const omega1 = Math.sqrt(g / L1);
+            const omega2 = Math.sqrt((g / L2) * (1 + 0.45 * massRatio));
 
-            if (modelSpec.parameters) {
-              Object.values(modelSpec.parameters).forEach((param) => {
-                const isTargeted = !param.targetPartId || param.targetPartId === part.id;
-                const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
-                const defVal = Number(param.defaultValue || 1) || 1;
-                if (param.affects === 'animationSpeed' && isTargeted) {
-                  speedMultiplier = defVal > 0 ? (val / defVal) * (param.scaleFactor ?? 1) : val * (param.scaleFactor ?? 0.5);
-                } else if (param.affects === 'objectScale' && isTargeted) {
-                  scaleMult = defVal > 0 ? val / defVal : val;
-                } else if (param.affects === 'objectPosition' && isTargeted) {
-                  posOffset = (val - defVal) * (param.scaleFactor ?? 0.35);
-                } else if (param.affects === 'objectRotation' && isTargeted) {
-                  rotOffset = ((val - defVal) * Math.PI) / 180;
+            const theta1 =
+              theta0 * 0.68 * Math.cos(omega1 * simTime) +
+              theta0 * 0.22 * Math.cos(omega2 * simTime);
+            const theta2 =
+              theta0 * 0.85 * Math.cos(omega1 * simTime - 0.35) -
+              theta0 * 0.55 * Math.sin(omega2 * simTime * 1.28);
+
+            const p0x = 0;
+            const p0y = 2.35;
+            const p1x = p0x + L1 * Math.sin(theta1);
+            const p1y = p0y - L1 * Math.cos(theta1);
+            const p2x = p1x + L2 * Math.sin(theta2);
+            const p2y = p1y - L2 * Math.cos(theta2);
+
+            const rod1Mesh = meshMap.get('rod-1');
+            if (rod1Mesh) {
+              rod1Mesh.position.set((p0x + p1x) / 2, (p0y + p1y) / 2, 0.35);
+              rod1Mesh.rotation.set(0, 0, theta1);
+            }
+            const mass1Mesh = meshMap.get('mass-1');
+            if (mass1Mesh) {
+              mass1Mesh.position.set(p1x, p1y, 0.35);
+            }
+            const pivot2Mesh = meshMap.get('pivot-2');
+            if (pivot2Mesh) {
+              pivot2Mesh.position.set(p1x, p1y, 0.46);
+            }
+            const rod2Mesh = meshMap.get('rod-2');
+            if (rod2Mesh) {
+              rod2Mesh.position.set((p1x + p2x) / 2, (p1y + p2y) / 2, 0.46);
+              rod2Mesh.rotation.set(0, 0, theta2);
+              rod2Mesh.scale.set(1, L2 / 1.55, 1);
+            }
+            const mass2Mesh = meshMap.get('mass-2');
+            if (mass2Mesh) {
+              const m2Scale = Math.max(0.7, Math.min(1.45, Math.cbrt(massRatio)));
+              mass2Mesh.position.set(p2x, p2y, 0.46);
+              mass2Mesh.scale.set(m2Scale, m2Scale, m2Scale);
+            }
+            const trailMesh = meshMap.get('chaos-trail');
+            if (trailMesh) {
+              trailMesh.visible = Boolean(conditions.showVectors ?? true);
+              trailMesh.rotation.z = Math.sin(simTime * 0.9) * 0.25;
+            }
+          } else if (isAtwoodMachine) {
+            const m1 = Number(parameters.mass1 ?? 4.0);
+            const m2 = Number(parameters.mass2 ?? 2.5);
+            const g = Number(parameters.gravity ?? 9.81);
+            const netAccel = ((m1 - m2) / Math.max(0.5, m1 + m2)) * (g / 9.81);
+            const dy = Math.sin(simTime * 1.8) * Math.min(1.15, Math.max(0.12, Math.abs(netAccel) * 2.2)) * (netAccel >= 0 ? 1 : -1);
+
+            const m1Mesh = meshMap.get('mass-m1');
+            if (m1Mesh) {
+              const s1 = Math.max(0.75, Math.min(1.4, Math.cbrt(m1 / 4.0)));
+              m1Mesh.position.set(-0.85, -0.45 - dy, 0.35);
+              m1Mesh.scale.set(s1, s1, s1);
+            }
+            const m2Mesh = meshMap.get('mass-m2');
+            if (m2Mesh) {
+              const s2 = Math.max(0.75, Math.min(1.4, Math.cbrt(m2 / 2.5)));
+              m2Mesh.position.set(0.85, 0.25 + dy, 0.35);
+              m2Mesh.scale.set(s2, s2, s2);
+            }
+            const pulleyMesh = meshMap.get('pulley-wheel');
+            if (pulleyMesh) {
+              pulleyMesh.rotation.y = dy / 0.85;
+            }
+          } else if (isSarcomere) {
+            const ca = Number(parameters.caConcentration ?? 5.0);
+            const atp = Number(parameters.atpLevel ?? 5.0);
+            const slideOffset = (0.5 + 0.5 * Math.sin(simTime * 2.0 * (atp / 5.0))) * 0.65 * (ca / 10.0);
+            const zLeft = meshMap.get('z-disc-left');
+            if (zLeft) zLeft.position.x = -3.2 + slideOffset;
+            const zRight = meshMap.get('z-disc-right');
+            if (zRight) zRight.position.x = 3.2 - slideOffset;
+            const actinLeft = meshMap.get('actin-left');
+            if (actinLeft) actinLeft.position.x = -1.9 + slideOffset;
+            const actinRight = meshMap.get('actin-right');
+            if (actinRight) actinRight.position.x = 1.9 - slideOffset;
+            const heads = meshMap.get('myosin-heads');
+            if (heads) heads.rotation.z = Math.sin(simTime * 4.5 * (atp / 5.0)) * 0.22 * (ca / 10.0);
+          } else {
+            modelSpec.parts.forEach((part, partIdx) => {
+              const mesh = meshMap.get(part.id);
+              if (!mesh) return;
+
+              let speedMultiplier = 1.0;
+              let scaleMult = 1.0;
+              let posOffset = 0;
+              let rotOffset = 0;
+
+              if (modelSpec.parameters) {
+                Object.values(modelSpec.parameters).forEach((param) => {
+                  const isTargeted = !param.targetPartId || param.targetPartId === part.id;
+                  const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
+                  const defVal = Number(param.defaultValue || 1) || 1;
+                  if (param.affects === 'animationSpeed' && isTargeted) {
+                    speedMultiplier = defVal > 0 ? (val / defVal) * (param.scaleFactor ?? 1) : val * (param.scaleFactor ?? 0.5);
+                  } else if (param.affects === 'objectScale' && isTargeted) {
+                    scaleMult = defVal > 0 ? val / defVal : val;
+                  } else if (param.affects === 'objectPosition' && isTargeted) {
+                    posOffset = (val - defVal) * (param.scaleFactor ?? 0.35);
+                  } else if (param.affects === 'objectRotation' && isTargeted) {
+                    rotOffset = ((val - defVal) * Math.PI) / 180;
+                  }
+                });
+              }
+
+              // Internal cutaway support for outer shells/membranes/envelopes
+              if (conditions.internalView !== undefined && (mesh as THREE.Mesh).material) {
+                const isOuterShell =
+                  (part.opacity !== undefined && part.opacity < 0.85) ||
+                  /membrane|envelope|wall|shell|capsule|cortex|casing|glass|chamber/i.test(`${part.id} ${part.name}`);
+                if (isOuterShell) {
+                  const mat = (mesh as THREE.Mesh).material as THREE.MeshStandardMaterial;
+                  mat.transparent = true;
+                  mat.opacity = conditions.internalView
+                    ? Math.min(part.opacity ?? 0.6, 0.25)
+                    : (part.opacity ?? 0.85);
                 }
-              });
-            }
-
-            // Internal cutaway support for outer shells/membranes/envelopes
-            if (conditions.internalView !== undefined && (mesh as THREE.Mesh).material) {
-              const isOuterShell =
-                (part.opacity !== undefined && part.opacity < 0.85) ||
-                /membrane|envelope|wall|shell|capsule|cortex|casing|glass|chamber/i.test(`${part.id} ${part.name}`);
-              if (isOuterShell) {
-                const mat = (mesh as THREE.Mesh).material as THREE.MeshStandardMaterial;
-                mat.transparent = true;
-                mat.opacity = conditions.internalView
-                  ? Math.min(part.opacity ?? 0.6, 0.25)
-                  : (part.opacity ?? 0.85);
               }
-            }
 
-            const baseScale = part.scale || [1, 1, 1];
-            const basePos = part.position || [0, 0, 0];
-            const baseRot = part.rotation || [0, 0, 0];
+              const baseScale = part.scale || [1, 1, 1];
+              const basePos = part.position || [0, 0, 0];
+              const baseRot = part.rotation || [0, 0, 0];
 
-            if (!part.animation) {
-              mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
-              mesh.position.set(basePos[0] + posOffset, basePos[1], basePos[2]);
-              if (rotOffset !== 0) {
-                mesh.rotation.set(baseRot[0], baseRot[1] + rotOffset, baseRot[2]);
+              if (!part.animation) {
+                mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
+                mesh.position.set(basePos[0] + posOffset, basePos[1], basePos[2]);
+                if (rotOffset !== 0) {
+                  mesh.rotation.set(baseRot[0], baseRot[1] + rotOffset, baseRot[2]);
+                }
+                return;
               }
-              return;
-            }
 
-            const speed = (part.animation.speed || 1.2) * Math.max(0.05, speedMultiplier);
-            const axis = part.animation.axis || 'y';
+              const speed = (part.animation.speed || 1.2) * Math.max(0.05, speedMultiplier);
+              const axis = part.animation.axis || 'y';
 
-            if (part.animation.type === 'spin') {
-              mesh.rotation[axis] += delta * speed;
-              mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
-            } else if (part.animation.type === 'oscillate') {
-              const amp = (part.animation.amplitude || 0.2) * Math.max(0.4, scaleMult);
-              const phase = partIdx * 0.65;
-              const wave = Math.sin(simTime * speed * 2.2 + phase) * amp;
-              if (axis === 'x') {
-                mesh.position.x = basePos[0] + posOffset + wave;
-              } else if (axis === 'y') {
-                mesh.position.y = basePos[1] + wave;
-              } else {
-                mesh.position.z = basePos[2] + wave;
+              if (part.animation.type === 'spin') {
+                mesh.rotation[axis] += delta * speed;
+                mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
+              } else if (part.animation.type === 'oscillate') {
+                const amp = (part.animation.amplitude || 0.2) * Math.max(0.4, scaleMult);
+                const phase = partIdx * 0.65;
+                const wave = Math.sin(simTime * speed * 2.2 + phase) * amp;
+                if (axis === 'x') {
+                  mesh.position.x = basePos[0] + posOffset + wave;
+                } else if (axis === 'y') {
+                  mesh.position.y = basePos[1] + wave;
+                } else {
+                  mesh.position.z = basePos[2] + wave;
+                }
+                mesh.rotation[axis] = (baseRot[axis === 'x' ? 0 : axis === 'y' ? 1 : 2] || 0) + wave * 0.45 + rotOffset;
+                mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
+              } else if (part.animation.type === 'pulse') {
+                const amp = part.animation.amplitude || 0.12;
+                const phase = partIdx * 0.5;
+                const s = (1.0 + Math.sin(simTime * speed * 2.4 + phase) * amp) * scaleMult;
+                mesh.scale.set(baseScale[0] * s, baseScale[1] * s, baseScale[2] * s);
+                mesh.position.set(basePos[0] + posOffset, basePos[1], basePos[2]);
+              } else if (part.animation.type === 'orbit') {
+                const r = Math.max(0.4, Math.hypot(basePos[0], basePos[2])) * scaleMult;
+                const initialAngle = Math.atan2(basePos[2], basePos[0]);
+                const angle = initialAngle + simTime * speed * 0.85;
+                mesh.position.x = r * Math.cos(angle) + posOffset;
+                mesh.position.z = r * Math.sin(angle);
+                mesh.position.y = basePos[1] + Math.sin(simTime * speed * 1.5 + partIdx) * (part.animation.amplitude || 0.08);
               }
-              mesh.rotation[axis] = (baseRot[axis === 'x' ? 0 : axis === 'y' ? 1 : 2] || 0) + wave * 0.45 + rotOffset;
-              mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
-            } else if (part.animation.type === 'pulse') {
-              const amp = part.animation.amplitude || 0.12;
-              const phase = partIdx * 0.5;
-              const s = (1.0 + Math.sin(simTime * speed * 2.4 + phase) * amp) * scaleMult;
-              mesh.scale.set(baseScale[0] * s, baseScale[1] * s, baseScale[2] * s);
-              mesh.position.set(basePos[0] + posOffset, basePos[1], basePos[2]);
-            } else if (part.animation.type === 'orbit') {
-              const r = Math.max(0.4, Math.hypot(basePos[0], basePos[2])) * scaleMult;
-              const initialAngle = Math.atan2(basePos[2], basePos[0]);
-              const angle = initialAngle + simTime * speed * 0.85;
-              mesh.position.x = r * Math.cos(angle) + posOffset;
-              mesh.position.z = r * Math.sin(angle);
-              mesh.position.y = basePos[1] + Math.sin(simTime * speed * 1.5 + partIdx) * (part.animation.amplitude || 0.08);
-            }
-          });
+            });
+          }
         }
       } else if (isBatch1Studio && batch1Handles) {
         // Keep slider/condition-driven geometry responsive even while paused
@@ -5627,31 +5730,72 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       } else if (isChemBatch1Studio && chemBatch1Handles) {
         updateChemistryBatch1CustomAssemblies(chemBatch1Handles, parameters, conditions, simTime);
       } else {
-        // Apply static parameter adjustments (scale/position/rotation/cutaway) when simulation is paused on standard AI models
-        modelSpec.parts.forEach((part) => {
-          const mesh = meshMap.get(part.id);
-          if (!mesh) return;
-          let scaleMult = 1.0;
-          let posOffset = 0;
-          if (modelSpec.parameters) {
-            Object.values(modelSpec.parameters).forEach((param) => {
-              const isTargeted = !param.targetPartId || param.targetPartId === part.id;
-              const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
-              const defVal = Number(param.defaultValue || 1) || 1;
-              if (param.affects === 'objectScale' && isTargeted) {
-                scaleMult = defVal > 0 ? val / defVal : val;
-              } else if (param.affects === 'objectPosition' && isTargeted) {
-                posOffset = (val - defVal) * (param.scaleFactor ?? 0.35);
-              }
-            });
+        // Apply static parameter adjustments (including connected Double Pendulum / Atwood / Sarcomere geometry) when simulation is paused
+        const isDoublePendulum =
+          modelSpec.id.includes('double-pendulum') ||
+          modelSpec.parts.some((p) => p.kinematicRole === 'pendulum-arm-1' || p.kinematicRole === 'pendulum-arm-2');
+        if (isDoublePendulum) {
+          const theta0Deg = Number(parameters.initialAngle ?? 65);
+          const rodRatio = Number(parameters.rodRatio ?? 1.0);
+          const massRatio = Number(parameters.massRatio ?? 1.0);
+          const theta1 = ((theta0Deg * 0.65) * Math.PI) / 180;
+          const theta2 = ((theta0Deg * 0.85) * Math.PI) / 180;
+          const L1 = 1.65;
+          const L2 = 1.55 * Math.max(0.5, Math.min(1.6, rodRatio));
+          const p0x = 0;
+          const p0y = 2.35;
+          const p1x = p0x + L1 * Math.sin(theta1);
+          const p1y = p0y - L1 * Math.cos(theta1);
+          const p2x = p1x + L2 * Math.sin(theta2);
+          const p2y = p1y - L2 * Math.cos(theta2);
+
+          const rod1Mesh = meshMap.get('rod-1');
+          if (rod1Mesh) {
+            rod1Mesh.position.set((p0x + p1x) / 2, (p0y + p1y) / 2, 0.35);
+            rod1Mesh.rotation.set(0, 0, theta1);
           }
-          const baseScale = part.scale || [1, 1, 1];
-          const basePos = part.position || [0, 0, 0];
-          mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
-          if (!part.animation || part.animation.type !== 'orbit') {
-            mesh.position.x = basePos[0] + posOffset;
+          const mass1Mesh = meshMap.get('mass-1');
+          if (mass1Mesh) mass1Mesh.position.set(p1x, p1y, 0.35);
+          const pivot2Mesh = meshMap.get('pivot-2');
+          if (pivot2Mesh) pivot2Mesh.position.set(p1x, p1y, 0.46);
+          const rod2Mesh = meshMap.get('rod-2');
+          if (rod2Mesh) {
+            rod2Mesh.position.set((p1x + p2x) / 2, (p1y + p2y) / 2, 0.46);
+            rod2Mesh.rotation.set(0, 0, theta2);
+            rod2Mesh.scale.set(1, L2 / 1.55, 1);
           }
-        });
+          const mass2Mesh = meshMap.get('mass-2');
+          if (mass2Mesh) {
+            const m2Scale = Math.max(0.7, Math.min(1.45, Math.cbrt(massRatio)));
+            mass2Mesh.position.set(p2x, p2y, 0.46);
+            mass2Mesh.scale.set(m2Scale, m2Scale, m2Scale);
+          }
+        } else {
+          modelSpec.parts.forEach((part) => {
+            const mesh = meshMap.get(part.id);
+            if (!mesh) return;
+            let scaleMult = 1.0;
+            let posOffset = 0;
+            if (modelSpec.parameters) {
+              Object.values(modelSpec.parameters).forEach((param) => {
+                const isTargeted = !param.targetPartId || param.targetPartId === part.id;
+                const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
+                const defVal = Number(param.defaultValue || 1) || 1;
+                if (param.affects === 'objectScale' && isTargeted) {
+                  scaleMult = defVal > 0 ? val / defVal : val;
+                } else if (param.affects === 'objectPosition' && isTargeted) {
+                  posOffset = (val - defVal) * (param.scaleFactor ?? 0.35);
+                }
+              });
+            }
+            const baseScale = part.scale || [1, 1, 1];
+            const basePos = part.position || [0, 0, 0];
+            mesh.scale.set(baseScale[0] * scaleMult, baseScale[1] * scaleMult, baseScale[2] * scaleMult);
+            if (!part.animation || part.animation.type !== 'orbit') {
+              mesh.position.x = basePos[0] + posOffset;
+            }
+          });
+        }
       }
 
       // Preserve active blue component highlight across dynamic material updates
@@ -8182,6 +8326,208 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                   })()}
                 </div>
               )}
+
+              {/* Universal Live Quantitative Readout & Scientific Concept Specification Panel */}
+              {(() => {
+                const sciSpec =
+                  modelSpec.scientificSpecification ||
+                  buildScientificConceptSpecification(modelSpec.prompt || modelSpec.title, modelSpec);
+                const hasCustomBatchReadout =
+                  isAdvancedPhysicsBatch3Model(modelSpec.functionalType, modelSpec.id) ||
+                  isAdvancedPhysicsBatch4Model(modelSpec.functionalType, modelSpec.id) ||
+                  isChemistryBatch1Model(modelSpec.functionalType, modelSpec.id) ||
+                  isChemistryBatch2Model(modelSpec.functionalType, modelSpec.id);
+
+                const isDoublePendulum = modelSpec.id.includes('double-pendulum');
+                const isAtwood = modelSpec.id.includes('atwood');
+                const isSolenoid = modelSpec.id.includes('solenoid');
+                const isCrt = modelSpec.id.includes('crt') || modelSpec.id.includes('cathode-ray');
+                const isCyclotron = modelSpec.id.includes('cyclotron');
+
+                return (
+                  <div
+                    data-testid="universal-scientific-spec-panel"
+                    className="pt-3 border-t border-slate-100 space-y-3"
+                  >
+                    {!hasCustomBatchReadout && (
+                      <div className="bg-slate-900 text-slate-100 rounded-xl p-3.5 space-y-2.5 border border-slate-800">
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                            <Gauge className="w-3.5 h-3.5 text-sky-400" />
+                            <span>Live Quantitative Outputs & System State</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded">
+                            {sciSpec.scientificDomain} • {modelSpec.simulationModel === 'illustrative' ? 'Illustrative' : 'Coupled Solver'}
+                          </span>
+                        </div>
+
+                        {isDoublePendulum ? (() => {
+                          const theta0 = Number(parameters.initialAngle ?? 65);
+                          const rodRatio = Number(parameters.rodRatio ?? 1.0);
+                          const massRatio = Number(parameters.massRatio ?? 1.0);
+                          const g = Number(parameters.gravity ?? 9.81);
+                          const L1 = 1.65;
+                          const L2 = 1.55 * rodRatio;
+                          const omega1 = Math.sqrt(g / L1);
+                          const omega2 = Math.sqrt((g / L2) * (1 + 0.45 * massRatio));
+                          const period1 = (2 * Math.PI) / omega1;
+                          const energyJ = (1 + massRatio) * g * L1 * (1 - Math.cos((theta0 * Math.PI) / 180));
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Primary Mode ω₁ / Period T₁</span>
+                                <strong className="text-sky-300">{omega1.toFixed(2)} rad/s • {period1.toFixed(2)} s</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Coupled Mode ω₂ (L₂/L₁ = {rodRatio})</span>
+                                <strong className="text-amber-300">{omega2.toFixed(2)} rad/s (m₂/m₁ = {massRatio})</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Total Energy E & Regime</span>
+                                <strong className="text-emerald-300">
+                                  {energyJ.toFixed(1)} J ({theta0 > 45 ? 'Chaotic Non-Linear' : 'Quasi-Periodic'})
+                                </strong>
+                              </div>
+                            </div>
+                          );
+                        })() : isAtwood ? (() => {
+                          const m1 = Number(parameters.mass1 ?? 4.0);
+                          const m2 = Number(parameters.mass2 ?? 2.5);
+                          const g = Number(parameters.gravity ?? 9.81);
+                          const accel = ((m1 - m2) / (m1 + m2)) * g;
+                          const tension = ((2 * m1 * m2) / (m1 + m2)) * g;
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Net Acceleration a</span>
+                                <strong className="text-sky-300">{accel.toFixed(2)} m/s²</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Cord Tension T</span>
+                                <strong className="text-amber-300">{tension.toFixed(2)} N</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Motion State</span>
+                                <strong className="text-emerald-300">
+                                  {Math.abs(m1 - m2) < 0.05 ? 'Static Equilibrium (a = 0)' : m1 > m2 ? 'm₁ Descending' : 'm₂ Descending'}
+                                </strong>
+                              </div>
+                            </div>
+                          );
+                        })() : isSolenoid ? (() => {
+                          const I = Number(parameters.current ?? 3.5);
+                          const N = Number(parameters.turnDensity ?? 500);
+                          const muR = Number(parameters.corePermeability ?? 4.0);
+                          const B_mT = 4 * Math.PI * 1e-4 * muR * N * I;
+                          return (
+                            <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Core Flux Density B = μ₀·μ_r·n·I</span>
+                                <strong className="text-sky-300">{B_mT.toFixed(2)} mT</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Ampere-Turns (n·I)</span>
+                                <strong className="text-emerald-300">{(N * I).toFixed(0)} A·turns/m (μ_r = {muR})</strong>
+                              </div>
+                            </div>
+                          );
+                        })() : isCrt ? (() => {
+                          const Vacc = Number(parameters.acceleratingVoltage ?? 2.5);
+                          const Vplate = Number(parameters.plateVoltage ?? 150);
+                          const B = Number(parameters.magneticField ?? 1.5);
+                          const vElectron = Math.sqrt((2 * 1.602e-19 * Vacc * 1000) / 9.109e-31) / 1e7;
+                          const deflMm = (Vplate / (Vacc * 100)) * 8.5;
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Beam Velocity v_e</span>
+                                <strong className="text-sky-300">{vElectron.toFixed(2)} × 10⁷ m/s</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Screen Deflection Δy</span>
+                                <strong className="text-amber-300">{deflMm >= 0 ? `+${deflMm.toFixed(1)}` : deflMm.toFixed(1)} mm</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Helmholtz Field B</span>
+                                <strong className="text-emerald-300">{B.toFixed(2)} mT</strong>
+                              </div>
+                            </div>
+                          );
+                        })() : isCyclotron ? (() => {
+                          const B = Number(parameters.magneticField ?? 1.5);
+                          const Vrf = Number(parameters.rfVoltage ?? 50);
+                          const fcMhz = (1.602e-19 * B) / (2 * Math.PI * 1.6726e-27 * 1e6);
+                          const KmaxMev = ((1.602e-19 * B * 0.45) ** 2) / (2 * 1.6726e-27 * 1.602e-13);
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Cyclotron Frequency f_c</span>
+                                <strong className="text-sky-300">{fcMhz.toFixed(2)} MHz</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg">
+                                <span className="text-slate-400 block text-[10px]">Max Beam Energy K_max</span>
+                                <strong className="text-emerald-300">{KmaxMev.toFixed(2)} MeV</strong>
+                              </div>
+                              <div className="bg-slate-800/80 p-2 rounded-lg col-span-2 sm:col-span-1">
+                                <span className="text-slate-400 block text-[10px]">Gap Gain per Turn (2·q·V_rf)</span>
+                                <strong className="text-amber-300">{(2 * Vrf).toFixed(0)} keV/turn</strong>
+                              </div>
+                            </div>
+                          );
+                        })() : (
+                          <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                            {Object.values(modelSpec.parameters).slice(0, 4).map((param) => {
+                              const val = Number(parameters[param.id] ?? param.defaultValue ?? 1);
+                              const pct = Math.round(((val - param.min) / Math.max(0.0001, param.max - param.min)) * 100);
+                              return (
+                                <div key={param.id} className="bg-slate-800/80 p-2 rounded-lg">
+                                  <span className="text-slate-400 block text-[10px]">{param.name}</span>
+                                  <strong className="text-sky-300">
+                                    {val} {param.unit} ({pct}% range)
+                                  </strong>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Structured Internal Scientific Concept Specification */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                          <span>Scientific Concept Specification</span>
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">
+                          {sciSpec.scientificDomain}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        <strong className="text-slate-800">Interpretation:</strong> {sciSpec.chosenInterpretation}
+                      </p>
+                      {sciSpec.governingEquations && sciSpec.governingEquations.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {sciSpec.governingEquations.slice(0, 3).map((eq, idx) => (
+                            <code
+                              key={idx}
+                              className="px-2 py-0.5 rounded bg-slate-900 text-sky-300 text-[11px] font-mono"
+                            >
+                              {eq}
+                            </code>
+                          ))}
+                        </div>
+                      )}
+                      {sciSpec.limitations && sciSpec.limitations.length > 0 && (
+                        <p className="text-[10px] text-slate-500 leading-snug pt-0.5">
+                          <strong className="text-slate-700">Assumptions & Scope:</strong> {sciSpec.limitations[0]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* =========================================================================

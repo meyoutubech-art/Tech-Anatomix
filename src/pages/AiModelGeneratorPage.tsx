@@ -195,14 +195,21 @@ export const AiModelGeneratorPage: React.FC = () => {
   ];
 
   const customAiSynthesisPrompts = [
-    { label: '🌿 Chloroplast & Thylakoids', query: 'Create a 3D model of a plant chloroplast with thylakoid grana stacks and stroma lamellae' },
-    { label: '🦠 Bacteriophage T4 Virus', query: 'Create a 3D model of a Bacteriophage T4 virus capsid, contractile sheath, and tail fibers' },
-    { label: '🧪 Methane (CH4) Molecule', query: 'Create a 3D tetrahedral molecular model of Methane (CH4) with sp3 covalent bonds' },
-    { label: '⚗️ Sulfuric Acid (H2SO4)', query: 'Create a 3D molecular structure of Sulfuric Acid (H2SO4)' },
-    { label: '🧬 DNA Replication Fork', query: 'Create a 3D model of a DNA replication fork with helicase and DNA polymerase' },
-    { label: '🧠 Chemical Synapse', query: 'Create a 3D model of a chemical synapse with neurotransmitter vesicles and receptor channels' },
-    { label: '⚡ Solenoid Electromagnet', query: 'Create a 3D model of a solenoid electromagnet with ferromagnetic core and magnetic flux loops' },
-    { label: '🔬 Mitosis Spindle Fibers', query: 'Create a 3D model of cell mitosis metaphase chromosomes and mitotic spindle apparatus' },
+    { label: '🕰️ Double Pendulum', query: 'Double Pendulum' },
+    { label: '⚖️ Atwood Machine', query: 'Atwood Machine' },
+    { label: '⚡ Solenoid Electromagnet', query: 'Solenoid Electromagnet' },
+    { label: '📺 Cathode Ray Tube (CRT)', query: 'Cathode Ray Tube' },
+    { label: '⚛️ Cyclotron Accelerator', query: 'Cyclotron' },
+    { label: '🧬 DNA Replication Fork', query: 'DNA Replication Fork' },
+    { label: '🧠 Chemical Synapse', query: 'Chemical Synapse' },
+    { label: '⚙️ ATP Synthase Motor', query: 'ATP Synthase' },
+    { label: '💪 Sarcomere Muscle Unit', query: 'Sarcomere' },
+    { label: '🫧 Fluid Mosaic Membrane', query: 'Fluid Mosaic Cell Membrane' },
+    { label: '🌿 Chloroplast & Thylakoids', query: 'Chloroplast' },
+    { label: '🦠 Bacteriophage T4 Virus', query: 'Bacteriophage T4' },
+    { label: '🧪 Methane (CH4)', query: 'Methane (CH4)' },
+    { label: '⚗️ Sulfuric Acid (H2SO4)', query: 'Sulfuric Acid (H2SO4)' },
+    { label: '🔬 Mitosis Spindle', query: 'Mitosis Spindle' },
   ];
 
   const handleGenerate = async (userQuery: string, forceFresh = false) => {
@@ -462,7 +469,7 @@ export const AiModelGeneratorPage: React.FC = () => {
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder='Describe any 3D scientific model: e.g., "Chloroplast with thylakoid grana", "Methane (CH4) molecule", "Bacteriophage T4 virus", "Solenoid electromagnet"...'
+              placeholder='Enter any short model name or concept: e.g., "Double Pendulum", "DC Motor", "Human Heart", "DNA Double Helix", "Electric Generator", "Planetary Orbit", "Electrochemical Cell", "Wave Interference"...'
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               disabled={isGenerating}
@@ -518,12 +525,12 @@ export const AiModelGeneratorPage: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto text-xs text-fuchsia-900 pb-0.5">
             <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-300 shrink-0 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-fuchsia-600" />
-              Custom AI 3D Synthesizer:
+              Universal 3D Synthesizer (Short Names):
             </span>
             {customAiSynthesisPrompts.map((item) => (
               <button
                 key={item.label}
-                onClick={() => handleGenerate(item.query, true)}
+                onClick={() => handleGenerate(item.query, false)}
                 disabled={isGenerating}
                 className="px-2.5 py-1 rounded-md bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-2xs"
               >

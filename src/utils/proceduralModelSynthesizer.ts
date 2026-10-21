@@ -1,4 +1,10 @@
-import { ScientificModelSpec, ModelPartSpec, ModelParameterSpec, ModelConditionSpec } from '../types/aiModel';
+import {
+  ScientificModelSpec,
+  ModelPartSpec,
+  ModelParameterSpec,
+  ModelConditionSpec,
+  ScientificConceptSpecification,
+} from '../types/aiModel';
 
 /**
  * CPK Element Colors & Covalent Radii for Dynamic 3D Molecular Geometry Synthesis
@@ -102,7 +108,8 @@ function inferSynthesizedSubjectDomain(
     combined.includes('nephron') ||
     combined.includes('heart') ||
     combined.includes('lung') ||
-    combined.includes('ear') ||
+    /\bear\b/i.test(combined) ||
+    combined.includes('cochlea') ||
     combined.includes('anatomy') ||
     combined.includes('sarcomere') ||
     combined.includes('muscle')
@@ -128,17 +135,2136 @@ function inferSynthesizedSubjectDomain(
   return 'Physics';
 }
 
+export function buildScientificConceptSpecification(
+  prompt: string,
+  spec: ScientificModelSpec
+): ScientificConceptSpecification {
+  if (spec.scientificSpecification) {
+    return spec.scientificSpecification;
+  }
+
+  const domain = spec.subjectDomain || inferSynthesizedSubjectDomain(prompt, spec);
+  const essentialComponents = (spec.parts || []).map((p) => p.label || p.name || p.id);
+
+  // Derive topological connections from parentId / connectedTo or spatial ordering
+  const topologyAndConnections: string[] = [];
+  (spec.parts || []).forEach((part, idx) => {
+    const partLabel = part.label || part.name;
+    if (part.parentId) {
+      const parentPart = spec.parts.find((p) => p.id === part.parentId);
+      if (parentPart) {
+        topologyAndConnections.push(
+          `${parentPart.label || parentPart.name} ➔ ${partLabel} (kinematic parent-child linkage)`
+        );
+      }
+    } else if (Array.isArray(part.connectedTo) && part.connectedTo.length > 0) {
+      const targets = part.connectedTo
+        .map((tid) => spec.parts.find((p) => p.id === tid)?.label || tid)
+        .join(', ');
+      topologyAndConnections.push(`${partLabel} ⟷ ${targets}`);
+    } else if (idx > 0 && topologyAndConnections.length < 4) {
+      const prevPart = spec.parts[idx - 1];
+      topologyAndConnections.push(
+        `${prevPart.label || prevPart.name} ➔ ${partLabel} (${part.animation ? `${part.animation.type} dynamics` : 'structural coupling'})`
+      );
+    }
+  });
+
+  if (topologyAndConnections.length === 0 && essentialComponents.length >= 2) {
+    topologyAndConnections.push(`${essentialComponents[0]} ➔ ${essentialComponents.slice(1).join(' ➔ ')}`);
+  }
+
+  const expectedOutputs = Object.values(spec.parameters || {}).map((param) => ({
+    label: `${param.name} Response`,
+    formulaOrRule:
+      param.affects === 'animationSpeed'
+        ? `Modulates dynamic rate (${param.min}–${param.max} ${param.unit})`
+        : param.affects === 'objectScale'
+          ? `Scales active geometry (${param.min}–${param.max} ${param.unit})`
+          : param.affects === 'objectRotation'
+            ? `Adjusts angular orientation (${param.min}–${param.max} ${param.unit})`
+            : `Shifts spatial coordinate (${param.min}–${param.max} ${param.unit})`,
+    unit: param.unit,
+  }));
+
+  return {
+    scientificDomain: `${domain} — ${spec.concept}`,
+    chosenInterpretation: `Interpreted "${prompt.trim() || spec.title}" as "${spec.title}" (${spec.concept}) with ${essentialComponents.length} interactive 3D subassemblies.`,
+    purpose: spec.whatIsIt || spec.description,
+    essentialComponents,
+    topologyAndConnections,
+    governingBehavior: spec.howDoesItWork || spec.description,
+    governingEquations:
+      spec.equations && spec.equations.length > 0
+        ? spec.equations
+        : [spec.formula || 'Conservation of Energy & Structure–Function Coupling'],
+    expectedOutputs,
+    limitations:
+      spec.scaleNote ||
+      'Educational 3D representation with idealized component proportions, smooth rigid-body/harmonic kinematics, and neglect of higher-order environmental losses for visual clarity.',
+  };
+}
+
+export function isSpecializedProceduralConcept(prompt: string): boolean {
+  const q = prompt.toLowerCase().trim();
+  if (
+    q.includes('double pendulum') ||
+    q.includes('chaotic pendulum') ||
+    q.includes('coupled pendulum') ||
+    q.includes('two-link pendulum') ||
+    q.includes('atwood') ||
+    q.includes('solenoid electromagnet') ||
+    q.includes('replication fork') ||
+    q.includes('dna replication') ||
+    q.includes('helicase') ||
+    q.includes('okazaki') ||
+    q.includes('chemical synapse') ||
+    q.includes('synaptic cleft') ||
+    q.includes('mitosis') ||
+    q.includes('mitotic spindle') ||
+    q.includes('atp synthase') ||
+    q.includes('sarcomere') ||
+    q.includes('sliding filament') ||
+    q.includes('cathode ray') ||
+    q.includes('cyclotron') ||
+    q.includes('phospholipid bilayer') ||
+    q.includes('fluid mosaic') ||
+    q.includes('bacteriophage') ||
+    q.includes('volcano') ||
+    q.includes('magma chamber') ||
+    q.includes('wind turbine') ||
+    q.includes('prokaryot') ||
+    q.includes('flagellum') ||
+    q.includes('solar cell') ||
+    q.includes('photovoltaic') ||
+    q.includes('benzene') ||
+    q.includes('chloroplast') ||
+    q.includes('thylakoid') ||
+    q.includes('synovial joint') ||
+    q.includes('sulfuric acid') ||
+    q.includes('h2so4') ||
+    q.includes('nitric acid') ||
+    q.includes('hno3') ||
+    (q.includes('methane') && (q.includes('tetrahedral') || q.includes('sp3') || q.includes('vsepr') || q.includes('molecule')))
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function synthesizeProceduralScientificModel(prompt: string): ScientificModelSpec {
   const spec = synthesizeProceduralScientificModelInternal(prompt);
-  return {
+  const subjectDomain = spec.subjectDomain || inferSynthesizedSubjectDomain(prompt, spec);
+  const enriched: ScientificModelSpec = {
     ...spec,
     generationSource: 'procedural-synthesizer',
-    subjectDomain: spec.subjectDomain || inferSynthesizedSubjectDomain(prompt, spec),
+    subjectDomain,
   };
+  enriched.scientificSpecification = buildScientificConceptSpecification(prompt, enriched);
+  return enriched;
 }
 
 function synthesizeProceduralScientificModelInternal(prompt: string): ScientificModelSpec {
   const q = prompt.toLowerCase().trim();
+
+  // 0A. DOUBLE PENDULUM (COUPLED CHAOTIC LAGRANGIAN PENDULUM)
+  if (
+    q.includes('double pendulum') ||
+    q.includes('chaotic pendulum') ||
+    q.includes('coupled pendulum') ||
+    q.includes('two-link pendulum') ||
+    (q.includes('pendulum') && (q.includes('double') || q.includes('chaos') || q.includes('two rod') || q.includes('lagrangian')))
+  ) {
+    return {
+      id: 'custom-double-pendulum-chaos',
+      title: 'Double Pendulum & Chaotic Lagrangian Dynamics',
+      concept: 'Nonlinear Classical Mechanics, Coupled Oscillators, Lagrangian Dynamics & Deterministic Chaos',
+      subjectDomain: 'Physics',
+      description:
+        'Interactive 3D coupled two-link gravitational pendulum featuring a rigid overhead support gantry, fixed upper pivot bearing (O₁), upper massless rod 1 (L₁), upper concentrated bob mass (m₁), articulated inter-link hinge joint (O₂), lower rod 2 (L₂) suspended from m₁, and lower bob mass (m₂).',
+      whatIsIt:
+        'A pendulum with a second pendulum attached directly to the oscillating end of the first, forming a classic two-degree-of-freedom nonlinear dynamical system.',
+      howDoesItWork:
+        'For small initial angles (θ₀ < 25°), the two links oscillate in predictable normal modes (in-phase and out-of-phase). At larger angles, nonlinear inertial and gravitational torques couple θ₁(t) and θ₂(t) via the Euler–Lagrange equations, producing deterministic chaos with extreme sensitivity to initial conditions while strictly conserving total mechanical energy E = T + V.',
+      realLifeExample:
+        'Robotic two-link manipulators, human leg hip-and-knee swing biomechanics, golf club double-pendulum swing, and triple-stage gravitational-wave detector suspensions.',
+      examConnection:
+        'A double pendulum has 2 degrees of freedom (generalized coordinates θ₁, θ₂). Unlike a single simple pendulum, its large-angle equations of motion are non-integrable and exhibit positive Lyapunov exponents (deterministic chaos).',
+      scaleNote:
+        'Educational scale: pivot bearings and bob radii are enlarged for 3D clicking; rods are modeled as rigid massless links connecting point masses m₁ and m₂.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 0.8, 8.2], target: [0, 0.1, 0] },
+      parts: [
+        {
+          id: 'support-gantry-frame',
+          name: 'Overhead A-Frame Support Gantry & Base',
+          label: 'Rigid Support Gantry',
+          shape: 'box',
+          dimensions: [4.2, 0.28, 1.8],
+          position: [0, 2.55, -0.25],
+          color: '#334155',
+          material: 'metal',
+          kinematicRole: 'fixed-anchor',
+          connectedTo: ['upper-pivot-bearing'],
+          description: 'Heavy structural overhead frame anchoring the primary fixed pivot axis O₁ against reaction forces.',
+          whatIsIt: 'Rigid laboratory mounting beam at y = +2.4 m.',
+          whatDoesItDo: 'Provides an inertial, non-accelerating reference frame for the upper pivot joint.',
+        },
+        {
+          id: 'upper-pivot-bearing',
+          name: 'Upper Fixed Pivot Bearing Joint (O₁)',
+          label: 'Pivot Joint 1 (O₁ Fixed Axis)',
+          shape: 'cylinder',
+          dimensions: [0.22, 0.55],
+          position: [0, 2.35, 0],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#94a3b8',
+          material: 'metal',
+          parentId: 'support-gantry-frame',
+          kinematicRole: 'pivot-joint',
+          connectedTo: ['support-gantry-frame', 'upper-pendulum-rod-1'],
+          description: 'Low-friction cylindrical rotary axle at the origin O₁ allowing upper rod L₁ to swing freely in the XY plane.',
+          whatIsIt: 'First rotational hinge joint (θ₁ axis).',
+          whatDoesItDo: 'Constrains the top end of Rod 1 to rotate smoothly about a fixed horizontal axis.',
+        },
+        {
+          id: 'upper-pendulum-rod-1',
+          name: 'Upper Pendulum Link Rod 1 (Length L₁)',
+          label: 'Upper Rod 1 (L₁)',
+          shape: 'cylinder',
+          dimensions: [0.08, 1.65],
+          position: [0, 1.52, 0],
+          color: '#38bdf8',
+          material: 'metal',
+          parentId: 'upper-pivot-bearing',
+          kinematicRole: 'upper-link',
+          connectedTo: ['upper-pivot-bearing', 'upper-pendulum-bob-1', 'interlink-hinge-joint-2'],
+          description: 'First rigid link of length L₁ connecting Fixed Pivot O₁ to Upper Mass m₁ and Moving Joint O₂.',
+          whatIsIt: 'Primary upper pendulum arm (generalized coordinate θ₁).',
+          whatDoesItDo: 'Transfers gravitational torque and reaction tension between the fixed support and the lower pendulum.',
+          animation: { type: 'oscillate', axis: 'z', speed: 2.1, amplitude: 0.65 },
+        },
+        {
+          id: 'upper-pendulum-bob-1',
+          name: 'Upper Pendulum Bob Mass 1 (m₁)',
+          label: 'Upper Mass m₁',
+          shape: 'sphere',
+          dimensions: [0.36],
+          position: [0, 0.7, 0],
+          color: '#0284c7',
+          material: 'metal',
+          parentId: 'upper-pendulum-rod-1',
+          kinematicRole: 'upper-mass',
+          connectedTo: ['upper-pendulum-rod-1', 'interlink-hinge-joint-2'],
+          description: 'Concentrated upper mass m₁ located at the distal end of Rod 1: (x₁, y₁) = (L₁ sin θ₁, y₀ − L₁ cos θ₁).',
+          whatIsIt: 'First concentrated pendulum mass (m₁).',
+          whatDoesItDo: 'Stores kinetic and gravitational potential energy while serving as the moving suspension carrier for the second pendulum.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.1, amplitude: 0.9 },
+        },
+        {
+          id: 'interlink-hinge-joint-2',
+          name: 'Articulated Inter-Link Pivot Joint 2 (O₂)',
+          label: 'Moving Pivot Joint 2 (O₂)',
+          shape: 'cylinder',
+          dimensions: [0.16, 0.45],
+          position: [0, 0.7, 0.05],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#facc15',
+          material: 'copper',
+          parentId: 'upper-pendulum-bob-1',
+          kinematicRole: 'lower-joint',
+          connectedTo: ['upper-pendulum-bob-1', 'lower-pendulum-rod-2'],
+          description: 'Moving rotary hinge joint pinned directly to Upper Mass m₁, allowing Rod 2 to rotate independently through angle θ₂.',
+          whatIsIt: 'Second moving pivot joint coupling Link 1 to Link 2.',
+          whatDoesItDo: 'Transmits non-inertial acceleration from the tip of Rod 1 into the lower pendulum link.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.1, amplitude: 0.9 },
+        },
+        {
+          id: 'lower-pendulum-rod-2',
+          name: 'Lower Coupled Link Rod 2 (Length L₂)',
+          label: 'Lower Rod 2 (L₂)',
+          shape: 'cylinder',
+          dimensions: [0.07, 1.45],
+          position: [0, -0.02, 0.08],
+          color: '#f43f5e',
+          material: 'metal',
+          parentId: 'interlink-hinge-joint-2',
+          kinematicRole: 'lower-link',
+          connectedTo: ['interlink-hinge-joint-2', 'lower-pendulum-bob-2'],
+          description: 'Second rigid link of length L₂ suspended from Moving Pivot Joint O₂ and swinging at angle θ₂(t).',
+          whatIsIt: 'Secondary coupled pendulum arm (generalized coordinate θ₂).',
+          whatDoesItDo: 'Experiences strong Coriolis and centrifugal coupling torques from the motion of Rod 1, driving chaotic reversals and flips.',
+          animation: { type: 'oscillate', axis: 'z', speed: 3.4, amplitude: 1.15 },
+        },
+        {
+          id: 'lower-pendulum-bob-2',
+          name: 'Lower Pendulum Bob Mass 2 (m₂)',
+          label: 'Lower Mass m₂ (Chaotic Tip)',
+          shape: 'sphere',
+          dimensions: [0.32],
+          position: [0, -0.75, 0.08],
+          color: '#e11d48',
+          material: 'glow',
+          parentId: 'lower-pendulum-rod-2',
+          kinematicRole: 'lower-mass',
+          connectedTo: ['lower-pendulum-rod-2'],
+          description: 'Distal mass m₂ at position (x₂, y₂) = (L₁ sin θ₁ + L₂ sin θ₂, y₀ − L₁ cos θ₁ − L₂ cos θ₂), tracing chaotic trajectories.',
+          whatIsIt: 'Second concentrated pendulum mass (m₂) at the free tip.',
+          whatDoesItDo: 'Exchanges angular momentum and kinetic energy rapidly with Mass 1, demonstrating sensitive dependence on initial conditions.',
+          animation: { type: 'oscillate', axis: 'x', speed: 3.4, amplitude: 1.35 },
+        },
+        {
+          id: 'phase-trajectory-plane',
+          name: 'Chaotic Trajectory & Reference Scale Plane',
+          label: 'Trajectory Reference Plane',
+          shape: 'ring',
+          dimensions: [1.8, 3.1],
+          position: [0, 0.5, -0.35],
+          color: '#475569',
+          material: 'glass',
+          opacity: 0.25,
+          description: 'Concentric energetics boundary ring showing the maximum reachable radius R_max = L₁ + L₂ in the oscillation plane.',
+          whatIsIt: 'Spatial envelope ring of radius L₁ + L₂.',
+          whatDoesItDo: 'Marks the conservation-of-energy spatial boundary within which both bobs move.',
+        },
+      ],
+      parameters: {
+        length1: {
+          id: 'length1',
+          name: 'Upper Rod Length (L₁)',
+          min: 0.8,
+          max: 2.2,
+          step: 0.1,
+          defaultValue: 1.5,
+          unit: 'm',
+          description: 'Length of the primary upper pendulum rod connecting Fixed Pivot O₁ to Moving Joint O₂.',
+          affects: 'objectScale',
+          targetPartId: 'upper-pendulum-rod-1',
+          scaleFactor: 1.0,
+        },
+        length2: {
+          id: 'length2',
+          name: 'Lower Rod Length (L₂)',
+          min: 0.6,
+          max: 2.0,
+          step: 0.1,
+          defaultValue: 1.25,
+          unit: 'm',
+          description: 'Length of the secondary lower pendulum rod suspended from Moving Pivot O₂.',
+          affects: 'objectScale',
+          targetPartId: 'lower-pendulum-rod-2',
+          scaleFactor: 1.0,
+        },
+        mass1: {
+          id: 'mass1',
+          name: 'Upper Bob Mass (m₁)',
+          min: 0.5,
+          max: 5.0,
+          step: 0.25,
+          defaultValue: 2.0,
+          unit: 'kg',
+          description: 'Mass of the upper pendulum bob m₁. Increasing m₁/m₂ stabilizes the upper link.',
+          affects: 'objectScale',
+          targetPartId: 'upper-pendulum-bob-1',
+          scaleFactor: 1.0,
+        },
+        mass2: {
+          id: 'mass2',
+          name: 'Lower Bob Mass (m₂)',
+          min: 0.5,
+          max: 5.0,
+          step: 0.25,
+          defaultValue: 1.5,
+          unit: 'kg',
+          description: 'Mass of the lower pendulum bob m₂. Larger m₂ amplifies nonlinear inertial feedback onto Rod 1.',
+          affects: 'objectScale',
+          targetPartId: 'lower-pendulum-bob-2',
+          scaleFactor: 1.0,
+        },
+        initialAngleDeg: {
+          id: 'initialAngleDeg',
+          name: 'Excitation Amplitude Angle (θ₀)',
+          min: 10,
+          max: 165,
+          step: 5,
+          defaultValue: 85,
+          unit: '°',
+          description: 'Below ~35° motion is quasi-periodic normal-mode oscillation; above ~60° nonlinear chaos and loop flips emerge.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.02,
+        },
+        gravity: {
+          id: 'gravity',
+          name: 'Gravitational Acceleration (g)',
+          min: 1.6,
+          max: 24.8,
+          step: 0.2,
+          defaultValue: 9.81,
+          unit: 'm/s²',
+          description: 'Gravitational field strength (Moon = 1.62, Earth = 9.81, Jupiter = 24.79 m/s²) governing restoring torques.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.12,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Show Energy Envelope Ring',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Displays the translucent R_max = L₁ + L₂ reachable boundary plane.',
+        },
+      },
+      equations: [
+        'L = T − V = ½(m₁+m₂)L₁²θ̇₁² + ½m₂L₂²θ̇₂² + m₂L₁L₂θ̇₁θ̇₂cos(θ₁−θ₂) + (m₁+m₂)gL₁cosθ₁ + m₂gL₂cosθ₂',
+        'x₁ = L₁ sin θ₁ , y₁ = −L₁ cos θ₁ ; x₂ = x₁ + L₂ sin θ₂ , y₂ = y₁ − L₂ cos θ₂',
+        'ω±² ≈ (g/L) · (1 + μ ± √(μ(1+μ))) where μ = m₂/m₁ (Small-Angle Normal Modes)',
+      ],
+      curiosityPrompts: [
+        'Why does a double pendulum move predictably at small angles (15°) but become completely chaotic at large angles (90°)?',
+        'How is total mechanical energy (E = T + V) conserved even when the trajectory of the lower bob looks random?',
+        'What happens to the motion of the lower bob m₂ when the upper mass m₁ is made much heavier than m₂?',
+      ],
+      scientificSpecification: {
+        scientificDomain: 'Classical Mechanics & Nonlinear Lagrangian Dynamics',
+        chosenInterpretation:
+          'Planar coupled two-link gravitational pendulum (two rigid rods L₁, L₂, two concentrated masses m₁, m₂, and two rotary pivot joints O₁, O₂) governed by coupled Euler–Lagrange equations.',
+        purpose:
+          'Demonstrate coupled normal-mode oscillations at low energy and deterministic chaos, energy exchange, and kinematic parent-child coupling at high energy.',
+        essentialComponents: [
+          'Rigid Support Gantry Frame',
+          'Upper Fixed Pivot Bearing Joint (O₁)',
+          'Upper Pendulum Link Rod 1 (L₁)',
+          'Upper Pendulum Bob Mass 1 (m₁)',
+          'Articulated Inter-Link Pivot Joint 2 (O₂)',
+          'Lower Coupled Link Rod 2 (L₂)',
+          'Lower Pendulum Bob Mass 2 (m₂)',
+        ],
+        topologyAndConnections: [
+          'Rigid Support Gantry ➔ Upper Fixed Pivot Joint O₁ (stationary rotation axis)',
+          'Upper Fixed Pivot Joint O₁ ➔ Upper Rod 1 (L₁) ➔ Upper Bob Mass m₁ (rotates by θ₁(t))',
+          'Upper Bob Mass m₁ ➔ Moving Pivot Joint O₂ (translates with tip of Rod 1 at (L₁ sin θ₁, y₀ − L₁ cos θ₁))',
+          'Moving Pivot Joint O₂ ➔ Lower Rod 2 (L₂) ➔ Lower Bob Mass m₂ (rotates by θ₂(t) relative to vertical)',
+        ],
+        governingBehavior:
+          'The two links are kinematically chained so Joint O₂ and Rod 2 always remain attached to the moving tip of Rod 1. Gravitational and inertial coupling torques continuously transfer kinetic energy between m₁ and m₂.',
+        governingEquations: [
+          'L = T − V (Lagrangian of Two-Link Coupled Pendulum)',
+          '(m₁+m₂)L₁θ̈₁ + m₂L₂θ̈₂cos(θ₁−θ₂) + m₂L₂θ̇₂²sin(θ₁−θ₂) + (m₁+m₂)g sinθ₁ = 0',
+          'm₂L₂θ̈₂ + m₂L₁θ̈₁cos(θ₁−θ₂) − m₂L₁θ̇₁²sin(θ₁−θ₂) + m₂g sinθ₂ = 0',
+        ],
+        expectedOutputs: [
+          { label: 'In-Phase Normal Mode ω₋', formulaOrRule: 'Slow coupled fundamental oscillation frequency', unit: 'rad/s' },
+          { label: 'Anti-Phase Normal Mode ω₊', formulaOrRule: 'Fast counter-swinging normal mode frequency', unit: 'rad/s' },
+          { label: 'Total Mechanical Energy E', formulaOrRule: 'E = (m₁+m₂)gL₁(1−cosθ₀) + m₂gL₂(1−cosθ₀)', unit: 'J' },
+          { label: 'Dynamical Regime', formulaOrRule: 'Quasi-Periodic (<45°) vs Chaotic Non-Integrable (≥45°)' },
+        ],
+        limitations:
+          'Assumes rigid massless rods, point-mass bobs, frictionless pivot bearings, and planar motion without aerodynamic drag.',
+      },
+    };
+  }
+
+  // 0B. ATWOOD MACHINE & PULLEY SYSTEM
+  if (q.includes('atwood') || q.includes('pulley') || q.includes('block and tackle')) {
+    return {
+      id: 'custom-atwood-machine-pulley',
+      title: 'Atwood Machine & Coupled Pulley Mechanics',
+      concept: 'Newton’s Second Law, Coupled Tension Forces, Net Acceleration & Mechanical Advantage',
+      subjectDomain: 'Physics',
+      description:
+        'Interactive 3D classical mechanics apparatus consisting of a vertical laboratory column, overhead low-friction pulley wheel on a central axle, inextensible tension cable, left counterweight mass (m₁), and right driving load mass (m₂).',
+      whatIsIt:
+        'A classic physics laboratory machine invented by George Atwood in 1784 to verify Newton’s laws of motion with constant reduced acceleration.',
+      howDoesItWork:
+        'Two masses m₁ and m₂ are connected by an inextensible string passing over a pulley. Because the gravitational forces oppose each other along the string, the net driving force is (m₂ − m₁)g while the total inertia is (m₁ + m₂), slowing the acceleration to a = g(m₂ − m₁)/(m₁ + m₂) for accurate measurement.',
+      realLifeExample: 'Traction elevators with counterweights, crane hoists, and gym cable pulley machines.',
+      examConnection:
+        'System acceleration: a = g(m₂ − m₁) / (m₁ + m₂); Rope tension: T = 2·m₁·m₂·g / (m₁ + m₂). Notice T is always strictly between m₁g and m₂g when m₁ ≠ m₂.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 1.2, 8.2], target: [0, 0.2, 0] },
+      parts: [
+        {
+          id: 'atwood-base-stand',
+          name: 'Heavy Cast-Iron Base & Vertical Support Column',
+          label: 'Support Stand & Column',
+          shape: 'box',
+          dimensions: [3.6, 0.35, 2.4],
+          position: [0, -2.35, -0.5],
+          color: '#334155',
+          material: 'metal',
+          description: 'Weighted laboratory base supporting the vertical pulley mast.',
+          whatIsIt: 'Structural foundation base.',
+          whatDoesItDo: 'Supports the total downward load 2T exerted on the pulley axle.',
+        },
+        {
+          id: 'overhead-pulley-wheel',
+          name: 'Overhead Grooved Pulley Sheave Wheel',
+          label: 'Pulley Wheel (Radius R)',
+          shape: 'cylinder',
+          dimensions: [0.85, 0.22],
+          position: [0, 1.95, 0],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#f59e0b',
+          material: 'metal',
+          description: 'Low-inertia grooved wheel rotating on a precision ball-bearing axle.',
+          whatIsIt: 'Rotating overhead pulley wheel.',
+          whatDoesItDo: 'Redirects rope tension T by 180° so the two hanging masses oppose each other.',
+          animation: { type: 'spin', axis: 'z', speed: 1.8, amplitude: 0.2 },
+        },
+        {
+          id: 'pulley-axle-bracket',
+          name: 'Pulley Axle Bearing & Mounting Yoke',
+          label: 'Axle Bearing Yoke',
+          shape: 'cylinder',
+          dimensions: [0.22, 0.55],
+          position: [0, 1.95, -0.15],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#94a3b8',
+          material: 'metal',
+          description: 'Central axle supporting the pulley wheel and transmitting 2T reaction force to the frame.',
+          whatIsIt: 'Fixed pulley rotation axis.',
+          whatDoesItDo: 'Minimizes rotational friction torque.',
+        },
+        {
+          id: 'left-tension-cable',
+          name: 'Left Tension Cable Segment (Tension T)',
+          label: 'Left Cable (Tension T)',
+          shape: 'cylinder',
+          dimensions: [0.04, 2.4],
+          position: [-0.82, 0.7, 0],
+          color: '#cbd5e1',
+          material: 'metal',
+          description: 'Inextensible, massless cord segment transmitting upward tension force T to Mass m₁.',
+          whatIsIt: 'Left vertical suspension cord.',
+          whatDoesItDo: 'Pulls upward on m₁ with uniform tension T.',
+        },
+        {
+          id: 'right-tension-cable',
+          name: 'Right Tension Cable Segment (Tension T)',
+          label: 'Right Cable (Tension T)',
+          shape: 'cylinder',
+          dimensions: [0.04, 2.8],
+          position: [0.82, 0.5, 0],
+          color: '#cbd5e1',
+          material: 'metal',
+          description: 'Inextensible cord segment transmitting upward tension force T to Mass m₂.',
+          whatIsIt: 'Right vertical suspension cord.',
+          whatDoesItDo: 'Pulls upward on m₂ with the same tension T (assuming a massless frictionless pulley).',
+        },
+        {
+          id: 'left-counterweight-m1',
+          name: 'Left Hanging Mass 1 (m₁ — Counterweight)',
+          label: 'Hanging Mass m₁',
+          shape: 'cylinder',
+          dimensions: [0.42, 0.75],
+          position: [-0.82, -0.65, 0],
+          color: '#0284c7',
+          material: 'metal',
+          description: 'Slotted brass mass hanger m₁ experiencing upward tension T and downward weight m₁g.',
+          whatIsIt: 'First suspended mass m₁.',
+          whatDoesItDo: 'Accelerates upward when m₂ > m₁ according to T − m₁g = m₁a.',
+          animation: { type: 'oscillate', axis: 'y', speed: 1.6, amplitude: 0.45 },
+        },
+        {
+          id: 'right-driving-mass-m2',
+          name: 'Right Hanging Mass 2 (m₂ — Driving Load)',
+          label: 'Hanging Mass m₂',
+          shape: 'cylinder',
+          dimensions: [0.48, 0.92],
+          position: [0.82, -1.05, 0],
+          color: '#e11d48',
+          material: 'metal',
+          description: 'Heavier slotted mass hanger m₂ experiencing downward weight m₂g and upward tension T.',
+          whatIsIt: 'Second suspended mass m₂.',
+          whatDoesItDo: 'Accelerates downward when m₂ > m₁ according to m₂g − T = m₂a.',
+          animation: { type: 'oscillate', axis: 'y', speed: 1.6, amplitude: 0.45 },
+        },
+      ],
+      parameters: {
+        mass1: {
+          id: 'mass1',
+          name: 'Left Mass (m₁)',
+          min: 0.5,
+          max: 5.0,
+          step: 0.25,
+          defaultValue: 2.0,
+          unit: 'kg',
+          description: 'Mass of the left hanging cylinder m₁.',
+          affects: 'objectScale',
+          targetPartId: 'left-counterweight-m1',
+          scaleFactor: 1.0,
+        },
+        mass2: {
+          id: 'mass2',
+          name: 'Right Mass (m₂)',
+          min: 0.5,
+          max: 5.0,
+          step: 0.25,
+          defaultValue: 3.0,
+          unit: 'kg',
+          description: 'Mass of the right hanging cylinder m₂.',
+          affects: 'objectScale',
+          targetPartId: 'right-driving-mass-m2',
+          scaleFactor: 1.0,
+        },
+        gravity: {
+          id: 'gravity',
+          name: 'Gravitational Acceleration (g)',
+          min: 1.6,
+          max: 20.0,
+          step: 0.2,
+          defaultValue: 9.81,
+          unit: 'm/s²',
+          description: 'Gravitational field strength driving the net weight difference (m₂ − m₁)g.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.15,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Show Tension Force Vectors',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Highlights the equal and opposite tension couplings across the pulley.',
+        },
+      },
+      equations: [
+        'a = g · (m₂ − m₁) / (m₁ + m₂) (Coupled System Linear Acceleration)',
+        'T = (2 · m₁ · m₂ · g) / (m₁ + m₂) (Inextensible Cord Tension)',
+      ],
+      curiosityPrompts: [
+        'What happens to the acceleration a and tension T when m₁ equals m₂?',
+        'Why is the tension T in the string strictly less than the weight of the heavier mass (m₂g)?',
+        'How does a real pulley with rotational moment of inertia I = ½MR² modify the acceleration formula?',
+      ],
+    };
+  }
+
+  // 0C. SOLENOID ELECTROMAGNET & FERROMAGNETIC CORE
+  if (
+    q.includes('solenoid') ||
+    q.includes('electromagnet') ||
+    (q.includes('inductor') && !q.includes('rlc'))
+  ) {
+    return {
+      id: 'custom-solenoid-electromagnet',
+      title: 'Solenoid Electromagnet & Ferromagnetic Core Explorer',
+      concept: 'Ampère’s Law, Helical Current Windings, Ferromagnetic Permeability & Uniform Internal B-Field',
+      subjectDomain: 'Physics',
+      description:
+        'Interactive 3D electromagnetism model of a current-carrying helical copper solenoid wound around a high-permeability soft-iron ferromagnetic core, showing the uniform internal axial magnetic field (B = μ₀μᵣnI), external dipole return flux loops, and DC power terminals.',
+      whatIsIt:
+        'A tightly wound helical coil of insulated copper wire that generates a strong, controllable uniform magnetic field inside its core when electric current flows through it.',
+      howDoesItWork:
+        'By Ampère’s Law and the Right-Hand Grip Rule, each circular turn of wire contributes axial magnetic flux inside the coil while magnetic fields between adjacent turns cancel. Inserting a soft-iron ferromagnetic core aligns magnetic domains and multiplies the magnetic field strength by the relative permeability μᵣ (hundreds to thousands of times stronger).',
+      realLifeExample: 'MRI superconducting magnets, scrapyard lifting electromagnets, automotive starter solenoids, and relay switches.',
+      examConnection:
+        'Inside a long solenoid, the magnetic field is uniform and parallel to the axis: B = μ₀ · n · I (or B = μ₀ · μᵣ · (N/L) · I with a ferromagnetic core), and is nearly zero outside far from the ends.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.8, 7.8], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'soft-iron-ferromagnetic-core',
+          name: 'Soft-Iron Ferromagnetic Core Plunger (μᵣ ≫ 1)',
+          label: 'Soft-Iron Core (Domain Alignment)',
+          shape: 'cylinder',
+          dimensions: [0.55, 3.6],
+          position: [0, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#64748b',
+          material: 'metal',
+          description: 'High-permeability annealed soft-iron cylinder whose magnetic domains align with the coil field to amplify B.',
+          whatIsIt: 'Central ferromagnetic iron core.',
+          whatDoesItDo: 'Concentrates magnetic flux lines and boosts field strength by factor μᵣ.',
+        },
+        {
+          id: 'copper-solenoid-winding-1',
+          name: 'Helical Insulated Copper Solenoid Windings (N Turns)',
+          label: 'Copper Solenoid Coil (N Turns)',
+          shape: 'torus',
+          dimensions: [0.72, 0.14],
+          position: [-1.1, 0, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#d97706',
+          material: 'copper',
+          description: 'Tightly wound helical copper turns carrying current I around the iron core.',
+          whatIsIt: 'Conductive copper electromagnetic winding.',
+          whatDoesItDo: 'Generates axial magnetomotive force (MMF = N·I) according to the Right-Hand Grip Rule.',
+        },
+        {
+          id: 'copper-solenoid-winding-2',
+          name: 'Central Solenoid Winding Section',
+          label: 'Central Helical Turns',
+          shape: 'torus',
+          dimensions: [0.72, 0.14],
+          position: [0, 0, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#d97706',
+          material: 'copper',
+          description: 'Central helical turns where internal magnetic flux density B is maximally uniform.',
+          whatIsIt: 'Central copper coil windings.',
+          whatDoesItDo: 'Sustains the uniform axial magnetic field B = μ₀μᵣnI.',
+        },
+        {
+          id: 'copper-solenoid-winding-3',
+          name: 'North-Pole Exit Solenoid Winding Section',
+          label: 'North Pole Coil Section (N)',
+          shape: 'torus',
+          dimensions: [0.72, 0.14],
+          position: [1.1, 0, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#d97706',
+          material: 'copper',
+          description: 'Right-hand coil section where magnetic field lines emerge as the electromagnet North pole.',
+          whatIsIt: 'Distal solenoid winding turns.',
+          whatDoesItDo: 'Forms the emergent North magnetic pole when current circulates counterclockwise viewed from the right end.',
+        },
+        {
+          id: 'internal-uniform-flux-beam',
+          name: 'Uniform Axial Magnetic Flux Core (B_internal)',
+          label: 'Uniform Internal B-Field (B = μ₀nI)',
+          shape: 'cylinder',
+          dimensions: [0.24, 4.6],
+          position: [0, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'glow',
+          description: 'Collimated, uniform magnetic field lines running straight along the central axis from South to North inside the solenoid.',
+          whatIsIt: 'Internal axial magnetic flux bundle.',
+          whatDoesItDo: 'Exerts magnetic pull on ferromagnetic plungers and stores magnetic energy U = ½LI².',
+          animation: { type: 'pulse', axis: 'x', speed: 2.6, amplitude: 0.1 },
+        },
+        {
+          id: 'external-dipole-flux-loop-upper',
+          name: 'Upper External Dipole Return Flux Loop (N ➔ S)',
+          label: 'External Magnetic Flux Loop (N ➔ S)',
+          shape: 'torus',
+          dimensions: [1.85, 0.06],
+          position: [0, 0.95, 0],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.65,
+          description: 'Closed magnetic field line looping outside the solenoid from the North end back to the South end (∇·B = 0).',
+          whatIsIt: 'External magnetic return field line.',
+          whatDoesItDo: 'Demonstrates that magnetic field lines always form continuous closed loops with no monopoles.',
+          animation: { type: 'pulse', axis: 'y', speed: 2.2, amplitude: 0.08 },
+        },
+        {
+          id: 'external-dipole-flux-loop-lower',
+          name: 'Lower External Dipole Return Flux Loop (N ➔ S)',
+          label: 'Lower Return Flux Loop',
+          shape: 'torus',
+          dimensions: [1.85, 0.06],
+          position: [0, -0.95, 0],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.65,
+          description: 'Symmetric lower magnetic return flux loop completing the dipole field geometry.',
+          whatIsIt: 'Lower external magnetic field loop.',
+          whatDoesItDo: 'Visualizes the external dipole field pattern identical to a bar magnet.',
+          animation: { type: 'pulse', axis: 'y', speed: 2.2, amplitude: 0.08 },
+        },
+      ],
+      parameters: {
+        coilCurrentAmps: {
+          id: 'coilCurrentAmps',
+          name: 'Solenoid Excitation Current (I)',
+          min: 0.5,
+          max: 15.0,
+          step: 0.5,
+          defaultValue: 5.0,
+          unit: 'A',
+          description: 'Magnetic flux density B scales linearly with DC excitation current I.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.3,
+        },
+        turnDensityFactor: {
+          id: 'turnDensityFactor',
+          name: 'Core Permeability & Flux Scale (μᵣ)',
+          min: 0.6,
+          max: 1.6,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Scales the ferromagnetic core cross-section and magnetic flux bundle intensity.',
+          affects: 'objectScale',
+          targetPartId: 'internal-uniform-flux-beam',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Show External Return Flux Loops',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Toggles visibility of the outer magnetic field return loops.',
+        },
+      },
+      equations: [
+        'B = μ₀ · μᵣ · n · I = μ₀ · μᵣ · (N / L) · I (Solenoid Axial Magnetic Field)',
+        'L = (μ₀ · μᵣ · N² · A) / l , U_B = ½ · L · I² (Self-Inductance & Stored Magnetic Energy)',
+      ],
+      curiosityPrompts: [
+        'Why do we use soft iron instead of hardened steel for the core of an electromagnet that needs to switch on and off?',
+        'How do you use the Right-Hand Grip Rule to determine which end of a solenoid becomes the North pole?',
+        'Why is the magnetic field inside a long solenoid nearly uniform across its entire cross-section?',
+      ],
+    };
+  }
+
+  // 0D. DNA REPLICATION FORK (HELICASE, POLYMERASE & OKAZAKI FRAGMENTS)
+  if (
+    q.includes('replication fork') ||
+    q.includes('dna replication') ||
+    q.includes('helicase') ||
+    q.includes('okazaki') ||
+    q.includes('dna polymerase')
+  ) {
+    return {
+      id: 'custom-dna-replication-fork',
+      title: 'DNA Replication Fork, Helicase & Polymerase Complex',
+      concept: 'Semiconservative DNA Replication, Helicase Unwinding, 5′→3′ Polymerase & Okazaki Fragments',
+      subjectDomain: 'Biology',
+      description:
+        'Interactive 3D molecular biology model of an active DNA replication fork showing the parental double helix, ATP-driven DNA Helicase hexamer ring unzipping hydrogen bonds, Topoisomerase (Gyrase) ahead of the fork, continuous Leading-Strand synthesis by DNA Polymerase III, and discontinuous Lagging-Strand Okazaki fragments with RNA primers.',
+      whatIsIt:
+        'The Y-shaped molecular replisome machinery where parental double-stranded DNA is unwound and copied into two identical daughter DNA duplexes during S-phase.',
+      howDoesItWork:
+        'DNA Helicase hydrolyzes ATP to break hydrogen bonds between complementary bases (A=T, G≡C), opening the replication fork. Because DNA Polymerase III can only add nucleotides to a free 3′-OH end (5′ ➔ 3′ direction), the Leading Strand is synthesized continuously toward the fork, while the antiparallel Lagging Strand is synthesized discontinuously away from the fork as short Okazaki fragments later sealed by DNA Ligase.',
+      realLifeExample: 'Every human cell copying 6 billion base pairs of DNA with <1 error per billion bases before cell division, and PCR amplification in diagnostics.',
+      examConnection:
+        'Meselson–Stahl Experiment (¹⁵N / ¹⁴N) proved DNA replication is semiconservative. Enzymes: Helicase (unzips H-bonds), Primase (synthesizes RNA primer), DNA Pol III (5′→3′ elongation), DNA Pol I (replaces primer), DNA Ligase (joins phosphodiester nick).',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.8, 8.2], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'parental-dsdna-duplex',
+          name: 'Parental Double-Stranded DNA Helix (Template)',
+          label: 'Parental dsDNA Duplex',
+          shape: 'cylinder',
+          dimensions: [0.42, 2.5],
+          position: [-1.85, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'plastic',
+          description: 'Antiparallel parental DNA double helix (3′→5′ and 5′→3′ strands) entering the replisome.',
+          whatIsIt: 'Original double-stranded DNA molecule prior to unwinding.',
+          whatDoesItDo: 'Provides both complementary template strands for semiconservative replication.',
+          animation: { type: 'spin', axis: 'x', speed: 1.5, amplitude: 0.1 },
+        },
+        {
+          id: 'topoisomerase-gyrase-clamp',
+          name: 'Topoisomerase II (DNA Gyrase) Supercoil Reliever',
+          label: 'Topoisomerase (Relieves Supercoiling)',
+          shape: 'torus',
+          dimensions: [0.58, 0.16],
+          position: [-2.45, 0, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#a855f7',
+          material: 'tissue',
+          description: 'Enzyme upstream of the fork that transiently nicks and reseals the DNA backbone to relieve torsional overwinding strain.',
+          whatIsIt: 'Torsional stress-relief enzyme ahead of the fork.',
+          whatDoesItDo: 'Prevents positive supercoiling from stalling the advancing helicase.',
+        },
+        {
+          id: 'dna-helicase-hexamer',
+          name: 'DNA Helicase Hexamer Ring (ATP Unwinding Motor)',
+          label: 'DNA Helicase (Unzips H-Bonds)',
+          shape: 'torus',
+          dimensions: [0.68, 0.24],
+          position: [-0.45, 0, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#f59e0b',
+          material: 'glow',
+          description: 'Ring-shaped hexameric motor protein at the apex of the Y-fork that uses ATP hydrolysis to break base-pair hydrogen bonds.',
+          whatIsIt: 'The molecular zipper opener at the replication fork vertex.',
+          whatDoesItDo: 'Separates double-stranded DNA into two single-stranded templates.',
+          animation: { type: 'pulse', axis: 'y', speed: 2.8, amplitude: 0.12 },
+        },
+        {
+          id: 'leading-strand-duplex',
+          name: 'Continuous Leading Strand (5′ ➔ 3′ Toward Fork)',
+          label: 'Leading Strand (Continuous 5′→3′)',
+          shape: 'cylinder',
+          dimensions: [0.24, 2.6],
+          position: [0.95, 0.78, 0],
+          rotation: [0, 0, 1.12],
+          color: '#10b981',
+          material: 'plastic',
+          description: 'Upper daughter duplex where the 3′→5′ parental template allows continuous 5′→3′ polymerization toward the helicase fork.',
+          whatIsIt: 'Continuously synthesized daughter DNA strand.',
+          whatDoesItDo: 'Elongates smoothly in the same direction as replication fork progression.',
+        },
+        {
+          id: 'dna-polymerase-iii-leading',
+          name: 'DNA Polymerase III Holoenzyme & Sliding Clamp (β-Clamp)',
+          label: 'DNA Polymerase III (Leading)',
+          shape: 'sphere',
+          dimensions: [0.52],
+          position: [0.55, 0.62, 0.18],
+          color: '#ef4444',
+          material: 'tissue',
+          description: 'High-processivity polymerase enzyme catalyzing phosphodiester bond formation via dNTP nucleophilic attack on the 3′-OH group, with 3′→5′ exonuclease proofreading.',
+          whatIsIt: 'Primary DNA-synthesizing enzyme complex.',
+          whatDoesItDo: 'Adds complementary deoxynucleotides in the 5′→3′ direction and proofreads mismatches.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.2, amplitude: 0.18 },
+        },
+        {
+          id: 'lagging-strand-okazaki',
+          name: 'Discontinuous Lagging Strand & Okazaki Fragments',
+          label: 'Lagging Strand (Okazaki Fragments)',
+          shape: 'cylinder',
+          dimensions: [0.24, 2.6],
+          position: [0.95, -0.78, 0],
+          rotation: [0, 0, -1.12],
+          color: '#fbbf24',
+          material: 'plastic',
+          description: 'Lower antiparallel branch synthesized discontinuously away from the fork in short 100–2000 nt Okazaki fragments initiated by RNA primers.',
+          whatIsIt: 'Discontinuously synthesized daughter strand.',
+          whatDoesItDo: 'Overcomes the strict 5′→3′ polymerase rule on the 5′→3′ parental template strand.',
+        },
+        {
+          id: 'primase-ligase-complex',
+          name: 'RNA Primase & DNA Ligase Nick-Sealing Complex',
+          label: 'Primase & DNA Ligase',
+          shape: 'sphere',
+          dimensions: [0.46],
+          position: [1.25, -0.92, 0.18],
+          color: '#06b6d4',
+          material: 'tissue',
+          description: 'Primase synthesizes short RNA primers to provide a starting 3′-OH; DNA Pol I replaces RNA with DNA, and DNA Ligase seals the sugar-phosphate backbone nicks.',
+          whatIsIt: 'Primer-synthesis and fragment-joining enzymes on the lagging strand.',
+          whatDoesItDo: 'Initiates each Okazaki fragment and joins them into a continuous intact DNA strand.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.5, amplitude: 0.22 },
+        },
+      ],
+      parameters: {
+        forkUnwindingRate: {
+          id: 'forkUnwindingRate',
+          name: 'Helicase ATP Unwinding Speed',
+          min: 50,
+          max: 1000,
+          step: 50,
+          defaultValue: 500,
+          unit: 'bp/s',
+          description: 'Rate at which DNA Helicase unwinds base pairs and DNA Pol III incorporates nucleotides.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.004,
+        },
+        polymeraseClampScale: {
+          id: 'polymeraseClampScale',
+          name: 'Polymerase Holoenzyme Scale',
+          min: 0.75,
+          max: 1.45,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Scales the DNA Polymerase III catalytic core for closer structural inspection.',
+          affects: 'objectScale',
+          targetPartId: 'dna-polymerase-iii-leading',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Highlight Replication Enzymes',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Emphasizes the active helicase, polymerase, and ligase enzyme complexes at the fork.',
+        },
+      },
+      equations: [
+        '(dNMP)ₙ + dNTP ➔ (dNMP)ₙ₊₁ + PPᵢ (5′ ➔ 3′ Nucleophilic Phosphodiester Elongation)',
+        'Semiconservative Rule: Each daughter dsDNA = 1 Parental Template Strand + 1 Newly Synthesized Strand',
+      ],
+      curiosityPrompts: [
+        'Why can DNA Polymerase only synthesize DNA in the 5′ to 3′ direction and never 3′ to 5′?',
+        'Why does the lagging strand require multiple RNA primers and Okazaki fragments while the leading strand only needs one primer?',
+        'What would happen to the DNA molecule ahead of the replication fork if Topoisomerase (Gyrase) were inhibited by an antibiotic like ciprofloxacin?',
+      ],
+    };
+  }
+
+  // 0E. CHEMICAL SYNAPSE & NEUROTRANSMITTER TRANSMISSION
+  if (
+    q.includes('synapse') ||
+    q.includes('synaptic') ||
+    q.includes('neurotransmitter') ||
+    (q.includes('vesicle') && q.includes('receptor'))
+  ) {
+    return {
+      id: 'custom-chemical-synapse',
+      title: 'Chemical Synapse & Neurotransmitter Exocytosis Explorer',
+      concept: 'Synaptic Transmission, Voltage-Gated Ca²⁺ Influx, SNARE Exocytosis & Ligand-Gated Ion Channels',
+      subjectDomain: 'Anatomy',
+      description:
+        'Interactive 3D neurobiology model of a chemical synapse featuring the presynaptic axon terminal bouton, voltage-gated calcium (Ca²⁺) channels, neurotransmitter-filled synaptic vesicles, the 20 nm synaptic cleft, diffusing neurotransmitter molecules, and postsynaptic dendritic ligand-gated ionotropic receptors.',
+      whatIsIt:
+        'The microscopic specialized junction (~20–40 nm gap) where an electrical nerve impulse (action potential) in a presynaptic neuron is converted into a chemical neurotransmitter signal to excite or inhibit a postsynaptic cell.',
+      howDoesItWork:
+        'When an action potential depolarizes the presynaptic axon terminal, voltage-gated Ca²⁺ channels open and Ca²⁺ ions rush in. Intracellular Ca²⁺ binds synaptotagmin, triggering SNARE proteins to fuse synaptic vesicles with the presynaptic membrane (exocytosis). Neurotransmitters (e.g., acetylcholine, glutamate, GABA) diffuse across the synaptic cleft and bind postsynaptic ligand-gated ion channels, opening them to generate an EPSP or IPSP.',
+      realLifeExample: 'Neuromuscular junctions triggering skeletal muscle contraction, memory plasticity (LTP) in the hippocampus, and SSRI antidepressants regulating serotonin reuptake.',
+      examConnection:
+        'Unidirectional transmission: Chemical synapses transmit signals in ONE direction only (Presynaptic ➔ Postsynaptic) because synaptic vesicles are located exclusively in the presynaptic terminal and neurotransmitter receptors are on the postsynaptic membrane.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 1.8, 7.8], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'presynaptic-axon-bouton',
+          name: 'Presynaptic Axon Terminal Bouton',
+          label: 'Presynaptic Axon Terminal',
+          shape: 'sphere',
+          dimensions: [1.45],
+          position: [0, 1.55, 0],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.45,
+          description: 'Swollen distal terminal bulb of the presynaptic axon containing mitochondria and synaptic vesicles.',
+          whatIsIt: 'Signal-sending nerve terminal bulb.',
+          whatDoesItDo: 'Converts arriving electrical action potentials into Ca²⁺-triggered chemical exocytosis.',
+        },
+        {
+          id: 'voltage-gated-calcium-channel',
+          name: 'Voltage-Gated Ca²⁺ Channel (Cav2.1)',
+          label: 'Voltage-Gated Ca²⁺ Channel',
+          shape: 'cylinder',
+          dimensions: [0.22, 0.55],
+          position: [-1.05, 0.95, 0.25],
+          rotation: [0, 0, 0.45],
+          color: '#f59e0b',
+          material: 'metal',
+          description: 'Transmembrane pore that opens when the arriving action potential depolarizes the terminal to +30 mV.',
+          whatIsIt: 'Depolarization-sensing calcium gate.',
+          whatDoesItDo: 'Allows extracellular Ca²⁺ ions to rush into the bouton, triggering vesicle fusion.',
+        },
+        {
+          id: 'synaptic-vesicles-cluster',
+          name: 'Synaptic Vesicles Loaded with Neurotransmitter',
+          label: 'Synaptic Vesicles (ACh / Glutamate)',
+          shape: 'sphere',
+          dimensions: [0.38],
+          position: [0, 1.15, 0],
+          color: '#f43f5e',
+          material: 'glow',
+          description: 'Lipid bilayer vesicles (~40 nm diameter) packed with thousands of neurotransmitter molecules and anchored by SNARE proteins.',
+          whatIsIt: 'Membrane storage packets of chemical neurotransmitters.',
+          whatDoesItDo: 'Fuses with the presynaptic active zone membrane upon Ca²⁺ binding to release neurotransmitters via exocytosis.',
+          animation: { type: 'oscillate', axis: 'y', speed: 2.4, amplitude: 0.22 },
+        },
+        {
+          id: 'diffusing-neurotransmitters',
+          name: 'Diffusing Neurotransmitter Molecules in Synaptic Cleft (20 nm)',
+          label: 'Synaptic Cleft & Neurotransmitters',
+          shape: 'sphere',
+          dimensions: [0.24],
+          position: [0, 0.0, 0.15],
+          color: '#facc15',
+          material: 'glow',
+          description: 'Chemical messenger molecules (e.g., Acetylcholine, Glutamate, Dopamine) diffusing across the 20 nm extracellular synaptic cleft in <0.5 milliseconds.',
+          whatIsIt: 'Chemical signaling molecules crossing the synaptic gap.',
+          whatDoesItDo: 'Carries the neural message across the electrically insulated cleft to bind postsynaptic receptors.',
+          animation: { type: 'oscillate', axis: 'y', speed: 3.5, amplitude: 0.32 },
+        },
+        {
+          id: 'postsynaptic-receptor-channel-left',
+          name: 'Postsynaptic Ligand-Gated Ionotropic Receptor (AMPA / nAChR)',
+          label: 'Ligand-Gated Ion Channel (Na⁺ Influx)',
+          shape: 'cylinder',
+          dimensions: [0.28, 0.65],
+          position: [-0.65, -0.85, 0.15],
+          color: '#10b981',
+          material: 'plastic',
+          description: 'Transmembrane receptor protein on the postsynaptic density that opens an ion pore when two neurotransmitter molecules bind.',
+          whatIsIt: 'Chemical-to-electrical receptor gate on the receiving neuron.',
+          whatDoesItDo: 'Opens to allow Na⁺ influx (excitatory EPSP) or Cl⁻ influx (inhibitory IPSP).',
+          animation: { type: 'pulse', axis: 'x', speed: 2.5, amplitude: 0.12 },
+        },
+        {
+          id: 'postsynaptic-receptor-channel-right',
+          name: 'Postsynaptic Metabotropic / NMDA Receptor Complex',
+          label: 'NMDA / Postsynaptic Receptor',
+          shape: 'cylinder',
+          dimensions: [0.28, 0.65],
+          position: [0.65, -0.85, 0.15],
+          color: '#06b6d4',
+          material: 'plastic',
+          description: 'Coincidence-detecting postsynaptic receptor channel mediating synaptic plasticity and long-term potentiation (LTP).',
+          whatIsIt: 'Secondary postsynaptic receptor channel.',
+          whatDoesItDo: 'Translates neurotransmitter binding into postsynaptic depolarization and intracellular signaling.',
+          animation: { type: 'pulse', axis: 'x', speed: 2.5, amplitude: 0.12 },
+        },
+        {
+          id: 'postsynaptic-dendrite-membrane',
+          name: 'Postsynaptic Dendritic Spine & Membrane Density',
+          label: 'Postsynaptic Dendritic Membrane',
+          shape: 'box',
+          dimensions: [4.2, 0.55, 2.8],
+          position: [0, -1.45, 0],
+          color: '#0f766e',
+          material: 'tissue',
+          description: 'Receiving dendritic membrane of the downstream neuron containing the postsynaptic density (PSD-95) scaffold.',
+          whatIsIt: 'Receiving membrane of the next neuron or muscle fiber.',
+          whatDoesItDo: 'Summates excitatory (EPSP) and inhibitory (IPSP) potentials toward the axon hillock threshold.',
+        },
+      ],
+      parameters: {
+        calciumInfluxRate: {
+          id: 'calciumInfluxRate',
+          name: 'Presynaptic Ca²⁺ Influx & Firing Frequency',
+          min: 10,
+          max: 200,
+          step: 10,
+          defaultValue: 80,
+          unit: 'Hz',
+          description: 'Controls action-potential frequency, Ca²⁺-triggered vesicle exocytosis speed, and cleft diffusion rate.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.025,
+        },
+        vesicleQuantalSize: {
+          id: 'vesicleQuantalSize',
+          name: 'Vesicle Quantal Release Pool',
+          min: 0.7,
+          max: 1.5,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Scales the active synaptic vesicle cluster and neurotransmitter release volume.',
+          affects: 'objectScale',
+          targetPartId: 'synaptic-vesicles-cluster',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Transparent Bouton Cutaway',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Makes the presynaptic axon terminal translucent to reveal internal synaptic vesicles.',
+        },
+      },
+      equations: [
+        'I_syn = g_syn(t) · (V_m − E_rev) (Postsynaptic Conductance & Driving Force Equation)',
+        't_diffusion ≈ x² / (2·D) ≈ (20 nm)² / (2 · 600 μm²/s) < 1 μs (Synaptic Cleft Diffusion Time)',
+      ],
+      curiosityPrompts: [
+        'Why can a chemical synapse only transmit nerve signals in one direction (from axon terminal to dendrite)?',
+        'What is the exact role of Calcium ions (Ca²⁺) when an action potential reaches the presynaptic terminal?',
+        'What happens if an enzyme like acetylcholinesterase is blocked by a nerve agent or medication?',
+      ],
+    };
+  }
+
+  // 0F. CELL MITOSIS & MITOTIC SPINDLE APPARATUS
+  if (
+    q.includes('mitosis') ||
+    q.includes('meiosis') ||
+    q.includes('spindle') ||
+    q.includes('metaphase') ||
+    q.includes('anaphase') ||
+    q.includes('chromosome') ||
+    q.includes('chromatids')
+  ) {
+    return {
+      id: 'custom-cell-mitosis-spindle',
+      title: 'Cell Mitosis (Metaphase–Anaphase) & Mitotic Spindle Apparatus',
+      concept: 'Eukaryotic Cell Division, Centrosome Spindle Poles, Kinetochore Microtubules & Chromosome Segregation',
+      subjectDomain: 'Biology',
+      description:
+        'Interactive 3D cell biology model of eukaryotic mitosis at Metaphase/Anaphase transition displaying the dividing cell membrane, opposite centrosomes (centriole pairs) at the spindle poles, α/β-tubulin spindle microtubules, replicated X-shaped sister chromatids aligned along the equatorial metaphase plate, and centromere kinetochores.',
+      whatIsIt:
+        'The eukaryotic nuclear division process that equally partitions duplicated chromosomes into two genetically identical diploid (2n) daughter nuclei.',
+      howDoesItWork:
+        'During Prophase and Prometaphase, the nuclear envelope breaks down and centrosomes migrate to opposite poles, polymerizing dynamic microtubule fibers. In Metaphase, kinetochore microtubules attach to centromere proteins and align all sister chromatids along the equatorial metaphase plate (verified by the Spindle Assembly Checkpoint). In Anaphase, separase cleaves cohesin and motor proteins (dynein/kinesin) depolymerize microtubules to pull sister chromatids apart to opposite poles.',
+      realLifeExample: 'Embryonic growth, skin and intestinal wound healing, and chemotherapy drugs (like Paclitaxel/Taxol) that freeze mitotic spindle microtubules to halt cancer division.',
+      examConnection:
+        'PMAT Stages: Prophase (chromosomes condense, spindle forms) ➔ Metaphase (chromosomes align at equator) ➔ Anaphase (sister chromatids separate to poles) ➔ Telophase (nuclear envelopes reform) + Cytokinesis.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.5, 8.0], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'dividing-cell-membrane',
+          name: 'Dividing Eukaryotic Cell Plasma Membrane',
+          label: 'Dividing Cell Membrane',
+          shape: 'capsule',
+          dimensions: [1.55, 1.8],
+          position: [0, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.35,
+          description: 'Elongating plasma membrane preparing to form the contractile actin-myosin cleavage furrow during cytokinesis.',
+          whatIsIt: 'Outer cell membrane of the dividing mother cell.',
+          whatDoesItDo: 'Encloses the mitotic spindle apparatus and pinches inward during cytokinesis.',
+        },
+        {
+          id: 'left-centrosome-pole',
+          name: 'Left Centrosome Spindle Pole (Centriole Pair & MTOC)',
+          label: 'Left Centrosome (Spindle Pole)',
+          shape: 'sphere',
+          dimensions: [0.34],
+          position: [-2.05, 0, 0],
+          color: '#f59e0b',
+          material: 'glow',
+          description: 'Microtubule-Organizing Center (MTOC) containing perpendicular barrel-shaped centrioles and γ-tubulin ring complexes.',
+          whatIsIt: 'Left pole anchor of the mitotic spindle.',
+          whatDoesItDo: 'Nucleates and anchors the minus (−) ends of spindle microtubules.',
+        },
+        {
+          id: 'right-centrosome-pole',
+          name: 'Right Centrosome Spindle Pole (Centriole Pair & MTOC)',
+          label: 'Right Centrosome (Spindle Pole)',
+          shape: 'sphere',
+          dimensions: [0.34],
+          position: [2.05, 0, 0],
+          color: '#f59e0b',
+          material: 'glow',
+          description: 'Opposite spindle pole centrosome ensuring bipolar chromosome segregation.',
+          whatIsIt: 'Right pole anchor of the mitotic spindle.',
+          whatDoesItDo: 'Pulls one complete set of daughter chromosomes into the right daughter cell.',
+        },
+        {
+          id: 'kinetochore-spindle-fibers-upper',
+          name: 'Upper Kinetochore Microtubule Spindle Fibers',
+          label: 'Kinetochore Spindle Fibers',
+          shape: 'cylinder',
+          dimensions: [0.06, 4.0],
+          position: [0, 0.55, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#34d399',
+          material: 'plastic',
+          description: 'Dynamic cylindrical polymers of α- and β-tubulin dimers linking the centrosome poles to chromosome kinetochores.',
+          whatIsIt: 'Protein microtubule cables of the mitotic spindle.',
+          whatDoesItDo: 'Generates balanced tension to align chromosomes at Metaphase and shortens during Anaphase.',
+        },
+        {
+          id: 'kinetochore-spindle-fibers-lower',
+          name: 'Lower Kinetochore & Polar Microtubule Fibers',
+          label: 'Polar Spindle Microtubules',
+          shape: 'cylinder',
+          dimensions: [0.06, 4.0],
+          position: [0, -0.55, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#34d399',
+          material: 'plastic',
+          description: 'Interpolar and kinetochore microtubules that push poles apart (Anaphase B) and pull chromatids to poles (Anaphase A).',
+          whatIsIt: 'Lower bundle of mitotic spindle fibers.',
+          whatDoesItDo: 'Maintains structural bipolarity of the dividing cell.',
+        },
+        {
+          id: 'sister-chromatid-pair-1',
+          name: 'Condensed Metaphase Chromosome 1 (Sister Chromatids)',
+          label: 'Sister Chromatids (Metaphase Plate)',
+          shape: 'capsule',
+          dimensions: [0.22, 0.85],
+          position: [0, 0.55, 0],
+          color: '#e11d48',
+          material: 'tissue',
+          description: 'Supercoiled DNA-histone chromatin complex consisting of two identical sister chromatids joined at the centromere by cohesin rings.',
+          whatIsIt: 'Duplicated condensed chromosome aligned at the cell equator.',
+          whatDoesItDo: 'Ensures each daughter cell receives an exact copy of the genetic blueprint.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.0, amplitude: 0.35 },
+        },
+        {
+          id: 'sister-chromatid-pair-2',
+          name: 'Condensed Metaphase Chromosome 2 & Kinetochore Complex',
+          label: 'Centromere & Kinetochore Complex',
+          shape: 'capsule',
+          dimensions: [0.22, 0.85],
+          position: [0, -0.55, 0],
+          color: '#a855f7',
+          material: 'tissue',
+          description: 'Second homologous chromosome aligned at the equatorial metaphase plate with bilateral kinetochore attachment.',
+          whatIsIt: 'Equatorial chromosome with kinetochore motor proteins.',
+          whatDoesItDo: 'Satisfies the Spindle Assembly Checkpoint (SAC) only when under equal bi-oriented tension from both poles.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.0, amplitude: 0.35 },
+        },
+      ],
+      parameters: {
+        spindleTensionRate: {
+          id: 'spindleTensionRate',
+          name: 'Microtubule Depolymerization & Anaphase Rate',
+          min: 0.4,
+          max: 4.0,
+          step: 0.2,
+          defaultValue: 2.0,
+          unit: 'μm/min',
+          description: 'Controls the dynamic oscillation and segregation speed of chromatids along the spindle fibers.',
+          affects: 'animationSpeed',
+          scaleFactor: 1.0,
+        },
+        chromatinCondensation: {
+          id: 'chromatinCondensation',
+          name: 'Chromatin Condensation Factor',
+          min: 0.75,
+          max: 1.45,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Scales the condensed metaphase sister chromatid volume.',
+          affects: 'objectScale',
+          targetPartId: 'sister-chromatid-pair-1',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Transparent Cell Cortex',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Reveals the internal centrosomes, spindle fibers, and chromosomes.',
+        },
+      },
+      equations: [
+        '2n (4c Replicated S-Phase) ➔ Mitosis ➔ 2 × 2n (2c Diploid Daughter Cells)',
+        'F_kinetochore ≈ 50 pN per chromosome (Dynein / Microtubule Depolymerization Pulling Force)',
+      ],
+      curiosityPrompts: [
+        'How does the cell’s Spindle Assembly Checkpoint know when every single chromosome is properly attached before triggering Anaphase?',
+        'What is the difference between a chromosome and a sister chromatid during Metaphase vs Anaphase?',
+        'How do cancer drugs like Vinblastine and Taxol stop tumor growth by targeting mitotic spindle microtubules?',
+      ],
+    };
+  }
+
+  // 0G. ATP SYNTHASE MOLECULAR ROTARY MOTOR
+  if (
+    q.includes('atp synthase') ||
+    q.includes('chemiosmosis') ||
+    q.includes('f0 f1') ||
+    q.includes('oxidative phosphorylation')
+  ) {
+    return {
+      id: 'custom-atp-synthase-motor',
+      title: 'ATP Synthase (F₀F₁) Chemiosmotic Rotary Nanomotor',
+      concept: 'Bioenergetics, Chemiosmotic Proton Gradient (Δp), Rotary Catalysis & ATP Phosphorylation',
+      subjectDomain: 'Biology',
+      description:
+        'Interactive 3D structural biochemistry model of the mitochondrial F₀F₁-ATP Synthase molecular machine showing the inner mitochondrial phospholipid membrane, transmembrane F₀ proton-channel rotor (c-ring and a-subunit), rotating central γ-stalk, stationary F₁ catalytic hexamer head (α₃β₃), and peripheral stator stalk.',
+      whatIsIt:
+        'The world’s smallest rotary motor (~10 nm diameter), embedded in mitochondrial cristae and chloroplast thylakoid membranes, that synthesizes cellular energy currency (ATP) from ADP and inorganic phosphate (Pᵢ).',
+      howDoesItWork:
+        'According to Peter Mitchell’s Chemiosmotic Theory, the electron transport chain pumps protons (H⁺) into the intermembrane space, creating a steep electrochemical proton-motive force (Δp). As H⁺ ions flow back down their gradient through the F₀ a-subunit half-channels, they protonate glutamate/aspartate residues on the c-ring, spinning the c-ring and central asymmetric γ-shaft at ~100–150 rev/s. The rotating γ-cam forces the three catalytic β-subunits of the F₁ head through Open ➔ Loose ➔ Tight conformations (Boyer’s Binding Change Mechanism), synthesizing 3 ATP per 360° turn.',
+      realLifeExample: 'An average human body synthesizes and recycles roughly its own body weight (~60–75 kg) of ATP molecules every single day via ATP Synthase!',
+      examConnection:
+        'F₀ is the transmembrane proton-conducting rotor (inhibited by oligomycin); F₁ is the matrix-facing catalytic head (α₃β₃γδε) where ADP + Pᵢ ➔ ATP occurs via Open (release), Loose (bind ADP+Pᵢ), and Tight (catalyze ATP) conformational states.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.2, 8.0], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'inner-mitochondrial-membrane',
+          name: 'Inner Mitochondrial Cristae Membrane (Bilayer)',
+          label: 'Inner Mitochondrial Membrane',
+          shape: 'box',
+          dimensions: [5.0, 0.55, 3.6],
+          position: [0, -0.95, 0],
+          color: '#0f766e',
+          material: 'glass',
+          opacity: 0.45,
+          description: 'Impermeable cardiolipin-rich phospholipid bilayer separating the high-[H⁺] intermembrane space (pH ~7.0) from the low-[H⁺] mitochondrial matrix (pH ~7.8).',
+          whatIsIt: 'Insulating biological membrane maintaining the proton gradient.',
+          whatDoesItDo: 'Forces protons (H⁺) to re-enter the matrix exclusively through the F₀ turbine channel.',
+        },
+        {
+          id: 'f0-c-ring-rotor',
+          name: 'F₀ Transmembrane c-Subunit Rotor Ring (Proton Turbine)',
+          label: 'F₀ c-Ring Proton Rotor',
+          shape: 'cylinder',
+          dimensions: [0.68, 0.95],
+          position: [0, -0.95, 0],
+          color: '#f59e0b',
+          material: 'metal',
+          description: 'Barrel of 8–15 hydrophobic c-subunits that rotates as protons bind and unbind conserved carboxylate residues.',
+          whatIsIt: 'Transmembrane proton-driven rotary turbine.',
+          whatDoesItDo: 'Converts transmembrane H⁺ electrochemical potential energy into mechanical torque.',
+          animation: { type: 'spin', axis: 'y', speed: 3.5, amplitude: 0.1 },
+        },
+        {
+          id: 'central-gamma-cam-shaft',
+          name: 'Asymmetric Central γ-Subunit Rotary Drive Shaft',
+          label: 'γ-Subunit Rotary Camshaft',
+          shape: 'cylinder',
+          dimensions: [0.22, 1.85],
+          position: [0, 0.15, 0],
+          color: '#ef4444',
+          material: 'glow',
+          description: 'Coiled-coil asymmetric axle connecting the spinning F₀ c-ring to the inside of the F₁ catalytic hexamer.',
+          whatIsIt: 'Molecular drive shaft and mechanical cam.',
+          whatDoesItDo: 'Rotates in 120° steps inside the stationary α₃β₃ head, mechanically deforming the β catalytic sites.',
+          animation: { type: 'spin', axis: 'y', speed: 3.5, amplitude: 0.15 },
+        },
+        {
+          id: 'f1-catalytic-hexamer-head',
+          name: 'F₁ Catalytic Hexamer Head (α₃β₃ — Open / Loose / Tight)',
+          label: 'F₁ Catalytic Head (α₃β₃ — 3 ATP/turn)',
+          shape: 'sphere',
+          dimensions: [1.15],
+          position: [0, 1.35, 0],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.68,
+          description: 'Alternating trimer of three α and three catalytic β subunits projecting into the mitochondrial matrix.',
+          whatIsIt: 'Catalytic ATP-synthesizing head domain.',
+          whatDoesItDo: 'Cycles through Open (O), Loose (L), and Tight (T) conformations to condense ADP + Pᵢ into 3 ATP molecules per revolution.',
+          animation: { type: 'pulse', axis: 'y', speed: 3.0, amplitude: 0.08 },
+        },
+        {
+          id: 'stator-peripheral-stalk',
+          name: 'Peripheral Stator Stalk (a-b₂-δ Subunit Anchor)',
+          label: 'Peripheral Stator Stalk (Anti-Rotation)',
+          shape: 'cylinder',
+          dimensions: [0.14, 2.55],
+          position: [1.18, 0.25, 0],
+          color: '#10b981',
+          material: 'plastic',
+          description: 'Rigid external protein arm linking the stationary membrane a-subunit proton channel to the top of the F₁ hexamer.',
+          whatIsIt: 'Stationary mechanical stator brace.',
+          whatDoesItDo: 'Prevents the α₃β₃ catalytic head from spinning futilely with the γ-shaft so relative torque does chemical work.',
+        },
+        {
+          id: 'proton-flux-channel-a',
+          name: 'a-Subunit Proton Half-Channel (H⁺ Entry Conduit)',
+          label: 'a-Subunit H⁺ Channel',
+          shape: 'cylinder',
+          dimensions: [0.32, 0.95],
+          position: [0.92, -0.95, 0],
+          color: '#a855f7',
+          material: 'tissue',
+          description: 'Stationary transmembrane subunit containing two offset aqueous half-channels that guide H⁺ ions onto and off the spinning c-ring.',
+          whatIsIt: 'Proton entry and exit stator gate.',
+          whatDoesItDo: 'Couples downward H⁺ translocation strictly to unidirectional rotation of the c-ring.',
+        },
+      ],
+      parameters: {
+        protonGradientMv: {
+          id: 'protonGradientMv',
+          name: 'Proton-Motive Force (Δp)',
+          min: 50,
+          max: 240,
+          step: 10,
+          defaultValue: 180,
+          unit: 'mV',
+          description: 'Electrochemical H⁺ gradient across the inner membrane driving c-ring and γ-shaft rotation speed (~3 ATP per 10 H⁺).',
+          affects: 'animationSpeed',
+          scaleFactor: 0.018,
+        },
+        f1HeadScale: {
+          id: 'f1HeadScale',
+          name: 'F₁ Catalytic Head Scale',
+          min: 0.75,
+          max: 1.4,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Scales the α₃β₃ catalytic hexamer to inspect the internal γ-shaft.',
+          affects: 'objectScale',
+          targetPartId: 'f1-catalytic-hexamer-head',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Translucent F₁ Head & Membrane',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Reveals the rotating central γ-shaft inside the stationary F₁ catalytic head.',
+        },
+      },
+      equations: [
+        'ADP³⁻ + HPO₄²⁻ + H⁺ + ~3.3 H⁺_ims ➔ ATP⁴⁻ + H₂O + ~3.3 H⁺_matrix (Rotary Chemiosmotic Coupling)',
+        'ΔG_ATP ≈ +50 kJ/mol driven by Δp = Δψ − (2.3RT/F)ΔpH ≈ 180–200 mV',
+      ],
+      curiosityPrompts: [
+        'What would happen if the peripheral stator stalk broke and the F₁ head spun along with the central γ-shaft?',
+        'Why can ATP Synthase run in reverse (hydrolyzing ATP to pump protons backward) if the mitochondrial membrane potential collapses?',
+        'How did scientists prove experimentally that the γ-subunit actually rotates in 120° steps?',
+      ],
+    };
+  }
+
+  // 0H. SARCOMERE & SLIDING FILAMENT MUSCLE CONTRACTION
+  if (
+    q.includes('sarcomere') ||
+    q.includes('sliding filament') ||
+    (q.includes('actin') && q.includes('myosin')) ||
+    q.includes('myofibril') ||
+    (q.includes('muscle') && q.includes('contraction'))
+  ) {
+    return {
+      id: 'custom-sarcomere-sliding-filament',
+      title: 'Skeletal Muscle Sarcomere & Sliding Filament Mechanism',
+      concept: 'Muscle Physiology, Actin–Myosin Cross-Bridge Cycling, ATP Power Stroke & Ca²⁺–Troponin Regulation',
+      subjectDomain: 'Anatomy',
+      description:
+        'Interactive 3D physiology model of a striated muscle sarcomere (the contractile unit between two Z-discs) illustrating the left and right Z-discs, thin Actin filaments (with troponin and tropomyosin), thick Myosin II bipolar filament bundle with ATPase cross-bridge heads, and central M-line.',
+      whatIsIt:
+        'The fundamental repeating ~2.2 μm contractile unit of striated skeletal and cardiac muscle myofibrils.',
+      howDoesItWork:
+        'According to the Huxley Sliding Filament Theory, neither actin nor myosin filaments change their own length during contraction. Instead, Ca²⁺ released from the sarcoplasmic reticulum binds Troponin-C, shifting Tropomyosin to expose binding sites on thin Actin filaments. Myosin heads bind actin, execute an ATP-hydrolysis-driven ~45° Power Stroke that pulls the two Z-discs closer together (shortening the I-band and H-zone while the A-band stays constant), and bind a fresh ATP molecule to detach and reset.',
+      realLifeExample: 'Every heartbeat, sprint, and heavy lift, as well as rigor mortis (muscle stiffening when ATP depletion prevents myosin head detachment).',
+      examConnection:
+        'During sarcomere contraction: Z-discs move closer together, I-band (actin only) and H-zone (myosin only) SHORTEN, while the A-band (full length of thick myosin filaments) remains CONSTANT in length.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.0, 8.2], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'left-z-disc-anchor',
+          name: 'Left Z-Disc (Z-Line α-Actinin Boundary)',
+          label: 'Left Z-Disc Boundary',
+          shape: 'box',
+          dimensions: [0.28, 2.4, 1.8],
+          position: [-2.35, 0, 0],
+          color: '#0284c7',
+          material: 'metal',
+          description: 'Dense protein lattice of α-actinin marking the left lateral boundary of the sarcomere and anchoring the plus (+) ends of thin actin filaments.',
+          whatIsIt: 'Left structural anchor wall of the sarcomere.',
+          whatDoesItDo: 'Gets pulled inward toward the M-line during isotonic muscle contraction.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.2, amplitude: 0.28 },
+        },
+        {
+          id: 'right-z-disc-anchor',
+          name: 'Right Z-Disc (Z-Line α-Actinin Boundary)',
+          label: 'Right Z-Disc Boundary',
+          shape: 'box',
+          dimensions: [0.28, 2.4, 1.8],
+          position: [2.35, 0, 0],
+          color: '#0284c7',
+          material: 'metal',
+          description: 'Right lateral sarcomere boundary anchoring the opposing array of thin actin filaments.',
+          whatIsIt: 'Right structural anchor wall of the sarcomere.',
+          whatDoesItDo: 'Slides inward toward the center as myosin heads pull on actin.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.2, amplitude: 0.28 },
+        },
+        {
+          id: 'thin-actin-filaments-upper',
+          name: 'Upper Thin Actin Filaments (F-Actin + Troponin + Tropomyosin)',
+          label: 'Thin Actin Filaments (I-Band)',
+          shape: 'cylinder',
+          dimensions: [0.09, 3.8],
+          position: [0, 0.65, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'plastic',
+          description: 'Helical F-actin polymers decorated with regulatory tropomyosin strands and Ca²⁺-binding troponin complexes.',
+          whatIsIt: 'Thin contractile protein filaments anchored to the Z-discs.',
+          whatDoesItDo: 'Provides myosin-binding sites when Ca²⁺ binds Troponin-C, sliding inward over the thick filament.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.2, amplitude: 0.2 },
+        },
+        {
+          id: 'thin-actin-filaments-lower',
+          name: 'Lower Thin Actin Filaments (F-Actin + Troponin + Tropomyosin)',
+          label: 'Lower Thin Actin Filaments',
+          shape: 'cylinder',
+          dimensions: [0.09, 3.8],
+          position: [0, -0.65, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'plastic',
+          description: 'Lower parallel array of thin actin filaments interdigitating with the central thick myosin filament.',
+          whatIsIt: 'Lower thin actin filament bundle.',
+          whatDoesItDo: 'Transmits sliding cross-bridge force to the Z-discs.',
+          animation: { type: 'oscillate', axis: 'x', speed: 2.2, amplitude: 0.2 },
+        },
+        {
+          id: 'thick-myosin-filament-core',
+          name: 'Central Thick Myosin II Filament (A-Band Constant Length)',
+          label: 'Thick Myosin Filament (A-Band)',
+          shape: 'cylinder',
+          dimensions: [0.24, 2.8],
+          position: [0, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#e11d48',
+          material: 'tissue',
+          description: 'Bipolar bundle of Myosin II heavy chains spanning the entire A-band with projecting globular ATPase cross-bridge heads.',
+          whatIsIt: 'Central thick motor filament of the sarcomere.',
+          whatDoesItDo: 'Hydrolyzes ATP (ATP ➔ ADP + Pᵢ) to cock and swing cross-bridge heads in a cyclic power stroke.',
+        },
+        {
+          id: 'myosin-crossbridge-heads',
+          name: 'Actin–Myosin Cross-Bridge Power-Stroke Heads',
+          label: 'Myosin Cross-Bridge Heads (ATPase)',
+          shape: 'torus',
+          dimensions: [0.48, 0.12],
+          position: [-0.85, 0, 0],
+          rotation: [0, Math.PI / 2, 0],
+          color: '#facc15',
+          material: 'glow',
+          description: 'Globular myosin S1 heads that bind actin, release Pᵢ and ADP to execute the power stroke, and bind fresh ATP to detach.',
+          whatIsIt: 'Molecular oar-like motor heads on the thick filament.',
+          whatDoesItDo: 'Walks toward the Z-disc (+) end of actin to shorten the sarcomere.',
+          animation: { type: 'pulse', axis: 'y', speed: 3.0, amplitude: 0.14 },
+        },
+        {
+          id: 'central-m-line-bridge',
+          name: 'Central M-Line & Titin Elastic Anchor',
+          label: 'Central M-Line (Myomesin)',
+          shape: 'cylinder',
+          dimensions: [0.35, 1.6],
+          position: [0, 0, 0],
+          color: '#f59e0b',
+          material: 'metal',
+          description: 'Central transverse protein disk (myomesin) at the middle of the H-zone that cross-links thick myosin filaments and elastic titin springs.',
+          whatIsIt: 'Centerline alignment bridge of the sarcomere.',
+          whatDoesItDo: 'Keeps thick myosin filaments centered in a hexagonal lattice during contraction.',
+        },
+      ],
+      parameters: {
+        calciumConcentration: {
+          id: 'calciumConcentration',
+          name: 'Sarcoplasmic Ca²⁺ & Cross-Bridge Rate',
+          min: 0.5,
+          max: 5.0,
+          step: 0.25,
+          defaultValue: 2.2,
+          unit: 'μM',
+          description: 'Controls the rate of Ca²⁺-activated cross-bridge power-stroke cycling.',
+          affects: 'animationSpeed',
+          scaleFactor: 1.0,
+        },
+        overlapZoneFactor: {
+          id: 'overlapZoneFactor',
+          name: 'Actin–Myosin Filament Overlap (Length–Tension)',
+          min: 0.7,
+          max: 1.35,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Active isometric tetanic tension peaks at optimal sarcomere length (~2.0–2.2 μm) where cross-bridge overlap is maximal.',
+          affects: 'objectScale',
+          targetPartId: 'thick-myosin-filament-core',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Highlight Cross-Bridge Heads',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Highlights active myosin ATPase heads and M-line alignment.',
+        },
+      },
+      equations: [
+        'L_sarcomere = L_A-band (constant ~1.6 μm) + L_I-band (shortens during contraction)',
+        'Cross-Bridge Cycle: Attach (Actin·Myosin·ADP·Pᵢ) ➔ Power Stroke (−Pᵢ, −ADP) ➔ Rigor ➔ Detach (+ATP) ➔ Cock (ATP ➔ ADP+Pᵢ)',
+      ],
+      curiosityPrompts: [
+        'Why does the A-band stay the exact same width during muscle contraction while the I-band and H-zone get narrower?',
+        'Why is a fresh ATP molecule required for the myosin head to DETACH from actin (and why does ATP loss cause rigor mortis)?',
+        'How do Calcium ions (Ca²⁺), Troponin, and Tropomyosin work together like a lock and key to switch muscle contraction on?',
+      ],
+    };
+  }
+
+  // 0I. CATHODE RAY TUBE (CRT) & J.J. THOMSON e/m DEFLECTION APPARATUS
+  if (
+    q.includes('cathode ray') ||
+    q.includes('crt') ||
+    q.includes('electron gun') ||
+    q.includes('thomson')
+  ) {
+    return {
+      id: 'custom-cathode-ray-tube-thomson',
+      title: 'Cathode Ray Tube (CRT) & J.J. Thomson e/m Deflection Lab',
+      concept: 'Thermionic Emission, Electrostatic & Magnetic Lorentz Force Deflection (F = −e(E + v × B))',
+      subjectDomain: 'Physics',
+      description:
+        'Interactive 3D atomic physics apparatus modeling J.J. Thomson’s 1897 cathode ray tube: an evacuated glass envelope, thermionic electron gun cathode, accelerating & focusing anodes, parallel horizontal electric deflection plates (E), external Helmholtz magnetic coils (B), collimated electron beam, and zinc sulfide phosphor screen.',
+      whatIsIt:
+        'A high-vacuum electron-beam tube used by J.J. Thomson in 1897 to discover the electron and measure its charge-to-mass ratio (e/m = 1.759 × 10¹¹ C/kg).',
+      howDoesItWork:
+        'A heated filament boils off electrons (thermionic emission), which are accelerated through voltage V_a (½mv² = eV_a) into a fast pencil beam. Passing between charged capacitor plates deflects the beam parabolically via electric force F_E = −eE, while perpendicular Helmholtz coils exert magnetic Lorentz force F_B = −e(v × B). Balancing eE = evB yields the exact electron speed v = E/B.',
+      realLifeExample: 'Analog oscilloscope tubes, X-ray tubes, electron microscopes (SEM/TEM), and particle accelerator injectors.',
+      examConnection:
+        'Velocity selector balance condition: When electric force equals magnetic force (eE = evB), the electron beam passes straight through undeflected with velocity v = E / B, giving e/m = E² / (2 · V_a · B²).',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.2, 8.4], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'evacuated-glass-crt-envelope',
+          name: 'High-Vacuum Borosilicate Glass CRT Envelope',
+          label: 'Vacuum Glass Envelope',
+          shape: 'cylinder',
+          dimensions: [1.15, 5.2],
+          position: [0, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#38bdf8',
+          material: 'glass',
+          opacity: 0.32,
+          description: 'Evacuated glass tube (P < 10⁻⁶ Torr) preventing electrons from colliding with air molecules.',
+          whatIsIt: 'High-vacuum glass chamber.',
+          whatDoesItDo: 'Provides a collision-free mean free path for the cathode-ray electron beam.',
+        },
+        {
+          id: 'thermionic-electron-gun',
+          name: 'Thermionic Cathode Filament & Accelerating Anode (V_a)',
+          label: 'Electron Gun (Cathode + Anode V_a)',
+          shape: 'cylinder',
+          dimensions: [0.48, 1.1],
+          position: [-2.05, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#f59e0b',
+          material: 'metal',
+          description: 'Heated tungsten cathode emitting electrons accelerated through potential difference V_a into a collimated beam.',
+          whatIsIt: 'Electron source and electrostatic accelerator.',
+          whatDoesItDo: 'Accelerates electrons to speed v = √(2eV_a / m_e).',
+        },
+        {
+          id: 'electric-deflection-plate-upper',
+          name: 'Upper Electrostatic Deflection Plate (+V_p)',
+          label: 'Upper E-Field Plate (+)',
+          shape: 'box',
+          dimensions: [1.35, 0.1, 0.85],
+          position: [-0.25, 0.52, 0],
+          color: '#ef4444',
+          material: 'copper',
+          description: 'Positively charged parallel capacitor plate creating a vertical electric field E = V_p / d.',
+          whatIsIt: 'Upper electrostatic deflection electrode.',
+          whatDoesItDo: 'Attracts negatively charged electrons upward with force F_E = eE.',
+        },
+        {
+          id: 'electric-deflection-plate-lower',
+          name: 'Lower Electrostatic Deflection Plate (−V_p)',
+          label: 'Lower E-Field Plate (−)',
+          shape: 'box',
+          dimensions: [1.35, 0.1, 0.85],
+          position: [-0.25, -0.52, 0],
+          color: '#0284c7',
+          material: 'copper',
+          description: 'Negatively charged lower parallel plate completing the uniform electric deflection zone.',
+          whatIsIt: 'Lower electrostatic deflection electrode.',
+          whatDoesItDo: 'Repels negatively charged cathode rays upward.',
+        },
+        {
+          id: 'helmholtz-magnetic-coil-ring',
+          name: 'External Helmholtz Magnetic Deflection Coils (B-Field)',
+          label: 'Helmholtz Coils (Transverse B-Field)',
+          shape: 'torus',
+          dimensions: [1.32, 0.12],
+          position: [-0.25, 0, 0],
+          color: '#d97706',
+          material: 'copper',
+          description: 'Pair of external circular coils producing a uniform transverse magnetic field B perpendicular to both v and E.',
+          whatIsIt: 'Magnetic Lorentz force coil pair.',
+          whatDoesItDo: 'Applies magnetic force F_B = evB to curve or cancel the electrostatic deflection.',
+        },
+        {
+          id: 'cathode-ray-electron-beam',
+          name: 'Collimated Cathode-Ray Electron Beam (e⁻)',
+          label: 'Cathode-Ray Electron Beam (e⁻)',
+          shape: 'cylinder',
+          dimensions: [0.09, 4.4],
+          position: [0.15, 0.08, 0],
+          rotation: [0, 0, Math.PI / 2 - 0.05],
+          color: '#22c55e',
+          material: 'glow',
+          description: 'High-velocity stream of negatively charged electrons deflected by the net Lorentz force F = −e(E + v × B).',
+          whatIsIt: 'Stream of fast electrons (cathode rays).',
+          whatDoesItDo: 'Deflects proportionally to the charge-to-mass ratio e/m and strikes the fluorescent screen.',
+          animation: { type: 'oscillate', axis: 'y', speed: 2.4, amplitude: 0.18 },
+        },
+        {
+          id: 'phosphor-fluorescent-screen',
+          name: 'Zinc Sulfide (ZnS) Fluorescent Detection Screen',
+          label: 'Fluorescent Phosphor Screen',
+          shape: 'cylinder',
+          dimensions: [1.12, 0.18],
+          position: [2.52, 0, 0],
+          rotation: [0, 0, Math.PI / 2],
+          color: '#4ade80',
+          material: 'glow',
+          description: 'Phosphor-coated end window that emits visible green scintillation light where the electron beam impacts.',
+          whatIsIt: 'Glowing position-sensitive detector screen.',
+          whatDoesItDo: 'Converts invisible electron kinetic energy into a measurable luminous spot deflection Δy.',
+        },
+      ],
+      parameters: {
+        acceleratingVoltageKv: {
+          id: 'acceleratingVoltageKv',
+          name: 'Anode Accelerating Voltage (V_a)',
+          min: 1.0,
+          max: 10.0,
+          step: 0.5,
+          defaultValue: 4.0,
+          unit: 'kV',
+          description: 'Controls electron beam kinetic energy eV_a = ½mv².',
+          affects: 'animationSpeed',
+          scaleFactor: 0.45,
+        },
+        plateDeflectionField: {
+          id: 'plateDeflectionField',
+          name: 'Deflection Plate Voltage Tilt',
+          min: -20,
+          max: 20,
+          step: 2,
+          defaultValue: 6,
+          unit: '°',
+          description: 'Adjusts the vertical electrostatic deflection angle of the electron beam.',
+          affects: 'objectRotation',
+          targetPartId: 'cathode-ray-electron-beam',
+          scaleFactor: 0.015,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Transparent Vacuum Tube',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Keeps the outer glass CRT envelope translucent to inspect the plates and electron beam.',
+        },
+      },
+      equations: [
+        '½ m_e v² = e · V_a ➔ v = √(2 · e · V_a / m_e) (Electron Gun Acceleration)',
+        'e · E = e · v · B ➔ v = E / B , e / m_e = E² / (2 · V_a · B²) = 1.759 × 10¹¹ C/kg',
+      ],
+      curiosityPrompts: [
+        'How did J.J. Thomson know that cathode rays were negatively charged particles and not electromagnetic waves like light?',
+        'Why was Thomson’s measured value of e/m the exact same regardless of which metal he used for the cathode?',
+        'How do you adjust the E-field and B-field so the electron beam travels in a completely straight line (velocity selector)?',
+      ],
+    };
+  }
+
+  // 0J. CYCLOTRON & MASS SPECTROMETER
+  if (
+    q.includes('cyclotron') ||
+    q.includes('mass spectrometer') ||
+    q.includes('velocity selector') ||
+    q.includes('synchrotron')
+  ) {
+    return {
+      id: 'custom-cyclotron-accelerator',
+      title: 'Cyclotron Particle Accelerator & Magnetic Resonance Explorer',
+      concept: 'Cyclotron Frequency (f = qB/2πm), Alternating RF Electric Gap & Spiral Lorentz Orbit',
+      subjectDomain: 'Physics',
+      description:
+        'Interactive 3D nuclear physics model of Ernest Lawrence’s cyclotron accelerator featuring two hollow copper D-shaped vacuum electrodes (Dee 1 and Dee 2), upper and lower electromagnet poles generating a vertical magnetic field B, a central ion source, an alternating radio-frequency (RF) accelerating gap, and an outward-spiraling proton/ion beam.',
+      whatIsIt:
+        'A compact circular particle accelerator that uses a constant magnetic field and a high-frequency alternating voltage across two D-shaped electrodes ("Dees") to accelerate charged ions along an outward spiral.',
+      howDoesItWork:
+        'A perpendicular magnetic field B bends ions of charge q and mass m into circular arcs of radius r = mv / (qB). Because the orbital cyclotron frequency f_c = qB / (2πm) is independent of speed v and radius r (in the non-relativistic regime), an AC oscillator tuned to f_c reverses polarity across the gap between Dee 1 and Dee 2 every half-turn, kicking the ion to higher energy and a wider radius on every crossing.',
+      realLifeExample: 'Hospital medical cyclotrons producing fluorine-18 (¹⁸F-FDG) radiotracers for PET cancer scans and proton-beam therapy.',
+      examConnection:
+        'Cyclotron Resonance Condition: T = 2πm / (qB) and f_c = qB / (2πm) are independent of particle speed v and orbital radius r! Maximum kinetic energy at extraction radius R: K_max = q² · B² · R² / (2m).',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 4.2, 7.6], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'lower-electromagnet-pole',
+          name: 'Lower Ferromagnetic Pole Piece (North Pole — Upward B-Field)',
+          label: 'Lower Magnet Pole (North)',
+          shape: 'cylinder',
+          dimensions: [2.5, 0.45],
+          position: [0, -1.15, 0],
+          color: '#dc2626',
+          material: 'metal',
+          description: 'Massive lower electromagnet pole face generating a uniform vertical magnetic field B across the vacuum chamber.',
+          whatIsIt: 'Bottom magnetic pole piece.',
+          whatDoesItDo: 'Provides the uniform vertical B-field that bends moving ions into circular paths.',
+        },
+        {
+          id: 'upper-electromagnet-pole',
+          name: 'Upper Ferromagnetic Pole Piece (South Pole — Cutaway)',
+          label: 'Upper Magnet Pole (South)',
+          shape: 'cylinder',
+          dimensions: [2.5, 0.35],
+          position: [0, 1.25, 0],
+          color: '#2563eb',
+          material: 'glass',
+          opacity: 0.28,
+          description: 'Upper electromagnet pole rendered semi-transparent so the internal copper Dees and spiral beam are visible.',
+          whatIsIt: 'Top magnetic pole piece.',
+          whatDoesItDo: 'Completes the uniform magnetic gap field between North and South poles.',
+        },
+        {
+          id: 'copper-dee-electrode-left',
+          name: 'Left Hollow Copper Electrode (Dee 1 — RF Terminal A)',
+          label: 'Copper Dee 1 (Hollow Faraday Cage)',
+          shape: 'cylinder',
+          dimensions: [1.65, 0.38],
+          position: [-0.55, 0, 0],
+          color: '#d97706',
+          material: 'copper',
+          description: 'Left hollow D-shaped copper electrode shielded from electric fields inside its conductive interior.',
+          whatIsIt: 'First hollow semicircular copper accelerating electrode.',
+          whatDoesItDo: 'Allows ions inside to coast at constant speed in a semicircle under the magnetic force alone.',
+        },
+        {
+          id: 'copper-dee-electrode-right',
+          name: 'Right Hollow Copper Electrode (Dee 2 — RF Terminal B)',
+          label: 'Copper Dee 2 (RF Alternating)',
+          shape: 'cylinder',
+          dimensions: [1.65, 0.38],
+          position: [0.55, 0, 0],
+          color: '#b45309',
+          material: 'copper',
+          description: 'Right hollow copper electrode separated from Dee 1 by the central RF accelerating gap.',
+          whatIsIt: 'Second hollow semicircular copper electrode.',
+          whatDoesItDo: 'Alternates potential (±V₀ cos(2πf_c t)) so ions are accelerated every time they cross the gap.',
+        },
+        {
+          id: 'central-ion-source-injector',
+          name: 'Central Proton / Ion Source Injector (q, m)',
+          label: 'Central Ion Source (p⁺)',
+          shape: 'sphere',
+          dimensions: [0.28],
+          position: [0, 0.28, 0],
+          color: '#facc15',
+          material: 'glow',
+          description: 'Penning ion gauge source at the center of the gap injecting low-energy protons (H⁺) into the cyclotron.',
+          whatIsIt: 'Central charged-particle emitter.',
+          whatDoesItDo: 'Supplies ions at r ≈ 0 to begin the outward spiral acceleration.',
+          animation: { type: 'pulse', axis: 'y', speed: 3.0, amplitude: 0.14 },
+        },
+        {
+          id: 'spiral-ion-beam-trajectory',
+          name: 'Outward-Spiraling Accelerated Ion Beam (r = mv/qB)',
+          label: 'Spiral Ion Beam (r ∝ v)',
+          shape: 'torus',
+          dimensions: [1.35, 0.08],
+          position: [0, 0.28, 0],
+          rotation: [Math.PI / 2, 0, 0],
+          color: '#38bdf8',
+          material: 'glow',
+          description: 'High-energy ion trajectory growing in radius r = mv/(qB) after each accelerating kick across the RF gap.',
+          whatIsIt: 'Spiraling high-velocity proton beam.',
+          whatDoesItDo: 'Gains kinetic energy ΔK = qV₀ twice per revolution until reaching the outer extraction radius R.',
+          animation: { type: 'spin', axis: 'y', speed: 4.2, amplitude: 0.1 },
+        },
+      ],
+      parameters: {
+        magneticFieldTesla: {
+          id: 'magneticFieldTesla',
+          name: 'Magnetic Flux Density (B)',
+          min: 0.5,
+          max: 3.0,
+          step: 0.1,
+          defaultValue: 1.5,
+          unit: 'T',
+          description: 'Cyclotron resonance frequency f_c = qB/(2πm) is directly proportional to B.',
+          affects: 'animationSpeed',
+          scaleFactor: 1.2,
+        },
+        extractionRadiusScale: {
+          id: 'extractionRadiusScale',
+          name: 'Maximum Orbit Radius (R)',
+          min: 0.65,
+          max: 1.35,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Final extracted kinetic energy scales with the square of the Dee radius (K_max ∝ R²).',
+          affects: 'objectScale',
+          targetPartId: 'spiral-ion-beam-trajectory',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Cutaway Upper Magnet Pole',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Makes the upper South magnet pole translucent to view the Dees and ion beam.',
+        },
+      },
+      equations: [
+        'q · v · B = m · v² / r ➔ r = (m · v) / (q · B) , f_c = (q · B) / (2π · m)',
+        'K_max = ½ m v_max² = (q² · B² · R²) / (2 · m) (Maximum Extracted Cyclotron Energy)',
+      ],
+      curiosityPrompts: [
+        'Why does an ion in a cyclotron take the exact same time to complete a large outer circle as a tiny inner circle?',
+        'Why are the charged particles accelerated only in the narrow gap between the Dees and not while inside the hollow copper Dees?',
+        'Why does a standard fixed-frequency cyclotron fail when particles reach relativistic speeds near the speed of light (γm)?',
+      ],
+    };
+  }
+
+  // 0K. FLUID MOSAIC CELL MEMBRANE / PHOSPHOLIPID BILAYER
+  if (
+    q.includes('cell membrane') ||
+    q.includes('plasma membrane') ||
+    q.includes('phospholipid bilayer') ||
+    q.includes('fluid mosaic') ||
+    q.includes('sodium potassium pump') ||
+    (q.includes('ion channel') && !q.includes('synapse'))
+  ) {
+    return {
+      id: 'custom-fluid-mosaic-membrane',
+      title: 'Fluid Mosaic Phospholipid Bilayer & Transmembrane Transport',
+      concept: 'Amphipathic Phospholipids, Selective Permeability, Integral Channel Proteins & Cholesterol Fluidity',
+      subjectDomain: 'Biology',
+      description:
+        'Interactive 3D cell biology model of the Singer–Nicolson Fluid Mosaic plasma membrane showing the outer and inner hydrophilic phosphate head layers, the hydrophobic fatty-acid tail interior core, an integral transmembrane voltage/gated channel protein, stabilizing cholesterol rings, and an extracellular glycoprotein glycocalyx receptor.',
+      whatIsIt:
+        'The selectively permeable ~7–8 nm amphipathic phospholipid bilayer that forms the dynamic outer boundary of all living cells.',
+      howDoesItWork:
+        'Amphipathic phospholipids spontaneously self-assemble in water so their polar hydrophilic phosphate heads face the aqueous extracellular and cytoplasmic fluids while their nonpolar hydrophobic fatty-acid tails hide inside the core. Small nonpolar molecules (O₂, CO₂) cross by simple diffusion, whereas polar ions (Na⁺, K⁺, Ca²⁺) and glucose require integral transmembrane channel or carrier proteins.',
+      realLifeExample: 'Aquaporins filtering water in kidney tubules, insulin receptors on muscle cells, and lipid nanoparticles delivering mRNA vaccines across cell membranes.',
+      examConnection:
+        'Singer–Nicolson Fluid Mosaic Model (1972): "Fluid" because phospholipids and proteins diffuse laterally within the bilayer (regulated by unsaturated kinked tails and cholesterol); "Mosaic" because diverse integral and peripheral proteins are embedded like tiles.',
+      functionalType: 'standard',
+      simulationModel: 'predictive',
+      prompt,
+      camera: { position: [0, 2.4, 8.0], target: [0, 0, 0] },
+      parts: [
+        {
+          id: 'outer-hydrophilic-phosphate-heads',
+          name: 'Extracellular Hydrophilic Phosphate Head Layer (Polar)',
+          label: 'Hydrophilic Phosphate Heads (Outer)',
+          shape: 'box',
+          dimensions: [4.8, 0.35, 3.2],
+          position: [0, 1.05, 0],
+          color: '#38bdf8',
+          material: 'plastic',
+          description: 'Negatively charged polar choline-phosphate head groups forming hydrogen bonds with extracellular water.',
+          whatIsIt: 'Water-loving outer surface of the lipid bilayer.',
+          whatDoesItDo: 'Interfaces stably with the aqueous extracellular environment.',
+        },
+        {
+          id: 'hydrophobic-fatty-acid-tail-core',
+          name: 'Hydrophobic Fatty-Acid Hydrocarbon Tail Core (Nonpolar Barrier)',
+          label: 'Hydrophobic Lipid Tails (Nonpolar Core)',
+          shape: 'box',
+          dimensions: [4.6, 1.65, 3.0],
+          position: [0, 0, 0],
+          color: '#facc15',
+          material: 'glass',
+          opacity: 0.45,
+          description: 'Nonpolar saturated and cis-unsaturated hydrocarbon acyl chains that block hydrated ions and large polar molecules.',
+          whatIsIt: 'Water-fearing interior core of the membrane.',
+          whatDoesItDo: 'Acts as the selective permeability barrier preventing uncontrolled ion leakage.',
+        },
+        {
+          id: 'inner-hydrophilic-phosphate-heads',
+          name: 'Cytoplasmic Hydrophilic Phosphate Head Layer (Cytosolic Leaf)',
+          label: 'Hydrophilic Phosphate Heads (Inner)',
+          shape: 'box',
+          dimensions: [4.8, 0.35, 3.2],
+          position: [0, -1.05, 0],
+          color: '#0284c7',
+          material: 'plastic',
+          description: 'Inner leaflet of polar phospholipid heads facing the intracellular cytosol.',
+          whatIsIt: 'Water-loving cytoplasmic surface of the bilayer.',
+          whatDoesItDo: 'Anchors peripheral cytoskeleton proteins (spectrin/actin) on the cytosolic face.',
+        },
+        {
+          id: 'integral-transmembrane-channel',
+          name: 'Integral Transmembrane Ion Channel / Carrier Protein',
+          label: 'Integral Channel Protein (Facilitated Diffusion)',
+          shape: 'cylinder',
+          dimensions: [0.68, 2.75],
+          position: [-0.65, 0, 0.25],
+          color: '#a855f7',
+          material: 'tissue',
+          description: 'Amphipathic α-helical transmembrane protein spanning both leaflets to provide a hydrophilic pore for specific ions or polar solutes.',
+          whatIsIt: 'Protein tunnel spanning the entire membrane thickness.',
+          whatDoesItDo: 'Mediates facilitated diffusion or active transport (ATP pump) of ions across the hydrophobic core.',
+          animation: { type: 'pulse', axis: 'x', speed: 2.2, amplitude: 0.1 },
+        },
+        {
+          id: 'cholesterol-fluidity-buffer',
+          name: 'Membrane Cholesterol Steroid Rings (Fluidity Buffer)',
+          label: 'Cholesterol (Fluidity Buffer)',
+          shape: 'capsule',
+          dimensions: [0.22, 0.75],
+          position: [1.15, 0.35, 0.35],
+          color: '#f97316',
+          material: 'plastic',
+          description: 'Planar four-ring steroid lipid wedged between phospholipid tails that prevents crystal freezing at low T and restricts excess fluidity at high T.',
+          whatIsIt: 'Bidirectional membrane fluidity stabilizer.',
+          whatDoesItDo: 'Maintains optimal membrane viscosity across temperature changes.',
+        },
+        {
+          id: 'extracellular-glycoprotein-receptor',
+          name: 'Extracellular Glycoprotein & Oligosaccharide Chain (Glycocalyx)',
+          label: 'Glycoprotein Receptor (Cell Recognition)',
+          shape: 'cylinder',
+          dimensions: [0.16, 1.35],
+          position: [0.85, 1.75, 0],
+          rotation: [0, 0, -0.25],
+          color: '#10b981',
+          material: 'glow',
+          description: 'Branched carbohydrate antenna covalently attached to membrane proteins on the extracellular face only.',
+          whatIsIt: 'Cell-surface identity tag and hormone receptor.',
+          whatDoesItDo: 'Enables immune self/non-self recognition (MHC/ABO blood groups) and hormone signal transduction.',
+          animation: { type: 'oscillate', axis: 'z', speed: 2.0, amplitude: 0.15 },
+        },
+      ],
+      parameters: {
+        membraneTemperatureC: {
+          id: 'membraneTemperatureC',
+          name: 'Thermal Lateral Diffusion & Fluidity (T)',
+          min: 10,
+          max: 45,
+          step: 1,
+          defaultValue: 37,
+          unit: '°C',
+          description: 'Higher temperature and cis-unsaturated double bonds increase lateral phospholipid diffusion rate.',
+          affects: 'animationSpeed',
+          scaleFactor: 0.05,
+        },
+        channelConductanceScale: {
+          id: 'channelConductanceScale',
+          name: 'Channel Pore Aperture Scale',
+          min: 0.75,
+          max: 1.45,
+          step: 0.05,
+          defaultValue: 1.0,
+          unit: '×',
+          description: 'Scales the integral transmembrane channel protein pore.',
+          affects: 'objectScale',
+          targetPartId: 'integral-transmembrane-channel',
+          scaleFactor: 1.0,
+        },
+      },
+      conditions: {
+        internalView: {
+          id: 'internalView',
+          name: 'Translucent Hydrophobic Tail Core',
+          type: 'boolean',
+          defaultValue: true,
+          description: 'Makes the fatty-acid core translucent to inspect embedded cholesterol and transmembrane domains.',
+        },
+      },
+      equations: [
+        'J = −P · A · (C_out − C_in) (Fick’s First Law of Membrane Permeability, P = K·D / Δx)',
+        'V_eq = (R·T / z·F) · ln([Ion]_out / [Ion]_in) (Nernst Equilibrium Membrane Potential)',
+      ],
+      curiosityPrompts: [
+        'Why can oxygen (O₂) and carbon dioxide (CO₂) cross the lipid bilayer easily while smaller sodium ions (Na⁺) cannot?',
+        'How does cholesterol keep the cell membrane from becoming too rigid in the cold AND too leaky in the heat?',
+        'Why are carbohydrate chains (glycoproteins and glycolipids) found exclusively on the exterior surface of the plasma membrane?',
+      ],
+    };
+  }
 
   // 1. BACTERIOPHAGE / VIRUS 3D MODEL
   if (q.includes('bacteriophage') || q.includes('phage') || q.includes('virus') || q.includes('capsid')) {
@@ -1745,13 +3871,20 @@ function synthesizeProceduralScientificModelInternal(prompt: string): Scientific
   }
 
   // 10. DYNAMIC CHEMICAL FORMULA / VSEPR MOLECULE SYNTHESIZER
-  // Detects any explicit chemical formula like NH3, CH4, BF3, PCl5, SF6, SO2, H2S, XeF4, C2H4, etc.
+  // Detects any explicit chemical formula like NH3, CH4, BF3, PCl5, SF6, H2SO4, HNO3, H3PO4, SO2, H2S, XeF4, etc.
   const formulaMatch = prompt.match(/\b([A-Z][a-z]?)(\d*)([A-Z][a-z]?)(\d*)\b/);
   const isMoleculePrompt =
     q.includes('molecule') ||
+    q.includes('molecular') ||
     q.includes('vsepr') ||
     q.includes('ammonia') ||
     q.includes('methane') ||
+    q.includes('sulfuric acid') ||
+    q.includes('h2so4') ||
+    q.includes('nitric acid') ||
+    q.includes('hno3') ||
+    q.includes('phosphoric acid') ||
+    q.includes('h3po4') ||
     q.includes('sulfur hexafluoride') ||
     q.includes('phosphorus pentachloride') ||
     q.includes('boron trifluoride') ||
@@ -1765,7 +3898,28 @@ function synthesizeProceduralScientificModelInternal(prompt: string): Scientific
     let molName = 'Ammonia (NH₃)';
     let geomName = 'Trigonal Pyramidal (sp³, 107°)';
 
-    if (q.includes('methane') || q.includes('ch4')) {
+    if (q.includes('sulfuric acid') || q.includes('h2so4') || q.includes('sulfate')) {
+      centralSym = 'S';
+      terminalSym = 'O';
+      terminalCount = 4;
+      lonePairs = 0;
+      molName = 'Sulfuric Acid (H₂SO₄)';
+      geomName = 'Tetrahedral Sulfate Core (sp³, 109.5°)';
+    } else if (q.includes('nitric acid') || q.includes('hno3') || q.includes('nitrate')) {
+      centralSym = 'N';
+      terminalSym = 'O';
+      terminalCount = 3;
+      lonePairs = 0;
+      molName = 'Nitric Acid (HNO₃)';
+      geomName = 'Trigonal Planar (sp², 120°)';
+    } else if (q.includes('phosphoric acid') || q.includes('h3po4') || q.includes('phosphate')) {
+      centralSym = 'P';
+      terminalSym = 'O';
+      terminalCount = 4;
+      lonePairs = 0;
+      molName = 'Phosphoric Acid (H₃PO₄)';
+      geomName = 'Tetrahedral Phosphate Core (sp³, 109.5°)';
+    } else if (q.includes('methane') || q.includes('ch4')) {
       centralSym = 'C';
       terminalSym = 'H';
       terminalCount = 4;

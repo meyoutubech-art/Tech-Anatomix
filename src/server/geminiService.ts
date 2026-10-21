@@ -4,7 +4,11 @@ import { BATCH_3_MODELS } from '../data/curatedModelsBatch5';
 import { GeminiModelRouter } from './geminiModelRouter';
 import { cleanAndFormatScientificText, convertLatexFragmentToUnicode } from '../utils/scientificTextFormatter';
 import { extractLocalScientificTakeaways } from '../utils/keyTakeawaysService';
-import { synthesizeProceduralScientificModel } from '../utils/proceduralModelSynthesizer';
+import {
+  synthesizeProceduralScientificModel,
+  buildScientificConceptSpecification,
+  isSpecializedProceduralConcept,
+} from '../utils/proceduralModelSynthesizer';
 
 let ai: GoogleGenAI | null = null;
 let currentKey = '';
@@ -86,6 +90,13 @@ export function cleanJsonText(raw: string): string {
 // Helper to match verified scientific models by concepts/keywords
 export function matchVerifiedScientificModel(query: string): any | null {
   const q = query.toLowerCase().trim();
+  if (!q) return null;
+
+  // Never hijack specialized procedural multi-part models (e.g., Double Pendulum, Atwood Machine, Solenoid, CRT, Cyclotron, Synapse, Replication Fork, ATP Synthase, Sarcomere, etc.)
+  if (isSpecializedProceduralConcept(query)) {
+    return null;
+  }
+
   const norm = normalizePrompt(query);
   const combined = `${q} ${norm}`;
 
@@ -648,11 +659,16 @@ export function matchVerifiedScientificModel(query: string): any | null {
   // =========================================================================
   // PRIORITY CHECK: MODELS 31–40 PHYSICS & ENGINEERING BATCH 3
   // =========================================================================
-  // Model 31: AC Electric Generator
+  // Model 31: AC Electric Generator / Dynamo
   if (
     combined.includes('ac generator') ||
+    combined.includes('electric generator') ||
+    combined.includes('electrical generator') ||
     combined.includes('alternating current generator') ||
-    (combined.includes('generator') && (combined.includes('armature') || combined.includes('slip ring') || combined.includes('sine wave')))
+    combined.includes('alternator') ||
+    combined.includes('dynamo') ||
+    norm === 'generator' ||
+    (combined.includes('generator') && (combined.includes('armature') || combined.includes('slip ring') || combined.includes('sine wave') || combined.includes('magnetic') || combined.includes('induction') || combined.includes('coil')))
   ) {
     return CURATED_AI_MODELS['ac-generator'] || BATCH_3_MODELS.acGenerator;
   }
@@ -1191,7 +1207,18 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
             whatDoesItDo: typeof p.whatDoesItDo === 'string' ? p.whatDoesItDo : undefined,
             realLifeExample: typeof p.realLifeExample === 'string' ? p.realLifeExample : undefined,
             groupId: typeof p.groupId === 'string' ? p.groupId : undefined,
+            parentId: typeof p.parentId === 'string' ? p.parentId : undefined,
+            connectedTo: Array.isArray(p.connectedTo) ? p.connectedTo.map(String) : undefined,
+            kinematicRole: typeof p.kinematicRole === 'string' ? p.kinematicRole : undefined,
             opticalRole: typeof p.opticalRole === 'string' ? p.opticalRole : undefined,
+            pivotOffset:
+              Array.isArray(p.pivotOffset) && p.pivotOffset.length >= 3
+                ? ([
+                    Number(p.pivotOffset[0]) || 0,
+                    Number(p.pivotOffset[1]) || 0,
+                    Number(p.pivotOffset[2]) || 0,
+                  ] as [number, number, number])
+                : undefined,
             animation: p.animation && typeof p.animation === 'object'
               ? {
                   type: ['spin', 'oscillate', 'orbit', 'pulse'].includes(p.animation.type) ? p.animation.type : 'spin',
@@ -1285,26 +1312,10 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
       ]
     : [0, 0, 0];
 
-  // Infer functionalType if not specified
+  // Infer functionalType ONLY if not a specialized custom model and if explicitly matching a preset
   let functionalType = raw.functionalType;
-  const combinedText = `${prompt} ${raw.title || ''} ${raw.concept || ''}`.toLowerCase();
   if (!functionalType || functionalType === 'standard') {
-    if (combinedText.includes('telescope')) functionalType = 'optical-telescope';
-    else if (combinedText.includes('rutherford') || combinedText.includes('gold foil')) functionalType = 'rutherford-scattering';
-    else if (combinedText.includes('pendulum')) functionalType = 'pendulum-harmonics';
-    else if (combinedText.includes('motor')) functionalType = 'dc-motor-assembly';
-    else if (combinedText.includes('lever')) functionalType = 'class-1-lever';
-    else if (combinedText.includes('respirat') || combinedText.includes('lung')) functionalType = 'respiratory-system';
-    else if (combinedText.includes('magnet')) functionalType = 'bar-magnet-field';
-    else if (combinedText.includes('solar') || combinedText.includes('planet')) functionalType = 'solar-system';
-    else if (combinedText.includes('water') || combinedText.includes('h2o')) functionalType = 'water-molecule';
-    else if (combinedText.includes('microscope')) functionalType = 'compound-microscope';
-    else if (combinedText.includes('heart') || combinedText.includes('cardiac')) functionalType = 'human-heart';
-    else if (combinedText.includes('ear')) functionalType = 'human-ear';
-    else if (combinedText.includes('dna')) functionalType = 'dna-helix';
-    else if (combinedText.includes('cell')) functionalType = 'eukaryotic-cell';
-    else if (combinedText.includes('nephron')) functionalType = 'nephron';
-    else functionalType = 'standard';
+    functionalType = 'standard';
   }
 
   // Subject-specific structural component validation & repair
@@ -1332,7 +1343,7 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
     }
   }
 
-  return {
+  const sanitizedSpec: any = {
     id: raw.id || prompt.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `model-${Date.now()}`,
     title: raw.title || prompt.charAt(0).toUpperCase() + prompt.slice(1),
     concept: raw.concept || prompt,
@@ -1357,6 +1368,11 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
     generationSource: raw.generationSource || 'ai-live',
     subjectDomain: raw.subjectDomain || undefined,
   };
+
+  sanitizedSpec.scientificSpecification =
+    raw.scientificSpecification || buildScientificConceptSpecification(prompt, sanitizedSpec);
+
+  return sanitizedSpec;
 }
 
 // 1. Generate 3D Model with Model Fallback + Procedural Scientific 3D Synthesizer
@@ -1384,7 +1400,27 @@ export async function generate3DModel(
     }
   }
 
-  // 2. Verified Model Template Router (Only when not forcing a custom fresh synthesis)
+  // 2. Specialized Procedural Scientific Concept Blueprints (Double Pendulum, Atwood Machine, Solenoid, CRT, Cyclotron, Synapse, Replication Fork, ATP Synthase, Sarcomere, VSEPR Molecules, etc.)
+  if (!options?.forceFresh && isSpecializedProceduralConcept(userQuery)) {
+    const specializedSpec = synthesizeProceduralScientificModel(userQuery);
+    const spec = {
+      ...specializedSpec,
+      prompt: userQuery,
+      scientificSpecification:
+        specializedSpec.scientificSpecification ||
+        buildScientificConceptSpecification(userQuery, specializedSpec),
+    };
+    modelCache.set(normKey, { spec, timestamp: Date.now() });
+    return {
+      success: true,
+      model: spec,
+      isFallback: false,
+      activeModel: 'verified-scientific-blueprint',
+      requestId: reqId,
+    };
+  }
+
+  // 3. Verified Model Template Router (Only when not forcing a custom fresh synthesis)
   if (!options?.forceFresh) {
     const verifiedMatch = matchVerifiedScientificModel(userQuery);
     if (verifiedMatch) {
@@ -1392,6 +1428,9 @@ export async function generate3DModel(
         ...verifiedMatch,
         prompt: userQuery,
         generationSource: 'curated-preset' as const,
+        scientificSpecification:
+          verifiedMatch.scientificSpecification ||
+          buildScientificConceptSpecification(userQuery, verifiedMatch),
       };
       modelCache.set(normKey, { spec, timestamp: Date.now() });
       return {
@@ -1412,6 +1451,9 @@ export async function generate3DModel(
       ...synthesized,
       prompt: userQuery,
       generationSource: synthesized.generationSource || ('procedural-synthesizer' as const),
+      scientificSpecification:
+        synthesized.scientificSpecification ||
+        buildScientificConceptSpecification(userQuery, synthesized),
     };
     modelCache.set(normKey, { spec, timestamp: Date.now() });
     return {
@@ -1555,6 +1597,9 @@ Return ONLY a valid strict JSON object matching this schema:
     ...fallbackModel,
     prompt: userQuery,
     generationSource: fallbackModel.generationSource || ('procedural-synthesizer' as const),
+    scientificSpecification:
+      fallbackModel.scientificSpecification ||
+      buildScientificConceptSpecification(userQuery, fallbackModel),
   };
   modelCache.set(normKey, { spec: finalModel, timestamp: Date.now() });
   return {
@@ -1567,12 +1612,15 @@ Return ONLY a valid strict JSON object matching this schema:
 }
 
 export function findCuratedFallback(query: string, forceFresh?: boolean): any {
-  if (!forceFresh) {
+  if (!forceFresh && !isSpecializedProceduralConcept(query)) {
     const verified = matchVerifiedScientificModel(query);
     if (verified) {
       return {
         ...verified,
         generationSource: 'curated-preset',
+        scientificSpecification:
+          verified.scientificSpecification ||
+          buildScientificConceptSpecification(query, verified),
       };
     }
   }
