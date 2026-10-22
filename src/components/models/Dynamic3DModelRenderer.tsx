@@ -134,6 +134,88 @@ import {
 
 
 
+export interface InitialModelStateSnapshot {
+  modelId: string;
+  cameraPosition: [number, number, number];
+  cameraTarget: [number, number, number];
+  cameraUp: [number, number, number];
+  cameraFov: number;
+  cameraZoom: number;
+  parameters: Record<string, number>;
+  conditions: Record<string, any>;
+  modelPosition: { x: number; y: number };
+  isPlaying: boolean;
+  isExplodedView: boolean;
+  selectedPartId: string | null;
+  partTransforms: Record<
+    string,
+    {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      scale: [number, number, number];
+      visible: boolean;
+    }
+  >;
+}
+
+/**
+ * Captures the complete initial state snapshot for any loaded 3D model specification.
+ */
+export function captureInitialModelStateSnapshot(
+  modelSpec: ScientificModelSpec
+): InitialModelStateSnapshot {
+  const defaultParams: Record<string, number> = {};
+  Object.values(modelSpec.parameters || {}).forEach((p) => {
+    defaultParams[p.id] = p.defaultValue;
+  });
+
+  const defaultConds: Record<string, any> = {};
+  Object.values(modelSpec.conditions || {}).forEach((c) => {
+    defaultConds[c.id] = c.defaultValue;
+  });
+
+  const partTransforms: InitialModelStateSnapshot['partTransforms'] = {};
+  (modelSpec.parts || []).forEach((part) => {
+    partTransforms[part.id] = {
+      position: [
+        part.position?.[0] ?? 0,
+        part.position?.[1] ?? 0,
+        part.position?.[2] ?? 0,
+      ],
+      rotation: [
+        part.rotation?.[0] ?? 0,
+        part.rotation?.[1] ?? 0,
+        part.rotation?.[2] ?? 0,
+      ],
+      scale: [
+        part.scale?.[0] ?? 1,
+        part.scale?.[1] ?? 1,
+        part.scale?.[2] ?? 1,
+      ],
+      visible: true,
+    };
+  });
+
+  const camPos = modelSpec.camera?.position || [0, 4, 8];
+  const camTarget = modelSpec.camera?.target || [0, 0, 0];
+
+  return {
+    modelId: modelSpec.id,
+    cameraPosition: [camPos[0], camPos[1], camPos[2]],
+    cameraTarget: [camTarget[0], camTarget[1], camTarget[2]],
+    cameraUp: [0, 1, 0],
+    cameraFov: 40,
+    cameraZoom: 1,
+    parameters: defaultParams,
+    conditions: defaultConds,
+    modelPosition: { x: 0, y: 0 },
+    isPlaying: true,
+    isExplodedView: false,
+    selectedPartId: null,
+    partTransforms,
+  };
+}
+
 interface Dynamic3DModelRendererProps {
   modelSpec: ScientificModelSpec;
   parameters?: Record<string, number>;
@@ -142,6 +224,7 @@ interface Dynamic3DModelRendererProps {
   onSelectPart?: (part: ModelPartSpec | null) => void;
   onUpdateParameter?: (paramId: string, value: number) => void;
   onUpdateCondition?: (condId: string, value: any) => void;
+  onResetAll?: (defaultParams: Record<string, number>, defaultConditions: Record<string, any>) => void;
   onTryIt?: () => void;
   showLabels?: boolean;
   onToggleLabels?: (val: boolean) => void;
@@ -174,29 +257,27 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
   onSelectPart,
   onUpdateParameter,
   onUpdateCondition,
+  onResetAll,
   onTryIt,
   showLabels: externalShowLabels,
   onToggleLabels: externalToggleLabels,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<SimpleOrbitControls | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const resetSimTriggerRef = useRef<number>(0);
+  const initialSnapshotRef = useRef<InitialModelStateSnapshot>(
+    captureInitialModelStateSnapshot(modelSpec)
+  );
 
   // Fallback state if parameters or conditions are not passed from parent
   const [internalParameters, setInternalParameters] = useState<Record<string, number>>(() => {
-    const initial: Record<string, number> = {};
-    Object.values(modelSpec.parameters || {}).forEach((p) => {
-      initial[p.id] = p.defaultValue;
-    });
-    return initial;
+    return { ...initialSnapshotRef.current.parameters };
   });
 
   const [internalConditions, setInternalConditions] = useState<Record<string, any>>(() => {
-    const initial: Record<string, any> = {};
-    Object.values(modelSpec.conditions || {}).forEach((c) => {
-      initial[c.id] = c.defaultValue;
-    });
-    return initial;
+    return { ...initialSnapshotRef.current.conditions };
   });
 
   const parameters = externalParameters || internalParameters;
@@ -231,9 +312,17 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
   const [modelPosition, setModelPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const positionGroupRef = useRef<THREE.Group | null>(null);
 
-  // Reset position when model changes
+  // Capture fresh initial snapshot and reset position when model changes
   useEffect(() => {
+    const snap = captureInitialModelStateSnapshot(modelSpec);
+    initialSnapshotRef.current = snap;
+    setInternalParameters({ ...snap.parameters });
+    setInternalConditions({ ...snap.conditions });
     setModelPosition({ x: 0, y: 0 });
+    setInspectedPart(null);
+    setIsExplodedView(false);
+    setIsPlaying(true);
+    setLastParamWhy(null);
   }, [modelSpec.id]);
 
   // Synchronize translation smoothly without recreating WebGL context
@@ -389,9 +478,91 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       targetCameraPosRef.current = new THREE.Vector3(pos[0] + 1.2, pos[1] + 0.8, pos[2] + 2.2);
       targetLookAtRef.current = new THREE.Vector3(pos[0], pos[1], pos[2]);
     } else {
-      // Return to full model view (preserving parameters, animation time, and simulation state)
-      targetCameraPosRef.current = originalCameraPosRef.current.clone();
-      targetLookAtRef.current = originalLookAtRef.current.clone();
+      // Return to full model view (restoring original camera and orbit controls)
+      targetCameraPosRef.current = null;
+      targetLookAtRef.current = null;
+      if (controlsRef.current) {
+        controlsRef.current.reset();
+      }
+    }
+  };
+
+  /**
+   * Resets only the 3D camera, orbit controls, part inspection, and model translation offset.
+   */
+  const handleResetCameraOnly = () => {
+    targetCameraPosRef.current = null;
+    targetLookAtRef.current = null;
+    setInspectedPart(null);
+    if (onSelectPart) onSelectPart(null);
+    setModelPosition({ x: 0, y: 0 });
+    if (positionGroupRef.current) {
+      positionGroupRef.current.position.set(0, 0, 0);
+    }
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  };
+
+  /**
+   * Idempotent full viewer reset:
+   * Restores original camera position, viewing direction, target, zoom, FOV,
+   * default parameter values, default conditions, model transforms, animation clock (simTime = 0),
+   * and Play/Pause state without triggering AI regeneration or switching models.
+   */
+  const handleFullViewerReset = () => {
+    const snap = initialSnapshotRef.current || captureInitialModelStateSnapshot(modelSpec);
+    const defaultParams = { ...snap.parameters };
+    const defaultConds = { ...snap.conditions };
+
+    // 1. Synchronously update parameter & condition refs for the active Three.js animation frame
+    parametersRef.current = defaultParams;
+    conditionsRef.current = defaultConds;
+
+    // 2. Update internal React state & notify parent container
+    setInternalParameters(defaultParams);
+    setInternalConditions(defaultConds);
+    if (onResetAll) {
+      onResetAll(defaultParams, defaultConds);
+    }
+    if (onUpdateParameter) {
+      Object.entries(defaultParams).forEach(([pid, val]) => {
+        onUpdateParameter(pid, val);
+      });
+    }
+    if (onUpdateCondition) {
+      Object.entries(defaultConds).forEach(([cid, val]) => {
+        onUpdateCondition(cid, val);
+      });
+    }
+
+    // 3. Reset UI inspection, exploded view, play state, and translation controller
+    setLastParamWhy(null);
+    setInspectedPart(null);
+    if (onSelectPart) onSelectPart(null);
+    setIsExplodedView(false);
+    isExplodedViewRef.current = false;
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    setModelPosition({ x: 0, y: 0 });
+    if (positionGroupRef.current) {
+      positionGroupRef.current.position.set(0, 0, 0);
+    }
+
+    // 4. Reset specialized numerical simulation accumulators
+    cradleRestartCounterRef.current += 1;
+    heatRestartCounterRef.current += 1;
+    bellRestartCounterRef.current += 1;
+    bellSimRef.current = createInitialBellState();
+
+    // 5. Signal the Three.js animation loop to reset simTime = 0, velocities, and part transforms
+    resetSimTriggerRef.current += 1;
+
+    // 6. Immediately restore camera position, target, rotation, zoom, FOV, and OrbitControls spherical coords
+    targetCameraPosRef.current = null;
+    targetLookAtRef.current = null;
+    if (controlsRef.current) {
+      controlsRef.current.reset();
     }
   };
 
@@ -574,7 +745,11 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
 
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     const camPos = modelSpec.camera?.position || [0, 4, 8];
+    const camTarget = modelSpec.camera?.target || [0, 0, 0];
     camera.position.set(camPos[0], camPos[1], camPos[2]);
+    cameraRef.current = camera;
+    originalCameraPosRef.current.set(camPos[0], camPos[1], camPos[2]);
+    originalLookAtRef.current.set(camTarget[0], camTarget[1], camTarget[2]);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -587,8 +762,10 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       minDistance: 1.5,
       maxDistance: 35,
     });
-    const camTarget = modelSpec.camera?.target || [0, 0, 0];
-    controls.target.set(camTarget[0], camTarget[1], camTarget[2]);
+    controls.saveInitialState(
+      new THREE.Vector3(camPos[0], camPos[1], camPos[2]),
+      new THREE.Vector3(camTarget[0], camTarget[1], camTarget[2])
+    );
     controlsRef.current = controls;
 
     // Studio 3-Point Lighting with Soft Depth
@@ -839,6 +1016,16 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       mesh.receiveShadow = true;
 
       const basePos = new THREE.Vector3(pos[0], pos[1], pos[2]);
+      const baseRot = new THREE.Euler(
+        part.rotation?.[0] ?? 0,
+        part.rotation?.[1] ?? 0,
+        part.rotation?.[2] ?? 0
+      );
+      const baseScaleVec = new THREE.Vector3(
+        part.scale?.[0] ?? 1,
+        part.scale?.[1] ?? 1,
+        part.scale?.[2] ?? 1
+      );
       const dist = basePos.length();
       let explodedPos: THREE.Vector3;
       if (dist > 0.1) {
@@ -849,6 +1036,9 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       mesh.userData = {
         partSpec: part,
         basePosition: basePos,
+        baseRotation: baseRot,
+        baseScale: baseScaleVec,
+        baseVisible: true,
         explodedPosition: explodedPos,
       };
 
@@ -2407,6 +2597,7 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
     let pendulumAngle = ((parameters.initialAngle ?? 30) * Math.PI) / 180;
     let pendulumOmega = 0;
     let leverAngle = 0;
+    let lastHandledResetTrigger = resetSimTriggerRef.current;
 
     const animate = (currentTime: number) => {
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -2420,6 +2611,29 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       const showLabels = showLabelsRef.current;
       const showGrid = showGridRef.current;
       const showAxes = showAxesRef.current;
+
+      // Handle synchronous simulation & transform reset when Retry/Reset is clicked
+      if (lastHandledResetTrigger !== resetSimTriggerRef.current) {
+        lastHandledResetTrigger = resetSimTriggerRef.current;
+        simTime = 0;
+        motorSpeed = 0;
+        pendulumAngle = ((parameters.initialAngle ?? modelSpec.parameters?.initialAngle?.defaultValue ?? 30) * Math.PI) / 180;
+        pendulumOmega = 0;
+        leverAngle = 0;
+        rotorGroup.rotation.set(0, 0, 0);
+
+        meshMap.forEach((mesh) => {
+          const u = mesh.userData;
+          if (u?.basePosition) mesh.position.copy(u.basePosition);
+          if (u?.baseRotation) mesh.rotation.copy(u.baseRotation);
+          if (u?.baseScale) mesh.scale.copy(u.baseScale);
+          if (u?.baseVisible !== undefined) mesh.visible = u.baseVisible;
+        });
+
+        targetCameraPosRef.current = null;
+        targetLookAtRef.current = null;
+        controls.reset();
+      }
 
       grid.visible = showGrid;
       axes.visible = showAxes;
@@ -2436,10 +2650,23 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
         }
       });
 
-      // Smooth 3D camera interpolation towards close-up target or full model view
-      if (targetCameraPosRef.current && targetLookAtRef.current) {
-        camera.position.lerp(targetCameraPosRef.current, 0.08);
-        controls.target.lerp(targetLookAtRef.current, 0.08);
+      // Smooth 3D camera interpolation towards close-up target when inspecting a component
+      if (controls.isPointerDown) {
+        // User started manual orbit/pan — release auto-focus target
+        targetCameraPosRef.current = null;
+        targetLookAtRef.current = null;
+      } else if (targetCameraPosRef.current && targetLookAtRef.current) {
+        camera.position.lerp(targetCameraPosRef.current, 0.12);
+        controls.target.lerp(targetLookAtRef.current, 0.12);
+        controls.syncFromCamera(camera.position, controls.target);
+        if (
+          camera.position.distanceTo(targetCameraPosRef.current) < 0.05 &&
+          controls.target.distanceTo(targetLookAtRef.current) < 0.05
+        ) {
+          controls.syncFromCamera(targetCameraPosRef.current, targetLookAtRef.current);
+          targetCameraPosRef.current = null;
+          targetLookAtRef.current = null;
+        }
       }
 
       controls.update();
@@ -6256,6 +6483,8 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
               subtitle={modelSpec.concept}
               isPlaying={isPlaying}
               onTogglePlay={() => setIsPlaying(!isPlaying)}
+              onResetSimulation={handleFullViewerReset}
+              onResetCamera={handleResetCameraOnly}
               showPlayControl={true}
               showLabels={showLabels}
               onToggleLabels={setShowLabels}
@@ -6269,9 +6498,9 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
               onToggleExplodedView={setIsExplodedView}
               isInternalView={hasInternalViewCondition ? isInternalViewActive : undefined}
               onToggleInternalView={hasInternalViewCondition ? handleToggleInternalView : undefined}
-              onFitToModel={() => handleSelectPart(null)}
+              onFitToModel={handleResetCameraOnly}
               activeInspectedPartName={inspectedPart ? getComponentDisplayName(inspectedPart) : null}
-              onBackToFullModel={() => handleSelectPart(null)}
+              onBackToFullModel={handleResetCameraOnly}
               onTryIt={onTryIt}
               tryItLabel="TRY IT"
               heightClass="h-[440px] sm:h-[480px] lg:h-[520px]"
@@ -6621,7 +6850,6 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                       { label: 'State', value: isPlaying ? 'Running' : 'Paused' },
                     ]
               }
-              onResetCamera={() => handleSelectPart(null)}
             >
               <div ref={mountRef} className="w-full h-full relative">
 
@@ -7247,6 +7475,16 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleFullViewerReset}
+                    data-testid="retry-reset-viewer-button"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                    title="Reset camera position, zoom, parameters, and simulation state to initial defaults"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Retry / Reset</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setIsExportModalOpen(true)}
@@ -8977,9 +9215,10 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                 {/* Reset Camera Button */}
                 <button
                   type="button"
-                  onClick={() => handleSelectPart(null)}
+                  onClick={handleResetCameraOnly}
+                  data-testid="reset-camera-button"
                   className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer"
-                  title="Reset 3D camera to default overview"
+                  title="Reset 3D camera position, rotation, and zoom to default overview"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                   <span>Reset Camera</span>
@@ -8988,23 +9227,10 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                 {/* Reset Apparatus & Parameters Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    handleSelectPart(null);
-                    setModelPosition({ x: 0, y: 0 });
-                    setIsExplodedView(false);
-                    setIsPlaying(true);
-                    Object.values(modelSpec.parameters || {}).forEach((p) => {
-                      if (onUpdateParameter) onUpdateParameter(p.id, p.defaultValue);
-                      else setInternalParameters((prev) => ({ ...prev, [p.id]: p.defaultValue }));
-                    });
-                    Object.values(modelSpec.conditions || {}).forEach((c) => {
-                      if (onUpdateCondition) onUpdateCondition(c.id, c.defaultValue);
-                      else setInternalConditions((prev) => ({ ...prev, [c.id]: c.defaultValue }));
-                    });
-                  }}
+                  onClick={handleFullViewerReset}
                   data-testid="reset-apparatus-button"
                   className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer"
-                  title="Reset apparatus parameters, conditions, and camera to defaults"
+                  title="Reset apparatus parameters, conditions, transforms, and camera to initial defaults"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-sky-600" />
                   <span>Reset Apparatus</span>

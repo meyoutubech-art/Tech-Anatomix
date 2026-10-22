@@ -4,7 +4,6 @@ import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { Dynamic3DModelRenderer } from '../components/models/Dynamic3DModelRenderer';
 import {
   Sparkles,
-  RotateCcw,
   Info,
   X,
   CheckCircle2,
@@ -20,6 +19,7 @@ import { classifyAiError } from '../utils/aiErrorClassifier';
 import {
   analyzePromptForPresetMatch,
   verifyPresetCompatibility,
+  HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
   TARGET_PRESENTATION_DURATION_MS,
   PRESET_LOADING_STAGES,
   getCustomGenerationStages,
@@ -40,6 +40,12 @@ export const AiModelGeneratorPage: React.FC = () => {
   const [activeModel, setActiveModel] = useState<ScientificModelSpec>(CURATED_AI_MODELS.motor);
   const [fallbackNotification, setFallbackNotification] = useState<string | null>(null);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [complexityNotice, setComplexityNotice] = useState<{
+    originalPrompt: string;
+    message: string;
+    suggestedSimplerAlternative?: string;
+    simplerSuggestions: string[];
+  } | null>(null);
   const [ambiguityState, setAmbiguityState] = useState<{
     originalPrompt: string;
     question: string;
@@ -118,7 +124,6 @@ export const AiModelGeneratorPage: React.FC = () => {
   });
 
   const [showLabels, setShowLabels] = useState(true);
-  const [preferCustomSynthesis, setPreferCustomSynthesis] = useState<boolean>(false);
   const [generatedHistory, setGeneratedHistory] = useState<ScientificModelSpec[]>([
     CURATED_AI_MODELS.motor,
   ]);
@@ -235,6 +240,7 @@ export const AiModelGeneratorPage: React.FC = () => {
     setIsGenerating(true);
     setProcessingMode('preset');
     setViewerError(null);
+    setComplexityNotice(null);
     setAmbiguityState(null);
     setFallbackNotification(null);
 
@@ -316,6 +322,20 @@ export const AiModelGeneratorPage: React.FC = () => {
 
       const data = await res.json();
       if (currentRequestIdRef.current !== reqId || controller.signal.aborted) return;
+
+      if (data.code === 'UNSUPPORTED_COMPLEXITY' || data.strategy === 'unsupported') {
+        setComplexityNotice({
+          originalPrompt: userQuery,
+          message: data.userFacingMessage || HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+          suggestedSimplerAlternative: data.suggestedSimplerAlternative,
+          simplerSuggestions: data.simplerSuggestions || [],
+        });
+        clearScheduledTimers();
+        activeRequestRef.current = false;
+        setIsGenerating(false);
+        setGenerationStep('');
+        return;
+      }
 
       if (data.model && data.model.parts && data.model.parts.length > 0) {
         // Hold until TARGET_PRESENTATION_DURATION_MS (~6.0 seconds) if finished early;
@@ -404,18 +424,31 @@ export const AiModelGeneratorPage: React.FC = () => {
     }
 
     setViewerError(null);
+    setComplexityNotice(null);
     setAmbiguityState(null);
     setFallbackNotification(null);
 
-    // Run Intelligent Prompt-to-Preset Matcher unless user explicitly forced custom synthesis
+    // Automatic Three-Outcome Classifier (Path A: Preset, Path B: Custom, Path C: Unsupported High-Complexity)
+    const decision = analyzePromptForPresetMatch(q);
+
+    if (decision.outcome === 'invalid-request') {
+      setViewerError(decision.reason);
+      return;
+    }
+
+    // Path C: Very Complex or Unsupported Model -> Show friendly complexity explanation + simpler alternatives
+    if (decision.outcome === 'unsupported-complexity') {
+      setLastSubmittedPrompt(q);
+      setComplexityNotice({
+        originalPrompt: q,
+        message: decision.userFacingMessage || HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+        suggestedSimplerAlternative: decision.suggestedSimplerAlternative,
+        simplerSuggestions: decision.simplerSuggestions || [],
+      });
+      return;
+    }
+
     if (!forceFresh) {
-      const decision = analyzePromptForPresetMatch(q);
-
-      if (decision.outcome === 'invalid-request') {
-        setViewerError(decision.reason);
-        return;
-      }
-
       if (decision.outcome === 'ambiguous' && decision.candidateOptions && decision.candidateOptions.length > 0) {
         setLastSubmittedPrompt(q);
         setAmbiguityState({
@@ -428,6 +461,7 @@ export const AiModelGeneratorPage: React.FC = () => {
         return;
       }
 
+      // Path A: Existing Preset
       if (
         (decision.outcome === 'exact-preset' || decision.outcome === 'semantic-preset') &&
         decision.selectedPreset
@@ -437,7 +471,7 @@ export const AiModelGeneratorPage: React.FC = () => {
       }
     }
 
-    // Otherwise route to Research-First Custom 3D Generation
+    // Path B: Simple or Manageable Custom Model
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const reqId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -459,7 +493,7 @@ export const AiModelGeneratorPage: React.FC = () => {
             <span className="text-xs font-semibold uppercase tracking-wider text-sky-600">AI Model Studio</span>
             <span className="text-slate-300">·</span>
             <span className="text-xs text-slate-500">
-              Intelligent Preset Matcher &amp; Research-First Custom 3D Generation Engine
+              Automatic 3D Model Discovery &amp; Research-First Custom Synthesis
             </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
@@ -501,17 +535,18 @@ export const AiModelGeneratorPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Prompt Input Bar (Individual preset navigation buttons are intentionally hidden) */}
+      {/* Main Prompt Input Bar — One clear prompt input and one Create/Generate button */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleGenerate(prompt, preferCustomSynthesis);
+            handleGenerate(prompt);
           }}
           className="flex flex-col sm:flex-row gap-2.5"
         >
           <div className="relative flex-1">
             <input
+              id="ai-prompt-input"
               type="text"
               placeholder='Describe any scientific or engineering model (e.g., "DC Electric Motor", "Double Pendulum", "Hydraulic Press", "Human Kidney Nephron", "Jet Engine Cutaway")...'
               value={prompt}
@@ -521,20 +556,7 @@ export const AiModelGeneratorPage: React.FC = () => {
             />
           </div>
           <button
-            type="button"
-            onClick={() => setPreferCustomSynthesis((prev) => !prev)}
-            disabled={isGenerating}
-            className={`flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer shrink-0 border ${
-              preferCustomSynthesis
-                ? 'bg-violet-50 border-violet-300 text-violet-900 shadow-2xs'
-                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-            }`}
-            title="When enabled, always synthesizes a fresh custom 3D multi-part assembly rather than matching an existing preset"
-          >
-            <Cpu className={`w-3.5 h-3.5 ${preferCustomSynthesis ? 'text-violet-600' : 'text-slate-400'}`} />
-            <span>{preferCustomSynthesis ? 'Custom 3D Synthesis: ON' : 'Smart Match + Custom AI'}</span>
-          </button>
-          <button
+            id="ai-generate-btn"
             type="submit"
             disabled={!prompt.trim() || isGenerating}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer shrink-0"
@@ -542,19 +564,68 @@ export const AiModelGeneratorPage: React.FC = () => {
             <Sparkles className="w-4 h-4 text-sky-400" />
             <span>{isGenerating ? 'Preparing Model...' : 'Generate 3D Model'}</span>
           </button>
-          {activeModel && !isGenerating && (
-            <button
-              type="button"
-              onClick={() => handleGenerate(activeModel.prompt || activeModel.concept || activeModel.title, true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer shrink-0 border border-slate-200"
-              title="Force fresh custom AI 3D synthesis for active concept"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Synthesize Custom</span>
-            </button>
-          )}
         </form>
       </div>
+
+      {/* Path C: Unsupported High-Complexity Model Guidance Card */}
+      {complexityNotice && !isGenerating && (
+        <div
+          id="viewer-complexity-card"
+          data-testid="viewer-complexity-card"
+          className="bg-amber-50/95 border border-amber-200 rounded-2xl p-5 shadow-xs space-y-4"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <h2 className="text-sm font-bold text-amber-950">
+                  Scope &amp; Complexity Guidance for &ldquo;{complexityNotice.originalPrompt}&rdquo;
+                </h2>
+                <p className="text-xs font-medium text-amber-900 leading-relaxed">
+                  {complexityNotice.message}
+                </p>
+                {complexityNotice.suggestedSimplerAlternative && (
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    <strong>Recommended Scope:</strong> {complexityNotice.suggestedSimplerAlternative}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setComplexityNotice(null)}
+              className="p-1 text-amber-700 hover:text-amber-950 rounded-lg hover:bg-amber-100 transition-colors cursor-pointer"
+              title="Dismiss guidance"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {complexityNotice.simplerSuggestions.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 block">
+                Try a Simpler Component orFocused 3D Model:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {complexityNotice.simplerSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => {
+                      setComplexityNotice(null);
+                      setPrompt(suggestion);
+                      handleGenerate(suggestion);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-amber-100/70 text-slate-900 border border-amber-300 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{suggestion}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ambiguity Clarification Prompt Card (when request matches multiple distinct concepts) */}
       {ambiguityState && !isGenerating && (
@@ -628,7 +699,7 @@ export const AiModelGeneratorPage: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0">
             {lastSubmittedPrompt && (
               <button
-                onClick={() => handleGenerate(lastSubmittedPrompt, preferCustomSynthesis)}
+                onClick={() => handleGenerate(lastSubmittedPrompt)}
                 className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold transition-colors cursor-pointer"
               >
                 Retry Request
@@ -796,6 +867,10 @@ export const AiModelGeneratorPage: React.FC = () => {
             conditions={conditions}
             onUpdateParameter={(id, val) => setParameters((prev) => ({ ...prev, [id]: val }))}
             onUpdateCondition={(id, val) => setConditions((prev) => ({ ...prev, [id]: val }))}
+            onResetAll={(defaultParams, defaultConds) => {
+              setParameters(defaultParams);
+              setConditions(defaultConds);
+            }}
             onTryIt={() => {
               const el = document.getElementById('ai-model-parameters-deck');
               if (el) {
@@ -811,3 +886,4 @@ export const AiModelGeneratorPage: React.FC = () => {
     </div>
   );
 };
+

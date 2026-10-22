@@ -1383,9 +1383,14 @@ export function validateAndSanitizeModelSpec(raw: any, prompt: string): any {
 // 1. Generate 3D Model with Research-First Pipeline + Model Fallback + Procedural Scientific 3D Synthesizer
 export async function generate3DModel(
   userQuery: string,
-  options?: { forceFresh?: boolean; requestId?: string }
+  optionsOrForceFresh?: { forceFresh?: boolean; requestId?: string } | boolean,
+  requestIdArg?: string
 ) {
-  const reqId = options?.requestId || `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const options =
+    typeof optionsOrForceFresh === 'boolean'
+      ? { forceFresh: optionsOrForceFresh, requestId: requestIdArg }
+      : optionsOrForceFresh;
+  const reqId = options?.requestId || requestIdArg || `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const trimmedQuery = (userQuery || '').trim();
   if (!trimmedQuery) {
     return {
@@ -1398,19 +1403,40 @@ export async function generate3DModel(
 
   const normKey = normalizePrompt(trimmedQuery);
 
+  // 0. Check automatic complexity / preset matcher first (even if forceFresh is passed, Path C unsupported complexity must never pretend to generate a fake model)
+  const decision = analyzePromptForPresetMatch(trimmedQuery);
+
+  if (decision.outcome === 'invalid-request') {
+    return {
+      success: false,
+      code: 'INVALID_PROMPT',
+      error: decision.reason,
+      requestId: reqId,
+    };
+  }
+
+  if (decision.outcome === 'unsupported-complexity') {
+    return {
+      success: false,
+      code: 'UNSUPPORTED_COMPLEXITY',
+      strategy: 'unsupported',
+      complexity: 'high',
+      subject: decision.normalizedPrompt || trimmedQuery,
+      error:
+        decision.userFacingMessage ||
+        'This model is too complex to generate reliably with the current 3D engine. Try a simpler version of the model or a specific component of it.',
+      userFacingMessage:
+        decision.userFacingMessage ||
+        'This model is too complex to generate reliably with the current 3D engine. Try a simpler version of the model or a specific component of it.',
+      suggestedSimplerAlternative: decision.suggestedSimplerAlternative,
+      simplerSuggestions: decision.simplerSuggestions || [],
+      reason: decision.reason,
+      requestId: reqId,
+    };
+  }
+
   // 1. Intelligent Prompt-to-Preset Matcher (when not forcing custom synthesis)
   if (!options?.forceFresh) {
-    const decision = analyzePromptForPresetMatch(trimmedQuery);
-
-    if (decision.outcome === 'invalid-request') {
-      return {
-        success: false,
-        code: 'INVALID_PROMPT',
-        error: decision.reason,
-        requestId: reqId,
-      };
-    }
-
     if (decision.outcome === 'ambiguous') {
       return {
         success: false,
@@ -1441,6 +1467,7 @@ export async function generate3DModel(
       modelCache.set(normKey, { spec: presetSpec, timestamp: Date.now() });
       return {
         success: true,
+        strategy: 'preset' as const,
         model: presetSpec,
         isFallback: false,
         activeModel: 'verified-scientific-template',
@@ -1467,6 +1494,7 @@ export async function generate3DModel(
         modelCache.set(normKey, { spec: presetSpec, timestamp: Date.now() });
         return {
           success: true,
+          strategy: 'preset' as const,
           model: presetSpec,
           isFallback: false,
           activeModel: 'verified-scientific-template',
@@ -1488,6 +1516,7 @@ export async function generate3DModel(
     if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
       return {
         success: true,
+        strategy: cached.spec.generationSource === 'curated-preset' ? ('preset' as const) : ('custom' as const),
         model: {
           ...cached.spec,
           prompt: trimmedQuery,
@@ -1527,6 +1556,7 @@ export async function generate3DModel(
     modelCache.set(normKey, { spec, timestamp: Date.now() });
     return {
       success: true,
+      strategy: 'custom' as const,
       model: spec,
       isFallback: false,
       activeModel: 'verified-scientific-blueprint',
@@ -1563,6 +1593,7 @@ export async function generate3DModel(
     modelCache.set(normKey, { spec, timestamp: Date.now() });
     return {
       success: true,
+      strategy: 'custom' as const,
       model: spec,
       isFallback: false,
       activeModel: 'procedural-scientific-synthesizer',
@@ -1703,6 +1734,7 @@ Return ONLY a valid strict JSON object matching this schema:
     modelCache.set(normKey, { spec: execution.result, timestamp: Date.now() });
     return {
       success: true,
+      strategy: 'custom' as const,
       model: execution.result,
       isFallback: false,
       activeModel: execution.modelId,
@@ -1734,6 +1766,7 @@ Return ONLY a valid strict JSON object matching this schema:
   modelCache.set(normKey, { spec: finalModel, timestamp: Date.now() });
   return {
     success: true,
+    strategy: 'custom' as const,
     model: finalModel,
     isFallback: false,
     activeModel: 'procedural-scientific-synthesizer',

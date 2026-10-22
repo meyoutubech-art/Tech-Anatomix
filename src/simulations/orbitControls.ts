@@ -9,11 +9,22 @@ export interface OrbitControlsOptions {
   maxPolarAngle?: number;
 }
 
+export interface OrbitControlSnapshot {
+  position: [number, number, number];
+  target: [number, number, number];
+  up: [number, number, number];
+  fov: number;
+  zoom: number;
+  radius: number;
+  theta: number;
+  phi: number;
+}
+
 export class SimpleOrbitControls {
   camera: THREE.PerspectiveCamera;
   domElement: HTMLElement;
   target: THREE.Vector3;
-  
+
   // Spherical coordinates
   radius: number;
   theta: number; // azimuth
@@ -22,6 +33,16 @@ export class SimpleOrbitControls {
   targetRadius: number;
   targetTheta: number;
   targetPhi: number;
+
+  // Initial state snapshot for reliable idempotent reset
+  initialPosition: THREE.Vector3;
+  initialTarget: THREE.Vector3;
+  initialUp: THREE.Vector3;
+  initialFov: number;
+  initialZoom: number;
+  initialRadius: number;
+  initialTheta: number;
+  initialPhi: number;
 
   minDistance: number;
   maxDistance: number;
@@ -33,7 +54,7 @@ export class SimpleOrbitControls {
   isPointerDown: boolean = false;
   pointerStart: { x: number; y: number } = { x: 0, y: 0 };
   pointerType: 'rotate' | 'pan' = 'rotate';
-  
+
   // Touch tracking for pinch zoom
   touchStartDist: number = 0;
 
@@ -50,6 +71,12 @@ export class SimpleOrbitControls {
     this.domElement = domElement;
     this.target = new THREE.Vector3(0, 0, 0);
 
+    this.minDistance = options.minDistance ?? 1.5;
+    this.maxDistance = options.maxDistance ?? 100;
+    this.minPolarAngle = options.minPolarAngle ?? 0.05;
+    this.maxPolarAngle = options.maxPolarAngle ?? Math.PI - 0.05;
+    this.dampingFactor = options.dampingFactor ?? 0.15;
+
     const offset = new THREE.Vector3().subVectors(this.camera.position, this.target);
     this.radius = Math.max(offset.length(), 0.1);
     this.theta = Math.atan2(offset.x, offset.z);
@@ -59,11 +86,14 @@ export class SimpleOrbitControls {
     this.targetTheta = this.theta;
     this.targetPhi = this.phi;
 
-    this.minDistance = options.minDistance ?? 1.5;
-    this.maxDistance = options.maxDistance ?? 100;
-    this.minPolarAngle = options.minPolarAngle ?? 0.05;
-    this.maxPolarAngle = options.maxPolarAngle ?? Math.PI - 0.05;
-    this.dampingFactor = options.dampingFactor ?? 0.15;
+    this.initialPosition = this.camera.position.clone();
+    this.initialTarget = this.target.clone();
+    this.initialUp = this.camera.up.clone();
+    this.initialFov = this.camera.fov;
+    this.initialZoom = this.camera.zoom;
+    this.initialRadius = this.radius;
+    this.initialTheta = this.theta;
+    this.initialPhi = this.phi;
 
     this.onPointerDownBound = this.onPointerDown.bind(this);
     this.onPointerMoveBound = this.onPointerMove.bind(this);
@@ -73,13 +103,76 @@ export class SimpleOrbitControls {
     this.onTouchMoveBound = this.onTouchMove.bind(this);
     this.onTouchEndBound = this.onTouchEnd.bind(this);
 
-    this.domElement.addEventListener('pointerdown', this.onPointerDownBound);
-    window.addEventListener('pointermove', this.onPointerMoveBound);
-    window.addEventListener('pointerup', this.onPointerUpBound);
-    this.domElement.addEventListener('wheel', this.onWheelBound, { passive: false });
-    this.domElement.addEventListener('touchstart', this.onTouchStartBound, { passive: true });
-    this.domElement.addEventListener('touchmove', this.onTouchMoveBound, { passive: false });
-    this.domElement.addEventListener('touchend', this.onTouchEndBound, { passive: true });
+    if (this.domElement && typeof this.domElement.addEventListener === 'function') {
+      this.domElement.addEventListener('pointerdown', this.onPointerDownBound);
+      this.domElement.addEventListener('wheel', this.onWheelBound, { passive: false });
+      this.domElement.addEventListener('touchstart', this.onTouchStartBound, { passive: true });
+      this.domElement.addEventListener('touchmove', this.onTouchMoveBound, { passive: false });
+      this.domElement.addEventListener('touchend', this.onTouchEndBound, { passive: true });
+    }
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('pointermove', this.onPointerMoveBound);
+      window.addEventListener('pointerup', this.onPointerUpBound);
+    }
+  }
+
+  /**
+   * Synchronizes spherical coordinates (radius, theta, phi) from a given or current camera position and target.
+   */
+  syncFromCamera(cameraPos?: THREE.Vector3, targetPos?: THREE.Vector3) {
+    if (cameraPos) {
+      this.camera.position.copy(cameraPos);
+    }
+    if (targetPos) {
+      this.target.copy(targetPos);
+    }
+    const offset = new THREE.Vector3().subVectors(this.camera.position, this.target);
+    const r = Math.max(offset.length(), 0.1);
+    const t = Math.atan2(offset.x, offset.z);
+    const p = Math.max(
+      this.minPolarAngle,
+      Math.min(this.maxPolarAngle, Math.acos(Math.max(-1, Math.min(1, offset.y / r))))
+    );
+
+    this.radius = r;
+    this.theta = t;
+    this.phi = p;
+    this.targetRadius = r;
+    this.targetTheta = t;
+    this.targetPhi = p;
+  }
+
+  /**
+   * Captures the current camera position, target, up vector, FOV, zoom, and spherical coordinates
+   * as the authoritative initial state snapshot for this model.
+   */
+  saveInitialState(cameraPos?: THREE.Vector3, targetPos?: THREE.Vector3) {
+    this.syncFromCamera(cameraPos, targetPos);
+    this.initialPosition.copy(this.camera.position);
+    this.initialTarget.copy(this.target);
+    this.initialUp.copy(this.camera.up);
+    this.initialFov = this.camera.fov;
+    this.initialZoom = this.camera.zoom;
+    this.initialRadius = this.radius;
+    this.initialTheta = this.theta;
+    this.initialPhi = this.phi;
+    this.camera.lookAt(this.target);
+  }
+
+  /**
+   * Returns a plain serializable snapshot of the current camera and orbit control state.
+   */
+  getStateSnapshot(): OrbitControlSnapshot {
+    return {
+      position: [this.camera.position.x, this.camera.position.y, this.camera.position.z],
+      target: [this.target.x, this.target.y, this.target.z],
+      up: [this.camera.up.x, this.camera.up.y, this.camera.up.z],
+      fov: this.camera.fov,
+      zoom: this.camera.zoom,
+      radius: this.radius,
+      theta: this.theta,
+      phi: this.phi,
+    };
   }
 
   private onPointerDown(e: PointerEvent) {
@@ -168,13 +261,74 @@ export class SimpleOrbitControls {
     }
   }
 
-  reset(radius?: number, theta?: number, phi?: number, target?: THREE.Vector3) {
-    if (target) this.target.copy(target);
-    else this.target.set(0, 0, 0);
+  /**
+   * Programmatically rotates the camera orbit target angles by deltaTheta and deltaPhi (radians).
+   */
+  rotateBy(deltaTheta: number, deltaPhi: number) {
+    this.targetTheta += deltaTheta;
+    this.targetPhi = Math.max(
+      this.minPolarAngle,
+      Math.min(this.maxPolarAngle, this.targetPhi + deltaPhi)
+    );
+  }
 
-    if (radius !== undefined) this.targetRadius = radius;
-    if (theta !== undefined) this.targetTheta = theta;
-    if (phi !== undefined) this.targetPhi = phi;
+  /**
+   * Programmatically zooms the orbit radius by a multiplicative factor.
+   */
+  zoomBy(factor: number) {
+    this.targetRadius = Math.max(
+      this.minDistance,
+      Math.min(this.maxDistance, this.targetRadius * factor)
+    );
+  }
+
+  /**
+   * Programmatically pans the orbit target by screen-space deltas (dx, dy).
+   */
+  panBy(dx: number, dy: number) {
+    const panSpeed = this.radius * 0.001;
+    const forward = new THREE.Vector3().subVectors(this.target, this.camera.position).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, this.camera.up).normalize();
+    const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+
+    this.target.addScaledVector(right, -dx * panSpeed);
+    this.target.addScaledVector(up, dy * panSpeed);
+  }
+
+  /**
+   * Synchronously restores camera position, target, up vector, FOV, zoom, projection matrix,
+   * and spherical orbit coordinates to their initial snapshot (or explicit overrides).
+   */
+  reset(radius?: number, theta?: number, phi?: number, target?: THREE.Vector3) {
+    this.isPointerDown = false;
+    if (target) {
+      this.target.copy(target);
+    } else {
+      this.target.copy(this.initialTarget);
+    }
+
+    const r = radius !== undefined ? radius : this.initialRadius;
+    const t = theta !== undefined ? theta : this.initialTheta;
+    const p = phi !== undefined ? phi : this.initialPhi;
+
+    this.radius = r;
+    this.theta = t;
+    this.phi = p;
+    this.targetRadius = r;
+    this.targetTheta = t;
+    this.targetPhi = p;
+
+    this.camera.up.copy(this.initialUp);
+    this.camera.fov = this.initialFov;
+    this.camera.zoom = this.initialZoom;
+    this.camera.updateProjectionMatrix();
+
+    if (radius === undefined && theta === undefined && phi === undefined && !target) {
+      this.camera.position.copy(this.initialPosition);
+      this.camera.lookAt(this.target);
+    } else {
+      this.update();
+    }
   }
 
   update() {
@@ -191,12 +345,16 @@ export class SimpleOrbitControls {
   }
 
   dispose() {
-    this.domElement.removeEventListener('pointerdown', this.onPointerDownBound);
-    window.removeEventListener('pointermove', this.onPointerMoveBound);
-    window.removeEventListener('pointerup', this.onPointerUpBound);
-    this.domElement.removeEventListener('wheel', this.onWheelBound);
-    this.domElement.removeEventListener('touchstart', this.onTouchStartBound);
-    this.domElement.removeEventListener('touchmove', this.onTouchMoveBound);
-    this.domElement.removeEventListener('touchend', this.onTouchEndBound);
+    if (this.domElement && typeof this.domElement.removeEventListener === 'function') {
+      this.domElement.removeEventListener('pointerdown', this.onPointerDownBound);
+      this.domElement.removeEventListener('wheel', this.onWheelBound);
+      this.domElement.removeEventListener('touchstart', this.onTouchStartBound);
+      this.domElement.removeEventListener('touchmove', this.onTouchMoveBound);
+      this.domElement.removeEventListener('touchend', this.onTouchEndBound);
+    }
+    if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('pointermove', this.onPointerMoveBound);
+      window.removeEventListener('pointerup', this.onPointerUpBound);
+    }
   }
 }

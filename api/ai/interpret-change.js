@@ -65097,6 +65097,9 @@ var GeminiModelRouter = class {
   }
 };
 
+// src/server/scientificResearchService.ts
+var RESEARCH_CACHE_TTL_MS = 1e3 * 60 * 30;
+
 // src/server/geminiService.ts
 var ai = null;
 var currentKey = "";

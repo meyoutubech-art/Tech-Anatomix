@@ -4,11 +4,18 @@ import { FormattedAiMessage } from './FormattedAiMessage';
 import { AiKeyTakeawaysPanel } from './AiKeyTakeawaysPanel';
 import { classifyAiError } from '../../utils/aiErrorClassifier';
 
-interface CuriosityEngineProps {
-  modelTitle: string;
-  concept: string;
+export interface CuriosityEngineProps {
+  modelTitle?: string;
+  concept?: string;
   prompts?: string[];
-  currentState: Record<string, any>;
+  currentState?: Record<string, any>;
+  items?: {
+    id: string;
+    prompt: string;
+    description?: string;
+    suggestedChanges?: Record<string, any>;
+  }[];
+  onApplyCuriosity?: (item: any) => void;
 }
 
 const DEFAULT_PROMPTS = [
@@ -19,11 +26,18 @@ const DEFAULT_PROMPTS = [
 ];
 
 export const CuriosityEngine: React.FC<CuriosityEngineProps> = ({
-  modelTitle,
-  concept,
-  prompts = DEFAULT_PROMPTS,
-  currentState,
+  modelTitle = 'Scientific Apparatus',
+  concept = 'Scientific Mechanism',
+  prompts: rawPrompts,
+  currentState = {},
+  items,
 }) => {
+  const prompts =
+    rawPrompts && rawPrompts.length > 0
+      ? rawPrompts
+      : items && items.length > 0
+      ? items.map((i) => i.prompt)
+      : DEFAULT_PROMPTS;
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,7 +64,7 @@ export const CuriosityEngine: React.FC<CuriosityEngineProps> = ({
           res.status,
           data.error || data.reply || 'Failed to generate insight'
         );
-        setErrorMsg(classified.userMessage);
+        setErrorMsg(classified);
         return;
       }
       setAnswer(
@@ -58,8 +72,8 @@ export const CuriosityEngine: React.FC<CuriosityEngineProps> = ({
           "Let's explore how changing the parameters in the 3D view affects the system's behavior!"
       );
     } catch (e: any) {
-      const classified = classifyAiError(undefined, e);
-      setErrorMsg(classified.userMessage);
+      const classified = classifyAiError(e);
+      setErrorMsg(classified);
     } finally {
       setLoading(false);
     }

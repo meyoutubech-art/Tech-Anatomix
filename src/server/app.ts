@@ -39,7 +39,7 @@ app.post(['/api/ai/generate-model', '/ai/generate-model'], async (req, res) => {
     const result: any = await generate3DModel(prompt, { forceFresh: Boolean(forceFresh), requestId });
     const status = result.success
       ? 200
-      : result.code === 'AMBIGUOUS_PROMPT'
+      : result.code === 'AMBIGUOUS_PROMPT' || result.code === 'UNSUPPORTED_COMPLEXITY'
       ? 200
       : result.code === 'INVALID_PROMPT'
       ? 400

@@ -8,7 +8,28 @@ export type MatchOutcome =
   | 'semantic-preset'
   | 'ambiguous'
   | 'custom-generation'
+  | 'unsupported-complexity'
   | 'invalid-request';
+
+export type ModelGenerationStrategy = 'preset' | 'custom' | 'unsupported';
+export type ModelComplexityLevel = 'simple' | 'moderate' | 'high';
+
+export interface AutomaticModelDecision {
+  strategy: ModelGenerationStrategy;
+  matchedPresetId: string | null;
+  subject: string;
+  complexity: ModelComplexityLevel;
+  reason: string;
+  suggestedSimplerAlternative?: string;
+  simplerSuggestions?: string[];
+  userFacingMessage?: string;
+  presetSpec?: ScientificModelSpec;
+  clarificationQuestion?: string;
+  candidateOptions?: CandidatePresetOption[];
+}
+
+export const HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE =
+  'This model is too complex to generate reliably with the current 3D engine. Try a simpler version of the model or a specific component of it.';
 
 export interface MatcherThresholds {
   exactMatchThreshold: number;
@@ -45,6 +66,10 @@ export interface ModelSelectionDecision {
   reason: string;
   clarificationQuestion?: string;
   candidateOptions?: CandidatePresetOption[];
+  complexity?: ModelComplexityLevel;
+  suggestedSimplerAlternative?: string;
+  simplerSuggestions?: string[];
+  userFacingMessage?: string;
 }
 
 export const TARGET_PRESENTATION_DURATION_MS = 6000;
@@ -534,10 +559,167 @@ function scorePresetCandidate(
   };
 }
 
+export interface ComplexityAssessment {
+  complexity: ModelComplexityLevel;
+  unsupported: boolean;
+  reason: string;
+  userFacingMessage?: string;
+  suggestedSimplerAlternative?: string;
+  simplerSuggestions?: string[];
+}
+
+/**
+ * Evaluates whether a requested 3D model is simple, moderate, or too complex (high)
+ * for reliable real-time procedural/Three.js generation.
+ */
+export function analyzeModelComplexity(rawPrompt: string): ComplexityAssessment {
+  const trimmed = (rawPrompt || '').trim();
+  const lower = trimmed.toLowerCase();
+
+  // 1. Entire / complete human body multi-organ physiological simulation
+  if (
+    /(entire|complete|full|whole)\s+human\s+body/i.test(lower) ||
+    /human\s+body\s+(complete|full|entire|multi[\s-]organ|whole)\s*(simulation|model|system)?/i.test(lower) ||
+    /all\s+human\s+organs\s+and\s+(tissues|systems)/i.test(lower)
+  ) {
+    return {
+      complexity: 'high',
+      unsupported: true,
+      reason:
+        'Simulating the entire human body with all organ systems, tissues, and physiological couplings simultaneously exceeds real-time 3D WebGL scene bounds.',
+      userFacingMessage: HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+      suggestedSimplerAlternative:
+        'Instead of an entire human body simulation, try a simplified heart model.',
+      simplerSuggestions: [
+        'simplified heart model',
+        'Human Heart',
+        'Human Kidney Nephron',
+        'Human Brain',
+        'Human Respiratory System',
+      ],
+    };
+  }
+
+  // 2. Complete jet engine simulation (CFD / finite element / full turbine stages & combustion)
+  // Note: "jet engine cutaway" or "jet engine" is supported as a moderate custom 3D model!
+  if (
+    !lower.includes('cutaway') &&
+    (/(complete|full|entire)\s+(jet|turbofan|aero|gas\s+turbine)\s+engine\s+(simulation|cfd|finite\s+element|thermodynamic|multiphysics)/i.test(
+      lower
+    ) ||
+      /(jet|turbofan)\s+engine\s+(cfd|finite\s+element|full\s+turbulence|complete\s+simulation)/i.test(
+        lower
+      ))
+  ) {
+    return {
+      complexity: 'high',
+      unsupported: true,
+      reason:
+        'A complete jet engine simulation with full 3D Navier-Stokes CFD turbulence and finite-element blade stress is too complex for real-time browser generation.',
+      userFacingMessage: HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+      suggestedSimplerAlternative:
+        'Instead of a complete jet engine simulation, try a jet engine cutaway.',
+      simplerSuggestions: ['jet engine cutaway', 'Wind turbine', 'Four-Stroke Engine'],
+    };
+  }
+
+  // 3. Full atomistic cell / million-atom molecular dynamics / lattice QCD
+  if (
+    /(entire|complete|full|whole)\s+cell\s+(atomistic|molecular\s+dynamics|all[\s-]atom)/i.test(lower) ||
+    /million[\s-]atom/i.test(lower) ||
+    /quantum\s+chromodynamics\s+lattice/i.test(lower) ||
+    /full\s+ab[\s-]initio\s+schrodinger\s+many[\s-]body/i.test(lower)
+  ) {
+    return {
+      complexity: 'high',
+      unsupported: true,
+      reason:
+        'Atomistic million-atom molecular dynamics or lattice quantum chromodynamics simulations require supercomputer cluster integration beyond real-time 3D browser rendering.',
+      userFacingMessage: HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+      suggestedSimplerAlternative:
+        'Instead of a full atomistic cell simulation, try an Animal Cell or DNA Replication.',
+      simplerSuggestions: [
+        'Animal Cell',
+        'DNA Replication',
+        'Atomic Orbital Probability Explorer',
+      ],
+    };
+  }
+
+  // 4. Global climate general circulation / complete city traffic & weather / full planetary ecosystem
+  if (
+    /(entire|complete|full|global)\s+(climate|weather|atmospheric)\s+(general\s+circulation|gcm|simulation)/i.test(
+      lower
+    ) ||
+    /(complete|entire|full)\s+(city|urban|metropolitan)\s+(traffic|infrastructure|weather|simulation)/i.test(
+      lower
+    ) ||
+    /(entire|complete|full)\s+(planetary|biosphere|earth)\s+ecosystem\s+simulation/i.test(lower)
+  ) {
+    return {
+      complexity: 'high',
+      unsupported: true,
+      reason:
+        'Planetary-scale coupled climate general circulation or full city-scale simulations exceed single-apparatus 3D WebGL model scope.',
+      userFacingMessage: HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+      suggestedSimplerAlternative:
+        'Instead of a global climate or city-scale simulation, try a Volcano Cross-Section or Seismic Waves Lab.',
+      simplerSuggestions: [
+        'Volcano cross-section',
+        'Seismic Waves & Earthquake Lab',
+        'Earth Magnetic Field & Magnetosphere',
+      ],
+    };
+  }
+
+  // 5. Complete facility-scale / full industrial plant / full vehicle crash FEA simulation
+  if (
+    /(entire|complete|full)\s+(nuclear\s+power\s+plant|chemical\s+refinery|semiconductor\s+fab|spacecraft\s+mission|automobile\s+crash\s+fea)\s*(simulation|model)?/i.test(
+      lower
+    )
+  ) {
+    return {
+      complexity: 'high',
+      unsupported: true,
+      reason:
+        'Facility-scale industrial plants or full-vehicle finite-element crash simulations are too complex to generate reliably as a single 3D apparatus.',
+      userFacingMessage: HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+      suggestedSimplerAlternative:
+        'Instead of a complete facility simulation, try a specific component such as a Hydraulic Braking System or Cyclotron.',
+      simplerSuggestions: [
+        'Hydraulic braking system',
+        'Cyclotron Particle Accelerator',
+        'Radioactive Decay Lab',
+      ],
+    };
+  }
+
+  // Check if moderate vs simple
+  const isModerate =
+    isSpecializedProceduralConcept(trimmed) ||
+    lower.includes('cutaway') ||
+    lower.includes('cross-section') ||
+    lower.includes('cross section') ||
+    lower.includes('system') ||
+    lower.includes('replication') ||
+    lower.includes('engine') ||
+    lower.includes('turbine') ||
+    lower.includes('nephron') ||
+    lower.includes('robotic');
+
+  return {
+    complexity: isModerate ? 'moderate' : 'simple',
+    unsupported: false,
+    reason: isModerate
+      ? `Model "${trimmed}" is a manageable multi-part 3D scientific assembly with interactive parameters.`
+      : `Model "${trimmed}" is a focused, well-scoped 3D scientific model.`,
+  };
+}
+
 /**
  * Primary entry point for the Intelligent Prompt-to-Preset Matcher.
  * Evaluates exact matches, semantic matches, related-but-incompatible rejections,
- * ambiguous requests, and custom generation routing.
+ * ambiguous requests, high-complexity unsupported requests, and custom generation routing.
  */
 export function analyzePromptForPresetMatch(
   rawPrompt: string,
@@ -559,6 +741,28 @@ export function analyzePromptForPresetMatch(
       confidence: 0,
       compatibilityPassed: false,
       reason: 'Prompt is empty or contains no recognizable scientific concept.',
+      complexity: 'simple',
+    };
+    logModelSelectionDecision(decision);
+    return decision;
+  }
+
+  // 0B. Check if the requested model is Path C: Very Complex / Unsupported
+  const complexityCheck = analyzeModelComplexity(trimmed);
+  if (complexityCheck.unsupported && complexityCheck.complexity === 'high') {
+    const decision: ModelSelectionDecision = {
+      timestamp,
+      originalPrompt: rawPrompt,
+      normalizedPrompt: normPrompt,
+      outcome: 'unsupported-complexity',
+      selectedModelId: null,
+      confidence: 0.99,
+      compatibilityPassed: false,
+      reason: complexityCheck.reason,
+      complexity: 'high',
+      userFacingMessage: complexityCheck.userFacingMessage,
+      suggestedSimplerAlternative: complexityCheck.suggestedSimplerAlternative,
+      simplerSuggestions: complexityCheck.simplerSuggestions,
     };
     logModelSelectionDecision(decision);
     return decision;
@@ -595,6 +799,7 @@ export function analyzePromptForPresetMatch(
         reason: `Ambiguous single-word request "${trimmed}" matches ${candidateOptions.length} distinct presets.`,
         clarificationQuestion: ambigEntry.question,
         candidateOptions,
+        complexity: 'simple',
       };
       logModelSelectionDecision(decision);
       return decision;
@@ -613,6 +818,7 @@ export function analyzePromptForPresetMatch(
       compatibilityPassed: false,
       incompatibilityReason: `"${trimmed}" requires a specialized custom 3D model not present in the static preset catalogue.`,
       reason: `No compatible preset in catalogue; routing "${trimmed}" to research-first custom 3D generation.`,
+      complexity: complexityCheck.complexity,
     };
     logModelSelectionDecision(decision);
     return decision;
@@ -643,6 +849,7 @@ export function analyzePromptForPresetMatch(
         confidence,
         compatibilityPassed: true,
         reason: `${isExact ? 'Exact' : 'Semantic'} preset match to "${offlineMatch.spec.title}" (${offlineMatch.spec.id}) via verified domain & component rules.`,
+        complexity: complexityCheck.complexity,
       };
       logModelSelectionDecision(decision);
       return decision;
@@ -658,6 +865,7 @@ export function analyzePromptForPresetMatch(
         compatibilityPassed: false,
         incompatibilityReason: compat.reason,
         reason: `Rejected related but incompatible preset "${offlineMatch.spec.id}": ${compat.reason}`,
+        complexity: complexityCheck.complexity,
       };
       logModelSelectionDecision(decision);
       return decision;
@@ -708,6 +916,7 @@ export function analyzePromptForPresetMatch(
         confidence: top.score,
         compatibilityPassed: true,
         reason: top.reason,
+        complexity: complexityCheck.complexity,
       };
       logModelSelectionDecision(decision);
       return decision;
@@ -736,6 +945,7 @@ export function analyzePromptForPresetMatch(
           reason: `Prompt "${trimmed}" closely matches multiple presets ("${top.preset.title}" vs "${second.preset.title}").`,
           clarificationQuestion: `Your request matches multiple models in our library. Which specific model would you like to load, or should we generate a custom 3D model for "${trimmed}"?`,
           candidateOptions: options,
+          complexity: complexityCheck.complexity,
         };
         logModelSelectionDecision(decision);
         return decision;
@@ -751,6 +961,7 @@ export function analyzePromptForPresetMatch(
         confidence: top.score,
         compatibilityPassed: true,
         reason: top.reason,
+        complexity: complexityCheck.complexity,
       };
       logModelSelectionDecision(decision);
       return decision;
@@ -771,7 +982,56 @@ export function analyzePromptForPresetMatch(
     reason: topIncompatible
       ? `Related preset "${topIncompatible.preset.id}" rejected as incompatible (${topIncompatible.incompatibilityReason}). Routing to custom 3D generation.`
       : `No existing preset met the confidence threshold (${thresholds.semanticMatchThreshold}) for "${trimmed}". Routing to custom 3D generation.`,
+    complexity: complexityCheck.complexity,
   };
   logModelSelectionDecision(decision);
   return decision;
 }
+
+/**
+ * Automatic Three-Outcome Classifier (Path A: Preset, Path B: Custom, Path C: Unsupported High-Complexity).
+ * Returns the structured decision required by Section 4:
+ * { strategy: 'preset' | 'custom' | 'unsupported', matchedPresetId, subject, complexity, reason, suggestedSimplerAlternative }
+ */
+export function evaluateModelRequestDecision(rawPrompt: string): AutomaticModelDecision {
+  const matchDecision = analyzePromptForPresetMatch(rawPrompt);
+  const subject = matchDecision.normalizedPrompt || (rawPrompt || '').trim();
+
+  if (matchDecision.outcome === 'unsupported-complexity') {
+    return {
+      strategy: 'unsupported',
+      matchedPresetId: null,
+      subject,
+      complexity: 'high',
+      reason: matchDecision.reason,
+      suggestedSimplerAlternative: matchDecision.suggestedSimplerAlternative,
+      simplerSuggestions: matchDecision.simplerSuggestions,
+      userFacingMessage: matchDecision.userFacingMessage || HIGH_COMPLEXITY_UNSUPPORTED_MESSAGE,
+    };
+  }
+
+  if (
+    (matchDecision.outcome === 'exact-preset' || matchDecision.outcome === 'semantic-preset') &&
+    matchDecision.selectedPreset
+  ) {
+    return {
+      strategy: 'preset',
+      matchedPresetId: matchDecision.selectedModelId,
+      subject: matchDecision.selectedPreset.title || subject,
+      complexity: matchDecision.complexity || 'simple',
+      reason: matchDecision.reason,
+      presetSpec: matchDecision.selectedPreset,
+    };
+  }
+
+  return {
+    strategy: 'custom',
+    matchedPresetId: null,
+    subject,
+    complexity: matchDecision.complexity || 'moderate',
+    reason: matchDecision.reason,
+    clarificationQuestion: matchDecision.clarificationQuestion,
+    candidateOptions: matchDecision.candidateOptions,
+  };
+}
+
