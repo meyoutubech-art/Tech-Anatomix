@@ -5998,6 +5998,22 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
       if (disposeBatch1StudioEnv) disposeBatch1StudioEnv();
       if (disposePreBatch1StudioEnv) disposePreBatch1StudioEnv();
+      scene.traverse((obj: any) => {
+        if (obj.geometry && typeof obj.geometry.dispose === 'function') {
+          obj.geometry.dispose();
+        }
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m: any) => {
+              if (m?.map && typeof m.map.dispose === 'function') m.map.dispose();
+              if (typeof m?.dispose === 'function') m.dispose();
+            });
+          } else {
+            if (obj.material.map && typeof obj.material.map.dispose === 'function') obj.material.map.dispose();
+            if (typeof obj.material.dispose === 'function') obj.material.dispose();
+          }
+        }
+      });
       controls.dispose();
       renderer.dispose();
       if (container.contains(renderer.domElement)) {

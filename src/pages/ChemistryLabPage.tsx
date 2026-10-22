@@ -744,50 +744,6 @@ export const ChemistryLabPage: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* Chemistry Batch 1 Interactive 3D Laboratories (Models 69–75) */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-cyan-50/80 border border-cyan-200/70 rounded-xl">
-          <span className="text-[11px] font-semibold text-cyan-800 px-2 uppercase tracking-wider">
-            Chemistry Labs (69–75):
-          </span>
-          {CHEMISTRY_BATCH_1_PAGE_MODELS.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => handleSelectChemistryBatchModel(m.id as ChemistryWorkspaceMode)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                chemMode === m.id
-                  ? 'bg-white text-cyan-950 shadow-xs border border-cyan-400'
-                  : 'text-cyan-800 hover:text-cyan-950 hover:bg-white/60'
-              }`}
-              title={`${m.title} — ${m.shortDesc}`}
-            >
-              <Atom className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-              <span>{m.shortTitle}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Chemistry Batch 2 Interactive 3D Laboratories (Models 76–82) */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-emerald-50/80 border border-emerald-200/70 rounded-xl">
-          <span className="text-[11px] font-semibold text-emerald-800 px-2 uppercase tracking-wider">
-            Chemistry Labs (76–82):
-          </span>
-          {CHEMISTRY_BATCH_2_PAGE_MODELS.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => handleSelectChemistryBatchModel(m.id as ChemistryWorkspaceMode)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                chemMode === m.id
-                  ? 'bg-white text-emerald-950 shadow-xs border border-emerald-400'
-                  : 'text-emerald-800 hover:text-emerald-950 hover:bg-white/60'
-              }`}
-              title={`${m.title} — ${m.shortDesc}`}
-            >
-              <FlaskConical className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>{m.shortTitle}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* MODE 1: REACTION BENCH WORKSPACE */}

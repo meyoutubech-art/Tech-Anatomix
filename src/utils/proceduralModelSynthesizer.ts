@@ -273,14 +273,13 @@ export function isSpecializedProceduralConcept(prompt: string): boolean {
     q.includes('solar cell') ||
     q.includes('photovoltaic') ||
     q.includes('benzene') ||
-    q.includes('chloroplast') ||
-    q.includes('thylakoid') ||
+    ((q.includes('chloroplast') || q.includes('thylakoid')) && !q.includes('plant cell')) ||
     q.includes('synovial joint') ||
     q.includes('sulfuric acid') ||
     q.includes('h2so4') ||
     q.includes('nitric acid') ||
     q.includes('hno3') ||
-    (q.includes('methane') && (q.includes('tetrahedral') || q.includes('sp3') || q.includes('vsepr') || q.includes('molecule')))
+    (q.includes('methane') && !q.includes('bonding explorer') && (q.includes('tetrahedral') || q.includes('sp3') || q.includes('vsepr') || q.includes('molecule') || q.includes('ch4')))
   ) {
     return true;
   }

@@ -25,6 +25,7 @@ import { CuriosityEngine } from '../components/common/CuriosityEngine';
 import { ModelAwareChatbot, ModelChatContext } from '../components/ai/ModelAwareChatbot';
 import { Sparkles, Sliders, Box, Layers, RotateCcw } from 'lucide-react';
 import { ScientificModelSpec } from '../types/aiModel';
+import { analyzePromptForPresetMatch } from '../utils/intelligentModelMatcher';
 
 export interface PhysicsModelMeta {
   id: string;
@@ -520,6 +521,8 @@ export const PhysicsLabPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'universal' | 'scene'>('universal');
   const [showLabels, setShowLabels] = useState(true);
+  const [physicsPrompt, setPhysicsPrompt] = useState<string>('');
+  const [promptFeedback, setPromptFeedback] = useState<string | null>(null);
 
   // Find active meta
   const activeMeta = useMemo(() => {
@@ -794,25 +797,13 @@ export const PhysicsLabPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      {/* Top Header & Overview */}
+      {/* Top Header & Prompt-Based Physics Model Matcher (Individual preset navigation buttons are intentionally hidden) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-sky-600">Physics & Engineering Lab</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-sky-600">Physics &amp; Engineering Lab</span>
             <span className="text-slate-300">·</span>
-            <span className="text-xs text-slate-500 font-medium">
-              {activeBatch === 1
-                ? 'Batch 1: Foundational Physics (Models 1–10)'
-                : activeBatch === 3
-                ? 'Batch 3: Electromagnetism & Machines (Models 31–40)'
-                : activeBatch === 4
-                ? 'Physics Batch 1 (Models 41–47)'
-                : activeBatch === 5
-                ? 'Physics Batch 2 (Models 48–54)'
-                : activeBatch === 6
-                ? 'Physics Batch 3 (Models 55–61)'
-                : 'Physics Batch 4 (Models 62–68)'}
-            </span>
+            <span className="text-xs text-slate-500 font-medium">{activeMeta.category}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mt-1 flex items-center gap-2.5">
             <span>{activeMeta.icon}</span>
@@ -823,133 +814,59 @@ export const PhysicsLabPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Batch & Category Controls */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-          {/* Batch Selector */}
-          <div className="flex items-center flex-wrap gap-1 p-1 bg-slate-200/80 rounded-xl">
-            <button
-              onClick={() => {
-                setActiveBatch(1);
-                if (activeBatch !== 1) setActiveModelId('solar-system');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeBatch === 1 ? 'bg-white text-sky-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Foundational (1–10)
-            </button>
-            <button
-              onClick={() => {
-                setActiveBatch(3);
-                if (activeBatch !== 3) setActiveModelId('ac-generator');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeBatch === 3 ? 'bg-white text-indigo-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Machines (31–40)
-            </button>
-            <button
-              onClick={() => {
-                setActiveBatch(4);
-                if (activeBatch !== 4) setActiveModelId('electromagnetic-wave-propagation');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeBatch === 4 ? 'bg-white text-violet-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Batch 1 (41–47)
-            </button>
-            <button
-              onClick={() => {
-                setActiveBatch(5);
-                if (activeBatch !== 5) setActiveModelId('faraday-law-induction-explorer');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeBatch === 5 ? 'bg-white text-amber-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Batch 2 (48–54)
-            </button>
-            <button
-              onClick={() => {
-                setActiveBatch(6);
-                if (activeBatch !== 6) setActiveModelId('doppler-effect-sonic-boom-explorer');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeBatch === 6 ? 'bg-white text-teal-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Batch 3 (55–61)
-            </button>
-            <button
-              onClick={() => {
-                setActiveBatch(7);
-                if (activeBatch !== 7) setActiveModelId('maxwell-equations-em-field-explorer');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeBatch === 7 ? 'bg-white text-rose-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Batch 4 (62–68)
-            </button>
-          </div>
+        {/* Prompt-Based Physics Lab Model Selector */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const q = physicsPrompt.trim();
+            if (!q) return;
+            const decision = analyzePromptForPresetMatch(q);
+            if (decision.selectedPreset) {
+              const foundMeta = ALL_PHYSICS_PAGE_MODELS.find(
+                (m) => m.id === decision.selectedPreset?.id || CURATED_AI_MODELS[m.curatedKey]?.id === decision.selectedPreset?.id
+              );
+              if (foundMeta) {
+                setActiveModelId(foundMeta.id);
+                setActiveBatch(foundMeta.batch);
+                setPromptFeedback(null);
+                setPhysicsPrompt('');
+                return;
+              }
+            }
+            setPromptFeedback(
+              `No exact physics preset matched "${q}". Use the Create 3D Model studio in the top navigation bar to synthesize any custom 3D model.`
+            );
+          }}
+          className="flex items-center gap-2 w-full md:w-96"
+        >
+          <input
+            type="text"
+            value={physicsPrompt}
+            onChange={(e) => setPhysicsPrompt(e.target.value)}
+            placeholder='Enter physics concept (e.g., "Simple Pendulum", "AC Generator")...'
+            className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+          />
+          <button
+            type="submit"
+            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span>Load</span>
+          </button>
+        </form>
+      </div>
 
-          {/* Category Filters */}
-          <div className="flex items-center gap-1 overflow-x-auto p-1 bg-slate-100 rounded-xl max-w-full">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedCategory === cat
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+      {promptFeedback && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between gap-2">
+          <span>{promptFeedback}</span>
+          <button
+            onClick={() => setPromptFeedback(null)}
+            className="text-amber-700 hover:text-amber-950 font-semibold cursor-pointer"
+          >
+            Dismiss
+          </button>
         </div>
-      </div>
-
-      {/* Interactive Models Switcher Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-        {filteredModels.map((model) => {
-          const isActive = model.id === activeModelId;
-
-          return (
-            <button
-              key={model.id}
-              onClick={() => {
-                setActiveModelId(model.id);
-                setActiveBatch(model.batch);
-              }}
-              className={`flex flex-col items-start text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-sky-50/70 border-sky-400 ring-2 ring-sky-400/40 shadow-xs'
-                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between w-full">
-                <span className="text-lg">{model.icon}</span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                  isActive ? 'bg-sky-200/80 text-sky-800' : 'bg-slate-100 text-slate-500'
-                }`}>
-                  {model.badge}
-                </span>
-              </div>
-              <span className={`text-xs font-bold mt-1.5 line-clamp-1 ${isActive ? 'text-sky-950' : 'text-slate-900'}`}>
-                {model.title}
-              </span>
-              <span className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                {model.shortDesc}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      )}
 
       {/* Main Simulation Workspace */}
       {viewMode === 'scene' && (activeModelId === 'projectile-motion' || activeModelId === 'simple-pendulum' || activeModelId === 'electric-circuit') ? (

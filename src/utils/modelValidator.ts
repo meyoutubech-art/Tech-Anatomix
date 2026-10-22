@@ -149,3 +149,121 @@ export function validateResearchGroundedModel(
     checks,
   };
 }
+
+/**
+ * Bounded deterministic repair for custom 3D models that fail initial validation checks.
+ * Ensures finite coordinates, clamped parameter defaults, valid units, and governing equations
+ * without substituting an unrelated preset.
+ */
+export function repairCustomModelSpec(
+  userPrompt: string,
+  spec: ScientificModelSpec,
+  researchRecord?: ResearchRecord
+): ScientificModelSpec {
+  const repaired: ScientificModelSpec = {
+    ...spec,
+    title: spec.title || userPrompt,
+    concept: spec.concept || userPrompt,
+    parts: (spec.parts || []).map((p, idx) => ({
+      ...p,
+      position:
+        Array.isArray(p.position) && p.position.length === 3 && p.position.every(Number.isFinite)
+          ? p.position
+          : [0, idx * 0.4 - 0.8, 0],
+      dimensions:
+        Array.isArray(p.dimensions) &&
+        p.dimensions.length >= 1 &&
+        p.dimensions.every((d) => Number.isFinite(d) && d > 0)
+          ? p.dimensions
+          : [1, 1, 1],
+    })),
+    parameters: { ...(spec.parameters || {}) },
+  };
+
+  Object.entries(repaired.parameters).forEach(([k, param]) => {
+    const min = Number.isFinite(param.min) ? param.min : 0.1;
+    const max = Number.isFinite(param.max) && param.max > min ? param.max : min + 10;
+    const defaultValue = Number.isFinite(param.defaultValue)
+      ? Math.max(min, Math.min(max, param.defaultValue))
+      : (min + max) / 2;
+    repaired.parameters[k] = {
+      ...param,
+      min,
+      max,
+      defaultValue,
+      unit: param.unit && param.unit.trim().length > 0 ? param.unit : '×',
+    };
+  });
+
+  if (!repaired.equations || repaired.equations.length === 0) {
+    repaired.equations = researchRecord?.extractedEquations?.length
+      ? researchRecord.extractedEquations
+      : [`P_out = η × P_in (${repaired.title})`];
+  }
+
+  return repaired;
+}
+
+export interface GeometryFingerprint {
+  signatureHash: string;
+  partCount: number;
+  shapeDistribution: Record<string, number>;
+  boundingSpan: [number, number, number];
+}
+
+export function computeGeometryFingerprint(spec: ScientificModelSpec): GeometryFingerprint {
+  const parts = spec.parts || [];
+  const shapeDistribution: Record<string, number> = {};
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  let minZ = Infinity, maxZ = -Infinity;
+
+  const partTokens: string[] = [];
+  for (const p of parts) {
+    const s = p.shape || 'box';
+    shapeDistribution[s] = (shapeDistribution[s] || 0) + 1;
+    const [x, y, z] = p.position || [0, 0, 0];
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+    partTokens.push(`${p.id}:${s}:${(p.dimensions || []).join('x')}@${x.toFixed(1)},${y.toFixed(1)},${z.toFixed(1)}`);
+  }
+
+  const span: [number, number, number] = [
+    Number.isFinite(maxX - minX) ? +(maxX - minX).toFixed(2) : 0,
+    Number.isFinite(maxY - minY) ? +(maxY - minY).toFixed(2) : 0,
+    Number.isFinite(maxZ - minZ) ? +(maxZ - minZ).toFixed(2) : 0,
+  ];
+
+  return {
+    signatureHash: `${spec.id}|${parts.length}|${partTokens.join(';')}`,
+    partCount: parts.length,
+    shapeDistribution,
+    boundingSpan: span,
+  };
+}
+
+export function areGeometriesDistinct(a: ScientificModelSpec, b: ScientificModelSpec): boolean {
+  const fpA = computeGeometryFingerprint(a);
+  const fpB = computeGeometryFingerprint(b);
+  return fpA.signatureHash !== fpB.signatureHash;
+}
+
+export function validateScientificModel(
+  userPrompt: string,
+  spec: ScientificModelSpec,
+  researchRecord?: ResearchRecord
+): {
+  valid: boolean;
+  failureReasons: string[];
+  report: ModelValidationReport;
+} {
+  const report = validateResearchGroundedModel(userPrompt, spec, researchRecord);
+  const failureReasons = report.checks.filter((c) => !c.passed).map((c) => c.detail);
+  return {
+    valid: report.isValid,
+    failureReasons,
+    report,
+  };
+}
+

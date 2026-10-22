@@ -264,9 +264,8 @@ export const BiologyLabPage: React.FC = () => {
           </h1>
         </div>
 
-        {/* Biology Navigation Bar with Foundations, Models 21-25, and Models 26-30 */}
+        {/* Biology Lab Workspace Switcher (Preset catalogue items 21–30 hidden from navigation bar and accessible via prompt) */}
         <div className="flex flex-col gap-2">
-          {/* Row 1: Molecular & Cellular Foundations */}
           <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
             <span className="text-[11px] font-semibold text-slate-400 px-2 uppercase tracking-wider">Foundations:</span>
             <button
@@ -322,146 +321,6 @@ export const BiologyLabPage: React.FC = () => {
             >
               <Activity className="w-3.5 h-3.5 text-emerald-600" />
               <span>Frog Anatomy Prototype</span>
-            </button>
-          </div>
-
-          {/* Row 2: Biology Batch 1 Models (21-25) */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-rose-50/80 border border-rose-200/60 rounded-xl">
-            <span className="text-[11px] font-semibold text-rose-700 px-2 uppercase tracking-wider">Models 21–25:</span>
-            <button
-              onClick={() => {
-                setBioModel('heart-explorer');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'heart-explorer' ? 'bg-white text-rose-900 shadow-xs border border-rose-300' : 'text-rose-700 hover:text-rose-900'
-              }`}
-            >
-              <Heart className="w-3.5 h-3.5 text-rose-600" />
-              <span>21. Heart Explorer</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('respiratory-explorer');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'respiratory-explorer' ? 'bg-white text-rose-900 shadow-xs border border-rose-300' : 'text-rose-700 hover:text-rose-900'
-              }`}
-            >
-              <Wind className="w-3.5 h-3.5 text-sky-600" />
-              <span>22. Respiratory</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('digestive-system');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'digestive-system' ? 'bg-white text-rose-900 shadow-xs border border-rose-300' : 'text-rose-700 hover:text-rose-900'
-              }`}
-            >
-              <Utensils className="w-3.5 h-3.5 text-amber-600" />
-              <span>23. Digestive</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('brain-explorer');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'brain-explorer' ? 'bg-white text-rose-900 shadow-xs border border-rose-300' : 'text-rose-700 hover:text-rose-900'
-              }`}
-            >
-              <Brain className="w-3.5 h-3.5 text-indigo-600" />
-              <span>24. Brain Explorer</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('eye-vision');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'eye-vision' ? 'bg-white text-rose-900 shadow-xs border border-rose-300' : 'text-rose-700 hover:text-rose-900'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5 text-emerald-600" />
-              <span>25. Eye & Vision</span>
-            </button>
-          </div>
-
-          {/* Row 3: Biology Batch 2 Models (26-30) */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-emerald-50/80 border border-emerald-200/60 rounded-xl">
-            <span className="text-[11px] font-semibold text-emerald-700 px-2 uppercase tracking-wider">Models 26–30:</span>
-            <button
-              onClick={() => {
-                setBioModel('plant-cell-explorer');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'plant-cell-explorer' ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
-              }`}
-            >
-              <Leaf className="w-3.5 h-3.5 text-emerald-600" />
-              <span>26. Plant Cell</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('animal-cell-explorer');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'animal-cell-explorer' ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>27. Animal Cell</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('plant-root-transport');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'plant-root-transport' ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
-              }`}
-            >
-              <TreePine className="w-3.5 h-3.5 text-green-700" />
-              <span>28. Root Transport</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('blood-circulation-microscope');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'blood-circulation-microscope' ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
-              }`}
-            >
-              <Microscope className="w-3.5 h-3.5 text-rose-600" />
-              <span>29. Blood Microscope</span>
-            </button>
-            <button
-              onClick={() => {
-                setBioModel('neuron-nerve-signal');
-                setBatchParams({});
-                setBatchConds({});
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                bioModel === 'neuron-nerve-signal' ? 'bg-white text-emerald-900 shadow-xs border border-emerald-300' : 'text-emerald-700 hover:text-emerald-900'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span>30. Neuron & Synapse</span>
             </button>
           </div>
         </div>

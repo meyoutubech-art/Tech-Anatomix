@@ -2,17 +2,51 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScientificModelSpec } from '../types/aiModel';
 import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { Dynamic3DModelRenderer } from '../components/models/Dynamic3DModelRenderer';
-import { Sparkles, Send, Lightbulb, Compass, RotateCcw, Info, X, CheckCircle2, WifiOff, Layers, Sliders, Cpu, History } from 'lucide-react';
+import {
+  Sparkles,
+  RotateCcw,
+  Info,
+  X,
+  CheckCircle2,
+  Layers,
+  Sliders,
+  Cpu,
+  History,
+  AlertTriangle,
+  HelpCircle,
+  Loader2,
+} from 'lucide-react';
 import { classifyAiError } from '../utils/aiErrorClassifier';
-import { matchOfflinePreset } from '../utils/offlineModelManager';
+import {
+  analyzePromptForPresetMatch,
+  verifyPresetCompatibility,
+  TARGET_PRESENTATION_DURATION_MS,
+  PRESET_LOADING_STAGES,
+  getCustomGenerationStages,
+  CandidatePresetOption,
+  MatchOutcome,
+} from '../utils/intelligentModelMatcher';
 import { synthesizeProceduralScientificModel } from '../utils/proceduralModelSynthesizer';
+import { validateScientificModel, repairCustomModelSpec } from '../utils/modelValidator';
 
 export const AiModelGeneratorPage: React.FC = () => {
   const [prompt, setPrompt] = useState('');
+  const [lastSubmittedPrompt, setLastSubmittedPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState('');
+  const [activeStages, setActiveStages] = useState<string[]>([]);
+  const [currentStageIndex, setCurrentStageIndex] = useState<number>(0);
+  const [processingMode, setProcessingMode] = useState<'preset' | 'custom'>('preset');
   const [activeModel, setActiveModel] = useState<ScientificModelSpec>(CURATED_AI_MODELS.motor);
   const [fallbackNotification, setFallbackNotification] = useState<string | null>(null);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+  const [ambiguityState, setAmbiguityState] = useState<{
+    originalPrompt: string;
+    question: string;
+    candidates: CandidatePresetOption[];
+  } | null>(null);
+  const [lastSelectionOutcome, setLastSelectionOutcome] = useState<MatchOutcome>('exact-preset');
+
   const [aiEngineStatus, setAiEngineStatus] = useState<{
     hasApiKey: boolean;
     primaryModel?: string;
@@ -23,7 +57,7 @@ export const AiModelGeneratorPage: React.FC = () => {
   const activeRequestRef = useRef<boolean>(false);
   const currentRequestIdRef = useRef<string>('');
   const abortControllerRef = useRef<AbortController | null>(null);
-  const stepTimerRef = useRef<NodeJS.Timeout[]>([]);
+  const stepTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Fetch real-time AI status on mount
   useEffect(() => {
@@ -45,7 +79,13 @@ export const AiModelGeneratorPage: React.FC = () => {
       const searchParams = new URLSearchParams(window.location.search);
       const requestedModel = searchParams.get('model') || searchParams.get('id');
       if (requestedModel) {
-        fallbackMatch(requestedModel);
+        const decision = analyzePromptForPresetMatch(requestedModel);
+        if (decision.selectedPreset) {
+          applyModelToViewer({
+            ...decision.selectedPreset,
+            generationSource: 'curated-preset',
+          });
+        }
       }
     } catch {}
   }, []);
@@ -83,268 +123,265 @@ export const AiModelGeneratorPage: React.FC = () => {
     CURATED_AI_MODELS.motor,
   ]);
 
-  const promptSuggestions = [
-    { label: '🪐 Solar System Explorer', query: 'Create a 3D model of the solar system' },
-    { label: '🕰️ Simple Pendulum', query: 'Create a 3D model of a simple pendulum' },
-    { label: '🎯 Projectile Motion', query: 'Create a 3D model of projectile motion' },
-    { label: '📐 Inclined Plane & Friction', query: 'Create a 3D model of an inclined plane' },
-    { label: '⚖️ Class 1 Lever', query: 'Create a 3D model of a lever' },
-    { label: '🚜 Hydraulic Lift (Pascal)', query: 'Create a 3D model of a hydraulic lift' },
-    { label: '⚪ Newton\'s Cradle', query: 'Create a 3D model of Newton\'s cradle' },
-    { label: '🌈 Prism & Dispersion', query: 'Create a 3D model of a prism and dispersion' },
-    { label: '⚡ DC Electric Circuit', query: 'Create a 3D model of a simple electric circuit' },
-    { label: '🔭 Astronomical Telescope', query: 'Create a 3D model of an astronomical refracting telescope' },
-    { label: '⚛️ Rutherford Gold Foil', query: 'Create a 3D model of Rutherford gold foil scattering experiment' },
-  ];
+  const applyModelToViewer = (spec: ScientificModelSpec) => {
+    setActiveModel(spec);
+    setGeneratedHistory((prev) => {
+      const filtered = prev.filter((item) => item.title !== spec.title);
+      return [spec, ...filtered].slice(0, 8);
+    });
 
-  const batch2TestPrompts = [
-    { label: '📦 11. Friction Explorer', query: 'Create a 3D model of a friction explorer' },
-    { label: '〰️ 12. Wave Motion', query: 'Wave motion explorer with crests and troughs' },
-    { label: '📢 13. Sound Waves', query: '3D model of sound waves in air' },
-    { label: '🧲 14. Magnetic Field', query: 'Magnetic field explorer with bar magnet and straight wire' },
-    { label: '⚙️ 15. DC Electric Motor', query: 'Create a DC electric motor with split-ring commutator' },
-    { label: '⚛️ 16. Interactive Atom', query: 'Interactive atom model with electron shells' },
-    { label: '🧪 17. Bonding Explorer', query: 'Ionic and covalent bonding explorer NaCl H2O CH4' },
-    { label: '💧 18. Water Molecule', query: 'Water molecule explorer with bent geometry' },
-    { label: '🫧 19. CO₂ Molecule', query: 'Carbon dioxide molecule explorer linear O=C=O' },
-  ];
+    const newParams: Record<string, number> = {};
+    Object.values(spec.parameters || {}).forEach((p) => {
+      newParams[p.id] = p.defaultValue;
+    });
+    setParameters(newParams);
 
-  const biologyBatch1Prompts = [
-    { label: '❤️ 21. Heart Explorer', query: 'Create a 3D model of a human heart explorer with cutaway and blood flow' },
-    { label: '🫁 22. Respiratory System', query: 'Human respiratory system with bronchial tree and alveoli gas exchange' },
-    { label: '🥗 23. Digestive System', query: '3D model of human digestive system with food path and villi' },
-    { label: '🧠 24. Brain Explorer', query: 'Human brain explorer with lobes, cross section and neuron synapse' },
-    { label: '👁️ 25. Eye & Vision', query: 'Detailed human eye and vision model with light path and retina' },
-  ];
+    const newConds: Record<string, any> = {};
+    Object.values(spec.conditions || {}).forEach((c) => {
+      newConds[c.id] = c.defaultValue;
+    });
+    setConditions(newConds);
+  };
 
-  const biologyBatch2Prompts = [
-    { label: '🌿 26. Plant Cell', query: 'Create an interactive 3D plant cell with cell wall, chloroplasts, and vacuole' },
-    { label: '🔬 27. Animal Cell', query: 'Interactive animal cell with organelles and mitochondria cutaway' },
-    { label: '🌱 28. Root & Transport', query: 'Plant root and transport explorer with xylem and phloem' },
-    { label: '🫀 29. Blood Transport', query: 'Create a 3D model of blood transport and internal circulatory system with heart and vessels' },
-    { label: '⚡ 30. Neuron & Synapse', query: 'Neuron and nerve signal explorer with action potential and synapse' },
-  ];
-
-  const physicsEngineeringBatch3Prompts = [
-    { label: '⚡ 31. AC Generator', query: 'Create a 3D model of an AC electric generator with rotating armature, slip rings and carbon brushes' },
-    { label: '🧲 33. Induction Explorer', query: 'Create a 3D model of electromagnetic induction with moving magnet, solenoid and galvanometer' },
-    { label: '🔥 36. Heat Transfer', query: 'Create a 3D model of heat transfer explorer with conduction, convection and radiation' },
-    { label: '🚗 37. 4-Stroke Engine', query: 'Create a 3D model of a four stroke internal combustion engine with piston, valves and spark plug' },
-    { label: '🔔 38. Electric Bell', query: 'Create a 3D model of an electric bell mechanism with electromagnet, striker and contact breaker' },
-    { label: '📐 40. Motor Effect', query: 'Create a 3D model of the motor effect with conductor on rails and Fleming left hand rule vectors' },
-  ];
-
-  const advancedPhysicsBatch1Prompts = [
-    { label: '📡 1. EM Wave Propagation', query: 'Create a 3D model of electromagnetic wave propagation with perpendicular electric and magnetic fields' },
-    { label: '☀️ 2. Plasma Physics', query: 'Create a 3D model of plasma physics with positive ions, free electrons, and electromagnetic fields' },
-    { label: '⚛️ 3. Particle Accelerator', query: 'Create a 3D model of a particle accelerator beamline with electric acceleration and magnetic deflection' },
-    { label: '🚄 4. Magnetic Levitation', query: 'Create a 3D model of a magnetic levitation mechanism with magnet arrangement, air gap, and forces' },
-    { label: '🧊 5. Superconductivity & Meissner', query: 'Create a 3D model of superconductivity and the Meissner effect showing magnetic field expulsion below critical temperature' },
-    { label: '🕳️ 6. Black Hole & Lensing', query: 'Create a 3D model of a black hole and gravitational lensing showing light bending and spacetime curvature' },
-    { label: '🌊 7. Quantum Tunnelling', query: 'Create a 3D model of quantum tunnelling showing a potential barrier, incident wavefunction, decay inside barrier, and transmission' },
-  ];
-
-  const advancedPhysicsBatch2Prompts = [
-    { label: '🧲 48. Faraday Induction', query: "Create a 3D model of Faraday's law of electromagnetic induction with bar magnet, copper solenoid, and Lenz's law" },
-    { label: '⚙️ 49. Motor & Generator', query: 'Create a 3D model of an electric motor and generator energy conversion explorer with Lorentz torque and back-EMF' },
-    { label: '🔌 50. AC Transformer', query: 'Create a 3D model of an AC voltage transformer with laminated core, primary and secondary windings, and mutual inductance' },
-    { label: '🌈 51. Double-Slit Interference', query: 'Create a 3D model of wave interference and diffraction lab with double slit, coherent wavefronts, and fringe spacing' },
-    { label: '🔬 52. Thin Film & Michelson', query: 'Create a 3D model of optical interference with thin film reflection and Michelson interferometer' },
-    { label: '✈️ 53. Fluid & Aerodynamics', query: 'Create a 3D model of fluid dynamics and aerodynamics with Venturi tube, Bernoulli pressure, and airfoil lift' },
-    { label: '☢️ 54. Nuclear Fusion & Fission', query: 'Create a 3D model of nuclear fusion and fission reactor physics with U-235 chain reaction and Tokamak plasma' },
-  ];
-
-  const advancedPhysicsBatch3Prompts = [
-    { label: '✈️ 55. Doppler & Sonic Boom', query: 'Create a 3D model of the Doppler effect and sonic boom explorer with moving sound source, observer, wavefront compression, and Mach shock-wave cone' },
-    { label: '🌍 56. Seismic Waves & Earth', query: 'Create a 3D model of seismic waves and earthquake wave propagation with Earth crust, mantle, liquid outer core S-wave shadow zone, and seismogram' },
-    { label: '🧭 57. Gyroscope & Precession', query: 'Create a 3D model of a gyroscope, torque, and angular momentum laboratory with spinning rotor, Cardan gimbal, and horizontal precession' },
-    { label: '〰️ 58. SHM Coupled Oscillators', query: 'Create a 3D model of simple harmonic motion and coupled oscillators with two spring-coupled masses, normal modes, and energy beat transfer' },
-    { label: '🔥 59. Carnot Heat Engine', query: 'Create a 3D model of a thermodynamics Carnot cycle heat engine with hot and cold reservoirs, piston cylinder, flywheel, and P-V loop' },
-    { label: '💡 60. Photoelectric Effect', query: 'Create a 3D model of the photoelectric effect and quantum energy explorer with monochromatic photons, metal cathode work function, and stopping potential' },
-    { label: '🚀 61. Special Relativity', query: 'Create a 3D model of special relativity time dilation and length contraction lab with relativistic spacecraft, Einstein light clock, and Lorentz factor' },
-  ];
-
-  const advancedPhysicsBatch4Prompts = [
-    { label: "⚡ 62. Maxwell's Equations", query: "Create a 3D model of Maxwell's equations and electromagnetic field explorer with configurable positive and negative charges, electric field lines, magnetic field around a conductor, and a coupled electromagnetic wave" },
-    { label: '〰️ 63. AC RLC Resonance Lab', query: 'Create a 3D model of an AC circuits, RLC resonance and impedance laboratory with AC source, resistor, capacitor, inductor, phase graphs, and impedance calculations' },
-    { label: '🔍 64. Lenses & Optics Lab', query: 'Create a 3D model of a lenses, optical instruments and image formation laboratory with convex and concave lenses, principal rays, real and virtual images, and microscope/telescope arrangements' },
-    { label: '🩺 65. Doppler Ultrasound', query: 'Create a 3D model of a Doppler ultrasound and medical flow imaging explorer with ultrasound probe, tissue boundary, blood vessel, moving red blood cells, wave pulses, and Doppler spectrum' },
-    { label: "🌍 66. Earth's Magnetosphere", query: "Create a 3D model of Earth's magnetic field and magnetosphere explorer with rotational axis, tilted magnetic dipole, 3D field lines, solar wind particles, magnetotail, and auroral regions" },
-    { label: '🔬 67. Semiconductor p–n Diode', query: 'Create a 3D model of a semiconductor p-n junction, band gap and diode explorer with p-type and n-type regions, depletion zone, holes and electrons, energy band diagram, and I-V curve' },
-    { label: '☢️ 68. Radioactive Decay Lab', query: 'Create a 3D model of a radioactive decay, half-life and alpha-beta-gamma radiation lab with decaying nuclei lattice, magnetic deflection field, paper/aluminum/lead absorber shields, and Geiger counter' },
-  ];
-
-  const chemistryBatch1Prompts = [
-    { label: '⚛️ 69. Molecular Orbitals (MO)', query: 'Create a 3D Molecular Orbital Explorer showing Nucleus A, Nucleus B, separated atomic orbitals, bonding and antibonding σ and π molecular orbitals, nodal surfaces, and an MO energy-level diagram' },
-    { label: '🔮 70. Atomic Orbital Probability', query: 'Create a 3D Atomic Orbital Probability Explorer supporting 1s, 2s, 2p (x,y,z), and 3d orbitals with probability threshold slider, cross-section slice, radial and angular nodal surfaces, and probability point cloud' },
-    { label: '💎 71. Crystal Lattice (SC/BCC/FCC/HCP)', query: 'Create a 3D Advanced Crystal Lattice Explorer supporting SC, BCC, FCC, and HCP unit cells with atom-sharing labels, nearest-neighbour highlighting, reversible multi-cell expansion, space-filling packing view, and comparison mode' },
-    { label: '🧭 72. Molecular Polarity Explorer', query: 'Create a 3D Molecular Polarity Explorer for H2O, CO2, NH3, CH4, and BF3 showing VSEPR bond angles, partial charges, individual bond dipole arrows, and the resultant molecular dipole vector' },
-    { label: '🧲 73. Intermolecular Forces (IMF)', query: 'Create a 3D Intermolecular Forces Explorer comparing Hydrogen Bonding in H2O, Dipole-Dipole in HCl, and London Dispersion in Ar and I2 with separation distance slider, orientation slider, dashed attraction overlay, and thermal motion control' },
-    { label: '🔋 74. Electrochemical Cell (Galvanic)', query: 'Create a 3D Electrochemical Cell Simulator for a Zinc-Copper galvanic cell with two half-cell beakers, zinc anode, copper cathode, KNO3 salt bridge, external wire with electron flow, voltmeter, and Nernst concentration controls' },
-    { label: '⚡ 75. Electrolysis & Faraday Lab', query: 'Create a 3D Electrolysis Explorer with an electrolyte container, negative cathode, positive anode, DC power source, mobile cations and anions, gas bubble and metal plating product regions, and a Faraday Law Q=It and m=MIt/zF calculator' },
-  ];
-
-  const chemistryBatch2Prompts = [
-    { label: '⏱️ 76. Chemical Kinetics Simulator', query: 'Create a 3D Chemical Kinetics Simulator with a bounded reaction vessel, reactant and product particles, collision flashes, concentration-time graph, and first-order and second-order rate calculations' },
-    { label: '⚖️ 77. Chemical Equilibrium Explorer', query: 'Create a 3D Chemical Equilibrium Explorer showing a reversible reaction vessel with forward and reverse motion indicators, piston volume control, Q vs Kc comparison, and Le Chatelier disturbances' },
-    { label: '📈 78. Reaction Energy Profile', query: 'Create a 3D Reaction Energy Profile Explorer with reactant region, product region, transition-state indicator, forward and reverse activation energy markers, reaction enthalpy marker, and animated molecular pathway' },
-    { label: '⚡ 79. Catalysis Explorer', query: 'Create a 3D Catalysis Explorer showing a catalyst surface or homogeneous active site, approaching reactants, adsorbed/intermediate species, product release, and side-by-side uncatalysed vs catalysed energy profiles' },
-    { label: '🧪 80. Acid–Base Titration Lab', query: 'Create a 3D Acid-Base Titration Laboratory with a burette containing titrant, receiving flask containing analyte, visible meniscus, stopcock valve, indicator colour transition, digital pH readout, and titration curve with equivalence marker' },
-    { label: '💎 81. Solubility & Precipitation', query: 'Create a 3D Solubility and Precipitation Explorer with a transparent solution vessel, dissolved cations and anions, settled solid crystal precipitate, saturation indicator, and Qsp vs Ksp equilibrium display' },
-    { label: '🛡️ 82. Buffer Solution Simulator', query: 'Create a 3D Buffer Solution Simulator showing a vessel with weak acid and conjugate base species, strong acid and base addition droppers, digital pH readout, composition bars, and buffer capacity comparison' },
-  ];
-
-  const customAiSynthesisPrompts = [
-    { label: '🕰️ Double Pendulum', query: 'Double Pendulum' },
-    { label: '⚖️ Atwood Machine', query: 'Atwood Machine' },
-    { label: '⚡ Solenoid Electromagnet', query: 'Solenoid Electromagnet' },
-    { label: '📺 Cathode Ray Tube (CRT)', query: 'Cathode Ray Tube' },
-    { label: '⚛️ Cyclotron Accelerator', query: 'Cyclotron' },
-    { label: '🧬 DNA Replication Fork', query: 'DNA Replication Fork' },
-    { label: '🧠 Chemical Synapse', query: 'Chemical Synapse' },
-    { label: '⚙️ ATP Synthase Motor', query: 'ATP Synthase' },
-    { label: '💪 Sarcomere Muscle Unit', query: 'Sarcomere' },
-    { label: '🫧 Fluid Mosaic Membrane', query: 'Fluid Mosaic Cell Membrane' },
-    { label: '🌿 Chloroplast & Thylakoids', query: 'Chloroplast' },
-    { label: '🦠 Bacteriophage T4 Virus', query: 'Bacteriophage T4' },
-    { label: '🧪 Methane (CH4)', query: 'Methane (CH4)' },
-    { label: '⚗️ Sulfuric Acid (H2SO4)', query: 'Sulfuric Acid (H2SO4)' },
-    { label: '🔬 Mitosis Spindle', query: 'Mitosis Spindle' },
-  ];
-
-  const handleGenerate = async (userQuery: string, forceFresh = false) => {
-    const q = userQuery.trim();
-    if (!q || isGenerating || activeRequestRef.current) return;
-
-    const reqId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    currentRequestIdRef.current = reqId;
-    activeRequestRef.current = true;
-    setIsGenerating(true);
-    setFallbackNotification(null);
-    setGenerationStep('Researching scientific references & structural components...');
-
-    // Clear previous timers
+  const clearScheduledTimers = () => {
     stepTimerRef.current.forEach((t) => clearTimeout(t));
     stepTimerRef.current = [];
+  };
 
-    // Schedule progressive user-friendly status updates during research & 3D synthesis
-    stepTimerRef.current.push(
-      setTimeout(() => {
-        setGenerationStep('Extracting essential components, equations & topology from research...');
-      }, 2200)
-    );
-    stepTimerRef.current.push(
-      setTimeout(() => {
-        setGenerationStep('Synthesizing 3D parts, kinematic linkages, and materials...');
-      }, 5200)
-    );
-    stepTimerRef.current.push(
-      setTimeout(() => {
-        setGenerationStep('Validating model identity, parameter bounds, and scientific accuracy...');
-      }, 8500)
-    );
+  const handleCancelRequest = () => {
+    clearScheduledTimers();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    currentRequestIdRef.current = '';
+    activeRequestRef.current = false;
+    setIsGenerating(false);
+    setGenerationStep('');
+    setActiveStages([]);
+    setCurrentStageIndex(0);
+  };
 
-    // Abort previous in-flight request if any
+  /**
+   * Monotonic wait helper using performance.now()
+   */
+  const waitRemainingDuration = (
+    startTimeMs: number,
+    targetDurationMs: number,
+    reqId: string,
+    signal: AbortSignal
+  ): Promise<boolean> => {
+    const elapsed = performance.now() - startTimeMs;
+    const remaining = Math.max(0, targetDurationMs - elapsed);
+    if (remaining <= 0) {
+      return Promise.resolve(currentRequestIdRef.current === reqId && !signal.aborted);
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        resolve(currentRequestIdRef.current === reqId && !signal.aborted);
+      }, remaining);
+      stepTimerRef.current.push(timer);
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          resolve(false);
+        },
+        { once: true }
+      );
+    });
+  };
+
+  const scheduleStageProgression = (stages: string[], totalDurationMs: number, reqId: string) => {
+    setActiveStages(stages);
+    setCurrentStageIndex(0);
+    setGenerationStep(stages[0] || 'Analyzing your model request...');
+
+    const stepInterval = Math.floor(totalDurationMs / stages.length);
+    stages.forEach((stageText, idx) => {
+      if (idx === 0) return;
+      const timer = setTimeout(() => {
+        if (currentRequestIdRef.current !== reqId) return;
+        setCurrentStageIndex(idx);
+        setGenerationStep(stageText);
+      }, idx * stepInterval);
+      stepTimerRef.current.push(timer);
+    });
+  };
+
+  const handleSelectCandidatePreset = async (candidate: CandidatePresetOption) => {
+    setAmbiguityState(null);
+    await executePresetLoad(candidate.spec, candidate.title, 'exact-preset');
+  };
+
+  const executePresetLoad = async (
+    presetSpec: ScientificModelSpec,
+    queryLabel: string,
+    outcome: MatchOutcome
+  ) => {
+    clearScheduledTimers();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    const reqId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    currentRequestIdRef.current = reqId;
+    activeRequestRef.current = true;
+
+    const startTimeMs = performance.now();
+    setLastSubmittedPrompt(queryLabel);
+    setIsGenerating(true);
+    setProcessingMode('preset');
+    setViewerError(null);
+    setAmbiguityState(null);
+    setFallbackNotification(null);
+
+    scheduleStageProgression(PRESET_LOADING_STAGES, TARGET_PRESENTATION_DURATION_MS, reqId);
+
+    const compat = verifyPresetCompatibility(queryLabel, presetSpec);
+    if (!compat.compatible && outcome !== 'exact-preset') {
+      // Compatibility check rejected preset; route to custom generation seamlessly
+      await executeCustomGeneration(queryLabel, reqId, startTimeMs, controller);
+      return;
+    }
+
+    const stillActive = await waitRemainingDuration(
+      startTimeMs,
+      TARGET_PRESENTATION_DURATION_MS,
+      reqId,
+      controller.signal
+    );
+    if (!stillActive || currentRequestIdRef.current !== reqId) return;
+
+    const readySpec: ScientificModelSpec = {
+      ...presetSpec,
+      generationSource: 'curated-preset',
+    };
+
+    applyModelToViewer(readySpec);
+    setLastSelectionOutcome(outcome);
+    setFallbackNotification(null);
+    clearScheduledTimers();
+    activeRequestRef.current = false;
+    setIsGenerating(false);
+    setGenerationStep('');
+    setPrompt('');
+  };
+
+  const executeCustomGeneration = async (
+    userQuery: string,
+    reqId: string,
+    startTimeMs: number,
+    controller: AbortController
+  ) => {
+    setProcessingMode('custom');
+    const customStages = getCustomGenerationStages(aiEngineStatus.hasApiKey);
+    scheduleStageProgression(customStages, TARGET_PRESENTATION_DURATION_MS, reqId);
+
     try {
       const res = await fetch('/api/ai/generate-model', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: q, forceFresh, requestId: reqId }),
+        body: JSON.stringify({ prompt: userQuery, forceFresh: true, requestId: reqId }),
         signal: controller.signal,
       });
 
-      // Ignore out-of-order response if another request was triggered
-      if (currentRequestIdRef.current !== reqId) return;
+      if (currentRequestIdRef.current !== reqId || controller.signal.aborted) return;
 
       if (!res.ok) {
+        let errorPayload: any = null;
+        try {
+          errorPayload = await res.json();
+        } catch {}
+
+        if (errorPayload?.error === 'INVALID_PROMPT') {
+          setViewerError(errorPayload.message || 'Please enter a valid scientific or engineering concept.');
+          clearScheduledTimers();
+          activeRequestRef.current = false;
+          setIsGenerating(false);
+          setGenerationStep('');
+          return;
+        }
+
         const errorMsg = classifyAiError(res.status);
-        setFallbackNotification(errorMsg);
+        setViewerError(errorMsg);
+        clearScheduledTimers();
+        activeRequestRef.current = false;
+        setIsGenerating(false);
+        setGenerationStep('');
         return;
       }
 
-      const rawText = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        setFallbackNotification('Invalid JSON response from server.');
-        return;
-      }
-
-      if (data.requestId && data.requestId !== currentRequestIdRef.current) return;
+      const data = await res.json();
+      if (currentRequestIdRef.current !== reqId || controller.signal.aborted) return;
 
       if (data.model && data.model.parts && data.model.parts.length > 0) {
+        // Hold until TARGET_PRESENTATION_DURATION_MS (~6.0 seconds) if finished early;
+        // if backend took longer than 6.0 seconds, waitRemainingDuration resolves immediately!
+        setCurrentStageIndex(customStages.length - 1);
+        setGenerationStep('Loading the model into the viewer...');
+
+        const stillActive = await waitRemainingDuration(
+          startTimeMs,
+          TARGET_PRESENTATION_DURATION_MS,
+          reqId,
+          controller.signal
+        );
+        if (!stillActive || currentRequestIdRef.current !== reqId) return;
+
         const spec: ScientificModelSpec = data.model;
-        setActiveModel(spec);
-        setGeneratedHistory((prev) => {
-          const filtered = prev.filter((item) => item.title !== spec.title);
-          return [spec, ...filtered].slice(0, 8);
-        });
-
-        const newParams: Record<string, number> = {};
-        Object.values(spec.parameters || {}).forEach((p) => {
-          newParams[p.id] = p.defaultValue;
-        });
-        setParameters(newParams);
-
-        const newConds: Record<string, any> = {};
-        Object.values(spec.conditions || {}).forEach((c) => {
-          newConds[c.id] = c.defaultValue;
-        });
-        setConditions(newConds);
+        applyModelToViewer(spec);
+        setLastSelectionOutcome('custom-generation');
 
         if (data.isFallback) {
           setFallbackNotification(
             data.fallbackReason ||
               data.note ||
-              'Loaded verified interactive scientific model.'
+              `Synthesized custom interactive 3D model for "${userQuery}".`
           );
         } else {
           setFallbackNotification(null);
         }
       } else {
-        const errorMsg = data.error ? classifyAiError(data.error) : 'AI model generation could not be completed.';
-        setFallbackNotification(errorMsg);
+        const errorMsg = data.error
+          ? classifyAiError(data.error)
+          : 'Custom 3D model generation could not be completed for this prompt.';
+        setViewerError(errorMsg);
       }
     } catch (e: any) {
-      if (e.name === 'AbortError') return;
-      // Network disconnect fallback: check offline preset first (if not forcing custom), otherwise synthesize procedurally
-      const offlineMatch = !forceFresh ? matchOfflinePreset(q) : { matched: false };
-      const spec: ScientificModelSpec =
-        offlineMatch.matched && offlineMatch.spec
-          ? offlineMatch.spec
-          : synthesizeProceduralScientificModel(q);
+      if (e.name === 'AbortError' || currentRequestIdRef.current !== reqId) return;
 
-      setActiveModel(spec);
-      setGeneratedHistory((prev) => {
-        const filtered = prev.filter((item) => item.title !== spec.title);
-        return [spec, ...filtered].slice(0, 8);
-      });
-      const newParams: Record<string, number> = {};
-      Object.values(spec.parameters || {}).forEach((p) => {
-        newParams[p.id] = p.defaultValue;
-      });
-      setParameters(newParams);
-      const newConds: Record<string, any> = {};
-      Object.values(spec.conditions || {}).forEach((c) => {
-        newConds[c.id] = c.defaultValue;
-      });
-      setConditions(newConds);
-      setFallbackNotification(
-        offlineMatch.matched
-          ? `⚡ Offline Mode: Loaded verified interactive model for "${offlineMatch.presetTitle || q}".`
-          : `⚙️ Procedural 3D Synthesizer: Built interactive multi-part 3D model for "${q}".`
-      );
-      return;
+      // Offline / network disconnect custom procedural synthesis (validated before loading)
+      const rawProcedural = synthesizeProceduralScientificModel(userQuery);
+      const repairedProcedural = repairCustomModelSpec(userQuery, rawProcedural);
+      const validation = validateScientificModel(userQuery, repairedProcedural);
+
+      if (validation.valid) {
+        setCurrentStageIndex(customStages.length - 1);
+        setGenerationStep('Loading the model into the viewer...');
+        const stillActive = await waitRemainingDuration(
+          startTimeMs,
+          TARGET_PRESENTATION_DURATION_MS,
+          reqId,
+          controller.signal
+        );
+        if (!stillActive || currentRequestIdRef.current !== reqId) return;
+
+        applyModelToViewer(repairedProcedural);
+        setLastSelectionOutcome('custom-generation');
+        setFallbackNotification(
+          `Synthesized custom interactive 3D model for "${userQuery}" using the offline scientific procedural engine.`
+        );
+      } else {
+        setViewerError(
+          `Could not generate a validated 3D model for "${userQuery}": ${validation.failureReasons.join('; ')}`
+        );
+      }
     } finally {
       if (currentRequestIdRef.current === reqId) {
-        stepTimerRef.current.forEach((t) => clearTimeout(t));
+        clearScheduledTimers();
         activeRequestRef.current = false;
         setIsGenerating(false);
         setGenerationStep('');
@@ -353,58 +390,64 @@ export const AiModelGeneratorPage: React.FC = () => {
     }
   };
 
-  const fallbackMatch = (q: string) => {
-    let offlineMatch = matchOfflinePreset(q);
-    
-    // Explicitly exclude removed models from Create 3D Model page lookup
-    if (
-      offlineMatch.matched &&
-      offlineMatch.spec &&
-      (offlineMatch.spec.id === 'reflection-refraction' ||
-        offlineMatch.spec.id === 'hydroelectric-power' ||
-        offlineMatch.spec.id === 'blood-circulation-microscope' ||
-        offlineMatch.spec.id === 'blood-microscope')
-    ) {
-      offlineMatch = { matched: false };
+  const handleGenerate = async (userQuery: string, forceFresh = false) => {
+    const q = userQuery.trim();
+    if (!q) {
+      setViewerError('Please enter a scientific or engineering concept to generate or load a 3D model.');
+      return;
     }
 
-    let spec = (offlineMatch.matched && offlineMatch.spec) ? offlineMatch.spec : CURATED_AI_MODELS.motor;
+    // Cancel any existing in-flight request so rapid re-submissions are cleanly isolated
+    clearScheduledTimers();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
 
-    if (!offlineMatch.matched) {
-      const lower = q.toLowerCase();
-      if (lower.includes('projectile') || lower.includes('parabola') || lower.includes('launch') || lower.includes('ballistic')) {
-        spec = CURATED_AI_MODELS.projectile;
-      } else if (lower.includes('inclined') || lower.includes('incline') || lower.includes('ramp') || lower.includes('slope')) {
-        spec = CURATED_AI_MODELS.inclinedPlane;
-      } else if (lower.includes('lever') || lower.includes('fulcrum') || lower.includes('seesaw')) {
-        spec = CURATED_AI_MODELS.lever;
-      } else if (lower.includes('hydraulic') || lower.includes('pascal') || lower.includes('piston')) {
-        spec = CURATED_AI_MODELS.hydraulicLift;
-      } else if (lower.includes('cradle') || lower.includes('momentum') || lower.includes('collision')) {
-        spec = CURATED_AI_MODELS.newtonsCradle;
-      } else if (lower.includes('prism') || lower.includes('dispersion') || lower.includes('rainbow') || lower.includes('spectrum')) {
-        spec = CURATED_AI_MODELS.prismDispersion;
-      } else if (lower.includes('circuit') || lower.includes('ohm') || lower.includes('resistor')) {
-        spec = CURATED_AI_MODELS.circuit;
-      } else if (lower.includes('pendulum') || lower.includes('bob')) {
-        spec = CURATED_AI_MODELS.pendulum;
-      } else if (lower.includes('solar') || lower.includes('planet') || lower.includes('orbit')) {
-        spec = CURATED_AI_MODELS.solar;
+    setViewerError(null);
+    setAmbiguityState(null);
+    setFallbackNotification(null);
+
+    // Run Intelligent Prompt-to-Preset Matcher unless user explicitly forced custom synthesis
+    if (!forceFresh) {
+      const decision = analyzePromptForPresetMatch(q);
+
+      if (decision.outcome === 'invalid-request') {
+        setViewerError(decision.reason);
+        return;
+      }
+
+      if (decision.outcome === 'ambiguous' && decision.candidateOptions && decision.candidateOptions.length > 0) {
+        setLastSubmittedPrompt(q);
+        setAmbiguityState({
+          originalPrompt: q,
+          question:
+            decision.clarificationQuestion ||
+            `Multiple models match "${q}". Please choose the specific model you want or generate a custom 3D model:`,
+          candidates: decision.candidateOptions,
+        });
+        return;
+      }
+
+      if (
+        (decision.outcome === 'exact-preset' || decision.outcome === 'semantic-preset') &&
+        decision.selectedPreset
+      ) {
+        await executePresetLoad(decision.selectedPreset, q, decision.outcome);
+        return;
       }
     }
 
-    setActiveModel(spec);
-    const newParams: Record<string, number> = {};
-    Object.values(spec.parameters).forEach((p) => {
-      newParams[p.id] = p.defaultValue;
-    });
-    setParameters(newParams);
+    // Otherwise route to Research-First Custom 3D Generation
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    currentRequestIdRef.current = reqId;
+    activeRequestRef.current = true;
+    const startTimeMs = performance.now();
 
-    const newConds: Record<string, any> = {};
-    Object.values(spec.conditions).forEach((c) => {
-      newConds[c.id] = c.defaultValue;
-    });
-    setConditions(newConds);
+    setLastSubmittedPrompt(q);
+    setIsGenerating(true);
+    await executeCustomGeneration(q, reqId, startTimeMs, controller);
   };
 
   return (
@@ -415,17 +458,19 @@ export const AiModelGeneratorPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-sky-600">AI Model Studio</span>
             <span className="text-slate-300">·</span>
-            <span className="text-xs text-slate-500">Structured Science-Aware Generation Pipeline</span>
+            <span className="text-xs text-slate-500">
+              Intelligent Preset Matcher &amp; Research-First Custom 3D Generation Engine
+            </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
-            Create a 3D Model with AI
+            Create or Explore a 3D Scientific Model
           </h1>
         </div>
 
         {/* Live AI Engine Status Indicator */}
         <div className="flex items-center gap-2">
-          {aiEngineStatus.checked && (
-            aiEngineStatus.hasApiKey ? (
+          {aiEngineStatus.checked &&
+            (aiEngineStatus.hasApiKey ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>AI Live: {aiEngineStatus.primaryModel || 'Gemini'}</span>
@@ -433,14 +478,13 @@ export const AiModelGeneratorPage: React.FC = () => {
             ) : (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-sky-500" />
-                <span>Simulation Engine: 41 Verified Models</span>
+                <span>Simulation Engine Ready</span>
               </div>
-            )
-          )}
+            ))}
         </div>
       </div>
 
-      {/* Non-blocking fallback notification banner if AI generation was unavailable */}
+      {/* Non-blocking provenance/fallback notification banner */}
       {fallbackNotification && (
         <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 shadow-2xs transition-all">
           <div className="flex items-center gap-2.5">
@@ -457,7 +501,7 @@ export const AiModelGeneratorPage: React.FC = () => {
         </div>
       )}
 
-      {/* Generation Prompt Box */}
+      {/* Main Prompt Input Bar (Individual preset navigation buttons are intentionally hidden) */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
         <form
           onSubmit={(e) => {
@@ -469,7 +513,7 @@ export const AiModelGeneratorPage: React.FC = () => {
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder='Enter any short model name or concept: e.g., "Double Pendulum", "DC Motor", "Human Heart", "DNA Double Helix", "Electric Generator", "Planetary Orbit", "Electrochemical Cell", "Wave Interference"...'
+              placeholder='Describe any scientific or engineering model (e.g., "DC Electric Motor", "Double Pendulum", "Hydraulic Press", "Human Kidney Nephron", "Jet Engine Cutaway")...'
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               disabled={isGenerating}
@@ -485,10 +529,10 @@ export const AiModelGeneratorPage: React.FC = () => {
                 ? 'bg-violet-50 border-violet-300 text-violet-900 shadow-2xs'
                 : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
             }`}
-            title="When enabled, always synthesizes a fresh custom 3D multi-part assembly rather than matching a preset"
+            title="When enabled, always synthesizes a fresh custom 3D multi-part assembly rather than matching an existing preset"
           >
             <Cpu className={`w-3.5 h-3.5 ${preferCustomSynthesis ? 'text-violet-600' : 'text-slate-400'}`} />
-            <span>{preferCustomSynthesis ? 'Custom 3D Synthesis: ON' : 'Smart Preset + AI'}</span>
+            <span>{preferCustomSynthesis ? 'Custom 3D Synthesis: ON' : 'Smart Match + Custom AI'}</span>
           </button>
           <button
             type="submit"
@@ -496,329 +540,274 @@ export const AiModelGeneratorPage: React.FC = () => {
             className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer shrink-0"
           >
             <Sparkles className="w-4 h-4 text-sky-400" />
-            <span>{isGenerating ? 'Generating...' : 'Generate 3D Model'}</span>
+            <span>{isGenerating ? 'Preparing Model...' : 'Generate 3D Model'}</span>
           </button>
-          {activeModel && (
+          {activeModel && !isGenerating && (
             <button
               type="button"
-              disabled={isGenerating}
               onClick={() => handleGenerate(activeModel.prompt || activeModel.concept || activeModel.title, true)}
-              className="flex items-center justify-center gap-1.5 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-50 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer shrink-0 border border-slate-200"
-              title="Force fresh custom AI 3D synthesis for active model"
+              className="flex items-center justify-center gap-1.5 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition-colors cursor-pointer shrink-0 border border-slate-200"
+              title="Force fresh custom AI 3D synthesis for active concept"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Synthesize Fresh</span>
+              <span>Synthesize Custom</span>
             </button>
           )}
         </form>
-
-        {isGenerating && (
-          <div className="flex items-center gap-2 text-xs text-sky-700 bg-sky-50 p-3 rounded-lg border border-sky-200 animate-pulse">
-            <Sparkles className="w-4 h-4 animate-spin" />
-            <span>{generationStep || 'Synthesizing 3D parts and physical parameters...'}</span>
-          </div>
-        )}
-
-        {/* Quick Suggestion Pills */}
-        <div className="space-y-1.5 pt-1">
-          {/* Open-Ended Custom AI 3D Synthesis Prompts */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-fuchsia-900 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-300 shrink-0 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-fuchsia-600" />
-              Universal 3D Synthesizer (Short Names):
-            </span>
-            {customAiSynthesisPrompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query, false)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-2xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-slate-600 pb-0.5">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span className="text-slate-400 shrink-0 font-medium">Core Models:</span>
-            {promptSuggestions.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Temporary Test Prompts for Models 11–20 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-sky-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-300 shrink-0">
-              🧪 Models 11–20:
-            </span>
-            {batch2TestPrompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Biology Batch 1 Prompts for Models 21–25 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-rose-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 shrink-0">
-              🧬 Biology 21–25:
-            </span>
-            {biologyBatch1Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Biology Batch 2 Prompts for Models 26–30 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-emerald-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
-              🌿 Biology 26–30:
-            </span>
-            {biologyBatch2Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Physics & Engineering Batch 3 Prompts for Models 31–40 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-indigo-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-100 text-indigo-800 border border-indigo-300 shrink-0">
-              ⚡ Models 31–40:
-            </span>
-            {physicsEngineeringBatch3Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Advanced Physics Batch 1 Prompts for Models 1–7 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-violet-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-violet-100 text-violet-800 border border-violet-300 shrink-0">
-              🌌 Adv. Physics 1–7:
-            </span>
-            {advancedPhysicsBatch1Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-violet-50 hover:bg-violet-100 text-violet-900 border border-violet-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Advanced Physics Batch 2 Prompts for Models 48–54 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-amber-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
-              🔬 Physics Batch 2 (48–54):
-            </span>
-            {advancedPhysicsBatch2Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Advanced Physics Batch 3 Prompts for Models 55–61 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-teal-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-teal-100 text-teal-800 border border-teal-300 shrink-0">
-              🚀 Physics Batch 3 (55–61):
-            </span>
-            {advancedPhysicsBatch3Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Advanced Physics Batch 4 Prompts for Models 62–68 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-rose-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 shrink-0">
-              ⚡ Physics Batch 4 (62–68):
-            </span>
-            {advancedPhysicsBatch4Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Chemistry Batch 1 Prompts for Models 69–75 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-cyan-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-cyan-100 text-cyan-800 border border-cyan-300 shrink-0">
-              🧪 Chemistry Batch 1 (69–75):
-            </span>
-            {chemistryBatch1Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-cyan-50 hover:bg-cyan-100 text-cyan-900 border border-cyan-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Dedicated Chemistry Batch 2 Prompts for Models 76–82 */}
-          <div className="flex items-center gap-2 overflow-x-auto text-xs text-emerald-800 pb-0.5">
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
-              ⚗️ Chemistry Batch 2 (76–82):
-            </span>
-            {chemistryBatch2Prompts.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleGenerate(item.query)}
-                disabled={isGenerating}
-                className="px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 shadow-xs"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Active Model Provenance, Architecture Summary & Session History */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="flex flex-wrap items-center gap-2">
-          {activeModel.generationSource === 'ai-live' ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              AI Live 3D Synthesis
-            </span>
-          ) : activeModel.generationSource === 'procedural-synthesizer' ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200">
-              <Cpu className="w-3.5 h-3.5 text-fuchsia-600" />
-              Procedural 3D Scientific Synthesizer
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200">
-              <Layers className="w-3.5 h-3.5 text-sky-600" />
-              Verified Laboratory Preset
-            </span>
-          )}
-
-          {activeModel.subjectDomain && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-              {activeModel.subjectDomain}
-            </span>
-          )}
-
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
-            <Layers className="w-3 h-3 text-slate-400" />
-            {activeModel.parts?.length || 0} Interactive 3D Parts
-          </span>
-
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
-            <Sliders className="w-3 h-3 text-slate-400" />
-            {Object.keys(activeModel.parameters || {}).length} Live Controls
-          </span>
-        </div>
-
-        {generatedHistory.length > 1 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
-            <span className="inline-flex items-center gap-1 text-slate-400 font-medium shrink-0">
-              <History className="w-3.5 h-3.5" />
-              Session Models:
-            </span>
-            {generatedHistory.map((item) => {
-              const isCurrent = item.id === activeModel.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveModel(item);
-                    const newParams: Record<string, number> = {};
-                    Object.values(item.parameters || {}).forEach((p) => {
-                      newParams[p.id] = p.defaultValue;
-                    });
-                    setParameters(newParams);
-                    const newConds: Record<string, any> = {};
-                    Object.values(item.conditions || {}).forEach((c) => {
-                      newConds[c.id] = c.defaultValue;
-                    });
-                    setConditions(newConds);
-                  }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 border ${
-                    isCurrent
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  {item.title}
-                </button>
-              );
-            })}
+      {/* Ambiguity Clarification Prompt Card (when request matches multiple distinct concepts) */}
+      {ambiguityState && !isGenerating && (
+        <div
+          id="viewer-ambiguity-card"
+          className="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 shadow-xs space-y-4"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <HelpCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h2 className="text-sm font-bold text-amber-950">
+                  Clarification Needed for &ldquo;{ambiguityState.originalPrompt}&rdquo;
+                </h2>
+                <p className="text-xs text-amber-900 leading-relaxed">{ambiguityState.question}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setAmbiguityState(null)}
+              className="p-1 text-amber-700 hover:text-amber-950 rounded-lg hover:bg-amber-100 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        )}
-      </div>
 
-      {/* Rendered 3D Model with Inspector and Parameters */}
-      <Dynamic3DModelRenderer
-        modelSpec={activeModel}
-        parameters={parameters}
-        conditions={conditions}
-        onUpdateParameter={(id, val) => setParameters((prev) => ({ ...prev, [id]: val }))}
-        onUpdateCondition={(id, val) => setConditions((prev) => ({ ...prev, [id]: val }))}
-        onTryIt={() => {
-          const el = document.getElementById('ai-model-parameters-deck');
-          if (el) {
-            el.classList.add('ring-2', 'ring-sky-500');
-            setTimeout(() => el.classList.remove('ring-2', 'ring-sky-500'), 1500);
-          }
-        }}
-        showLabels={showLabels}
-        onToggleLabels={setShowLabels}
-      />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {ambiguityState.candidates.map((cand) => (
+              <button
+                key={cand.id}
+                onClick={() => handleSelectCandidatePreset(cand)}
+                className="flex flex-col items-start text-left p-3 rounded-xl bg-white hover:bg-amber-100/60 border border-amber-300 transition-all cursor-pointer shadow-2xs"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                  {cand.category}
+                </span>
+                <span className="text-xs font-bold text-slate-900 mt-0.5">{cand.title}</span>
+                <span className="text-[11px] text-slate-600 line-clamp-2 mt-1">{cand.concept}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              onClick={() => {
+                const q = ambiguityState.originalPrompt;
+                setAmbiguityState(null);
+                handleGenerate(q, true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+              <span>Generate Custom 3D Model for &ldquo;{ambiguityState.originalPrompt}&rdquo;</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Recovery Card (Immediate honest error state without loading an unrelated preset) */}
+      {viewerError && !isGenerating && (
+        <div
+          id="viewer-error-card"
+          className="bg-rose-50 border border-rose-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-rose-950">Model Request Could Not Be Completed</h3>
+              <p className="text-xs text-rose-800 leading-relaxed">{viewerError}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {lastSubmittedPrompt && (
+              <button
+                onClick={() => handleGenerate(lastSubmittedPrompt, preferCustomSynthesis)}
+                className="px-4 py-2 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Retry Request
+              </button>
+            )}
+            <button
+              onClick={() => setViewerError(null)}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-medium transition-colors cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated Viewer Processing Surface OR Active 3D Model Viewer */}
+      {isGenerating ? (
+        <div
+          id="viewer-processing-surface"
+          role="status"
+          aria-live="polite"
+          className="w-full min-h-[520px] rounded-2xl bg-slate-950 border border-slate-800 shadow-xl flex flex-col items-center justify-center p-6 sm:p-10 text-white relative overflow-hidden"
+        >
+          {/* Subtle ambient radial glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.14)_0%,transparent_65%)] pointer-events-none" />
+
+          <div className="relative z-10 max-w-xl w-full space-y-6 text-center">
+            {/* Animated 3D Wireframe/Orbital Indicator */}
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-400/30 flex items-center justify-center shadow-lg">
+              <Loader2 className="w-8 h-8 text-sky-400 animate-spin" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-slate-900 text-sky-300 border border-slate-700">
+                {processingMode === 'preset'
+                  ? 'Intelligent Library Match & Verification'
+                  : 'Research-First Custom 3D Model Synthesis'}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                {lastSubmittedPrompt}
+              </h2>
+              <p
+                id="viewer-live-status-message"
+                className="text-sm sm:text-base font-medium text-sky-300 min-h-[24px] transition-all"
+              >
+                {generationStep || 'Analyzing your model request...'}
+              </p>
+            </div>
+
+            {/* Indeterminate Activity Bar (No fake percentage numbers) */}
+            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full w-1/2 bg-gradient-to-r from-sky-500 via-cyan-300 to-indigo-500 rounded-full animate-pulse" />
+            </div>
+
+            {/* Live Stage Checklist */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 text-left space-y-2">
+              {activeStages.map((stage, idx) => {
+                const isCompleted = idx < currentStageIndex;
+                const isCurrent = idx === currentStageIndex;
+                return (
+                  <div
+                    key={stage}
+                    className={`flex items-center gap-2.5 text-xs transition-opacity ${
+                      isCompleted
+                        ? 'text-emerald-400 opacity-90'
+                        : isCurrent
+                        ? 'text-white font-semibold opacity-100'
+                        : 'text-slate-500 opacity-50'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : isCurrent ? (
+                      <Loader2 className="w-4 h-4 text-sky-400 animate-spin shrink-0" />
+                    ) : (
+                      <span className="w-4 h-4 rounded-full border border-slate-700 shrink-0 inline-block" />
+                    )}
+                    <span>{stage}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleCancelRequest}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cancel Request</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Active Model Provenance, Architecture Summary & Session History */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="flex flex-wrap items-center gap-2">
+              {activeModel.generationSource === 'ai-live' ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  AI Live 3D Synthesis
+                </span>
+              ) : activeModel.generationSource === 'procedural-synthesizer' ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200">
+                  <Cpu className="w-3.5 h-3.5 text-fuchsia-600" />
+                  Custom 3D Scientific Synthesizer
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200">
+                  <Layers className="w-3.5 h-3.5 text-sky-600" />
+                  Verified Laboratory Preset ({lastSelectionOutcome === 'semantic-preset' ? 'Semantic Match' : 'Exact Match'})
+                </span>
+              )}
+
+              {activeModel.subjectDomain && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                  {activeModel.subjectDomain}
+                </span>
+              )}
+
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                <Layers className="w-3 h-3 text-slate-400" />
+                {activeModel.parts?.length || 0} Interactive 3D Parts
+              </span>
+
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                <Sliders className="w-3 h-3 text-slate-400" />
+                {Object.keys(activeModel.parameters || {}).length} Live Controls
+              </span>
+            </div>
+
+            {generatedHistory.length > 1 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+                <span className="inline-flex items-center gap-1 text-slate-400 font-medium shrink-0">
+                  <History className="w-3.5 h-3.5" />
+                  Session Models:
+                </span>
+                {generatedHistory.map((item) => {
+                  const isCurrent = item.id === activeModel.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => applyModelToViewer(item)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 border ${
+                        isCurrent
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {item.title}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Rendered 3D Model with Inspector and Parameters */}
+          <Dynamic3DModelRenderer
+            modelSpec={activeModel}
+            parameters={parameters}
+            conditions={conditions}
+            onUpdateParameter={(id, val) => setParameters((prev) => ({ ...prev, [id]: val }))}
+            onUpdateCondition={(id, val) => setConditions((prev) => ({ ...prev, [id]: val }))}
+            onTryIt={() => {
+              const el = document.getElementById('ai-model-parameters-deck');
+              if (el) {
+                el.classList.add('ring-2', 'ring-sky-500');
+                setTimeout(() => el.classList.remove('ring-2', 'ring-sky-500'), 1500);
+              }
+            }}
+            showLabels={showLabels}
+            onToggleLabels={setShowLabels}
+          />
+        </>
+      )}
     </div>
   );
 };
-

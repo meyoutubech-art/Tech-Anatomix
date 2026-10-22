@@ -1162,16 +1162,24 @@ export function matchOfflinePreset(query: string): {
     return { matched: true, spec: CURATED_AI_MODELS.inclinedPlane, presetTitle: 'Inclined Plane & Friction Dynamics', matchType: 'concept' };
   }
   // Hydraulic Lift
-  if (combined.includes('hydraulic') || combined.includes('pascal') || combined.includes('piston')) {
+  if (
+    (combined.includes('hydraulic lift') ||
+      combined.includes('hydraulic jack') ||
+      (combined.includes('hydraulic') && combined.includes('lift')) ||
+      combined.includes('pascal')) &&
+    !combined.includes('press') &&
+    !combined.includes('brake') &&
+    !combined.includes('braking')
+  ) {
     return { matched: true, spec: CURATED_AI_MODELS.hydraulicLift, presetTitle: "Hydraulic Lift & Pascal's Principle", matchType: 'concept' };
   }
   // Newton's Cradle
-  if (combined.includes('newton') && combined.includes('cradle') || combined.includes('cradle') || combined.includes('momentum collision')) {
+  if ((combined.includes('newton') && combined.includes('cradle')) || combined.includes('cradle') || combined.includes('momentum collision')) {
     return { matched: true, spec: CURATED_AI_MODELS.newtonsCradle, presetTitle: "Newton's Cradle & Momentum Conservation", matchType: 'concept' };
   }
   // Reflection & Refraction
   if (combined.includes('reflection') || combined.includes('refraction') || combined.includes('snell') || combined.includes('light ray')) {
-    return { matched: true, spec: CURATED_AI_MODELS.reflectionRefraction, presetTitle: 'Reflection & Refraction (Snell\'s Law)', matchType: 'concept' };
+    return { matched: true, spec: CURATED_AI_MODELS.reflectionRefraction, presetTitle: "Reflection & Refraction (Snell's Law)", matchType: 'concept' };
   }
   // Prism Dispersion
   if (combined.includes('prism') || combined.includes('dispersion') || combined.includes('rainbow') || combined.includes('spectrum')) {
@@ -1186,42 +1194,46 @@ export function matchOfflinePreset(query: string): {
     return { matched: true, spec: CURATED_AI_MODELS.heart, presetTitle: 'Human Heart 3D Visualizer', matchType: 'concept' };
   }
   // Biology: DNA
-  if (combined.includes('dna') || combined.includes('double helix') || combined.includes('nucleotide') || combined.includes('base pair')) {
+  if (
+    (combined.includes('dna') || combined.includes('double helix') || combined.includes('nucleotide') || combined.includes('base pair')) &&
+    !combined.includes('replication') &&
+    !combined.includes('transcription')
+  ) {
     return { matched: true, spec: CURATED_AI_MODELS.dna, presetTitle: 'DNA Double Helix Structure', matchType: 'concept' };
   }
   // Biology: Cell
-  if (combined.includes('cell') || combined.includes('mitochondria') || combined.includes('organelle') || combined.includes('eukaryot')) {
+  if (
+    (combined.includes('eukaryotic cell') || combined.includes('animal cell') || combined.includes('cell organelle')) &&
+    !combined.includes('fuel cell') &&
+    !combined.includes('solar cell')
+  ) {
     return { matched: true, spec: CURATED_AI_MODELS.cell, presetTitle: 'Eukaryotic Animal Cell', matchType: 'concept' };
   }
   // Biology: Respiratory
   if (combined.includes('lung') || combined.includes('respirat') || combined.includes('trachea') || combined.includes('alveol')) {
     return { matched: true, spec: CURATED_AI_MODELS.respiratory, presetTitle: 'Human Respiratory System', matchType: 'concept' };
   }
-  // Biology: Nephron
-  if (combined.includes('nephron') || combined.includes('kidney') || combined.includes('glomerulus') || combined.includes('renal')) {
-    return { matched: true, spec: CURATED_AI_MODELS.nephron, presetTitle: 'Human Kidney Nephron', matchType: 'concept' };
-  }
   // Biology: Ear
-  if (combined.includes('ear') || combined.includes('cochlea') || combined.includes('auditory') || combined.includes('tympanic')) {
+  if (/\bears?\b/i.test(combined) || combined.includes('cochlea') || combined.includes('auditory') || combined.includes('tympanic')) {
     return { matched: true, spec: CURATED_AI_MODELS.ear, presetTitle: 'Human Ear Auditory Apparatus', matchType: 'concept' };
   }
-  // Microscope
-  if (combined.includes('microscope') || combined.includes('optical microscope') || combined.includes('compound microscope')) {
-    return { matched: true, spec: CURATED_AI_MODELS.microscope, presetTitle: 'Compound Optical Microscope', matchType: 'concept' };
-  }
 
-  // 3. Substring check across all preset titles and descriptions
-  for (const p of presets) {
-    const pTitle = p.title.toLowerCase();
-    const pDesc = (p.spec.description || '').toLowerCase();
-    const pConcept = (p.spec.concept || '').toLowerCase();
-    if (combined.includes(pTitle) || pTitle.includes(rawLower) || combined.includes(pConcept)) {
-      return {
-        matched: true,
-        spec: p.spec,
-        presetTitle: p.title,
-        matchType: 'fuzzy',
-      };
+  // 3. Substring check across all preset titles and concepts (only for multi-word queries)
+  if (rawLower.length >= 8 && rawLower.includes(' ')) {
+    for (const p of presets) {
+      const pTitle = p.title.toLowerCase();
+      const pConcept = (p.spec.concept || '').toLowerCase();
+      if (
+        (pTitle.length >= 6 && combined.includes(pTitle)) ||
+        (pConcept.length >= 8 && combined.includes(pConcept))
+      ) {
+        return {
+          matched: true,
+          spec: p.spec,
+          presetTitle: p.title,
+          matchType: 'fuzzy',
+        };
+      }
     }
   }
 

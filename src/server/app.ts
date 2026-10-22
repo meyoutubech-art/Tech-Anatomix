@@ -36,8 +36,16 @@ app.post(['/api/ai/generate-model', '/ai/generate-model'], async (req, res) => {
     return res.status(400).json({ error: 'Prompt is required' });
   }
   try {
-    const result = await generate3DModel(prompt, { forceFresh: Boolean(forceFresh), requestId });
-    const status = result.success ? 200 : (result.code === 'AUTH_MISSING' ? 401 : 503);
+    const result: any = await generate3DModel(prompt, { forceFresh: Boolean(forceFresh), requestId });
+    const status = result.success
+      ? 200
+      : result.code === 'AMBIGUOUS_PROMPT'
+      ? 200
+      : result.code === 'INVALID_PROMPT'
+      ? 400
+      : result.code === 'AUTH_MISSING'
+      ? 401
+      : 503;
     return res.status(status).json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });

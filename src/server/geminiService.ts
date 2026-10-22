@@ -12,6 +12,10 @@ import {
 import { performScientificWebResearch } from './scientificResearchService';
 import { validateResearchGroundedModel } from '../utils/modelValidator';
 import { ResearchRecord } from '../types/aiModel';
+import {
+  analyzePromptForPresetMatch,
+  verifyPresetCompatibility,
+} from '../utils/intelligentModelMatcher';
 
 let ai: GoogleGenAI | null = null;
 let currentKey = '';
@@ -1382,9 +1386,103 @@ export async function generate3DModel(
   options?: { forceFresh?: boolean; requestId?: string }
 ) {
   const reqId = options?.requestId || `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  const normKey = normalizePrompt(userQuery);
+  const trimmedQuery = (userQuery || '').trim();
+  if (!trimmedQuery) {
+    return {
+      success: false,
+      code: 'INVALID_PROMPT',
+      error: 'Please enter a scientific or engineering concept to generate or load a 3D model.',
+      requestId: reqId,
+    };
+  }
 
-  // 1. Check server-side cache for instant deterministic repeated prompts (unless forcing fresh synthesis)
+  const normKey = normalizePrompt(trimmedQuery);
+
+  // 1. Intelligent Prompt-to-Preset Matcher (when not forcing custom synthesis)
+  if (!options?.forceFresh) {
+    const decision = analyzePromptForPresetMatch(trimmedQuery);
+
+    if (decision.outcome === 'invalid-request') {
+      return {
+        success: false,
+        code: 'INVALID_PROMPT',
+        error: decision.reason,
+        requestId: reqId,
+      };
+    }
+
+    if (decision.outcome === 'ambiguous') {
+      return {
+        success: false,
+        code: 'AMBIGUOUS_PROMPT',
+        error: decision.clarificationQuestion || decision.reason,
+        clarificationQuestion: decision.clarificationQuestion,
+        candidateOptions: (decision.candidateOptions || []).map((c) => ({
+          id: c.id,
+          title: c.title,
+          category: c.category,
+          concept: c.concept,
+          confidence: c.confidence,
+        })),
+        requestId: reqId,
+      };
+    }
+
+    if (
+      (decision.outcome === 'exact-preset' || decision.outcome === 'semantic-preset') &&
+      decision.selectedPreset
+    ) {
+      // Reuse the real existing preset definition and assets directly without custom generation
+      const presetSpec = {
+        ...decision.selectedPreset,
+        prompt: trimmedQuery,
+        generationSource: 'curated-preset' as const,
+      };
+      modelCache.set(normKey, { spec: presetSpec, timestamp: Date.now() });
+      return {
+        success: true,
+        model: presetSpec,
+        isFallback: false,
+        activeModel: 'verified-scientific-template',
+        matchDecision: {
+          outcome: decision.outcome,
+          selectedModelId: decision.selectedModelId,
+          confidence: decision.confidence,
+          reason: decision.reason,
+        },
+        requestId: reqId,
+      };
+    }
+
+    // Secondary check against verified scientific model rules + compatibility check
+    const verifiedMatch = matchVerifiedScientificModel(trimmedQuery);
+    if (verifiedMatch) {
+      const compat = verifyPresetCompatibility(trimmedQuery, verifiedMatch);
+      if (compat.compatible) {
+        const presetSpec = {
+          ...verifiedMatch,
+          prompt: trimmedQuery,
+          generationSource: 'curated-preset' as const,
+        };
+        modelCache.set(normKey, { spec: presetSpec, timestamp: Date.now() });
+        return {
+          success: true,
+          model: presetSpec,
+          isFallback: false,
+          activeModel: 'verified-scientific-template',
+          matchDecision: {
+            outcome: 'semantic-preset',
+            selectedModelId: verifiedMatch.id,
+            confidence: 0.85,
+            reason: compat.reason,
+          },
+          requestId: reqId,
+        };
+      }
+    }
+  }
+
+  // 2. Check server-side cache for repeated custom model prompts
   if (!options?.forceFresh && modelCache.has(normKey)) {
     const cached = modelCache.get(normKey)!;
     if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -1392,7 +1490,7 @@ export async function generate3DModel(
         success: true,
         model: {
           ...cached.spec,
-          prompt: userQuery,
+          prompt: trimmedQuery,
         },
         isFallback: false,
         activeModel: 'cache-hit',
@@ -1403,26 +1501,25 @@ export async function generate3DModel(
 
   const aiClient = getAiClient();
 
-  // 2. PHASE 2 — REAL WEB RESEARCH
-  // Perform live scientific web research (Wikipedia MediaWiki API + Gemini Search Grounding)
-  // before building the specification or 3D model.
-  const researchRecord = await performScientificWebResearch(userQuery, aiClient);
+  // 3. CUSTOM GENERATION PIPELINE — REAL WEB RESEARCH
+  const researchRecord = await performScientificWebResearch(trimmedQuery, aiClient);
 
-  // 3. Specialized Procedural Scientific Concept Blueprints (Double Pendulum, Atwood Machine, Hydraulic Press, Nephron, Jet Engine, Volcano, Robotic Arm, Wind Turbine, Hydraulic Brake, Solenoid, CRT, Cyclotron, Synapse, Replication Fork, ATP Synthase, Sarcomere, VSEPR Molecules, etc.)
-  if (!options?.forceFresh && isSpecializedProceduralConcept(userQuery)) {
-    const specializedSpec = synthesizeProceduralScientificModel(userQuery, researchRecord);
+  // 4. Specialized Procedural Scientific Concept Blueprints (Double Pendulum, Atwood Machine, Hydraulic Press, Nephron, Jet Engine, Volcano, Robotic Arm, Wind Turbine, Hydraulic Brake, Solenoid, CRT, Cyclotron, Synapse, Replication Fork, ATP Synthase, Sarcomere, VSEPR Molecules, etc.)
+  if (isSpecializedProceduralConcept(trimmedQuery)) {
+    const specializedSpec = synthesizeProceduralScientificModel(trimmedQuery, researchRecord);
     const validationReport = validateResearchGroundedModel(
-      userQuery,
+      trimmedQuery,
       specializedSpec,
       researchRecord
     );
     const spec = {
       ...specializedSpec,
-      prompt: userQuery,
+      prompt: trimmedQuery,
+      generationSource: 'procedural-synthesizer' as const,
       researchRecord,
       validationReport,
       scientificSpecification: buildScientificConceptSpecification(
-        userQuery,
+        trimmedQuery,
         specializedSpec,
         researchRecord
       ),
@@ -1433,58 +1530,32 @@ export async function generate3DModel(
       model: spec,
       isFallback: false,
       activeModel: 'verified-scientific-blueprint',
+      matchDecision: {
+        outcome: 'custom-generation',
+        selectedModelId: spec.id,
+        confidence: 0.95,
+        reason: `Generated custom 3D model for "${trimmedQuery}".`,
+      },
       requestId: reqId,
     };
   }
 
-  // 4. Verified Model Template Router (Only when not forcing a custom fresh synthesis)
-  if (!options?.forceFresh) {
-    const verifiedMatch = matchVerifiedScientificModel(userQuery);
-    if (verifiedMatch) {
-      const validationReport = validateResearchGroundedModel(
-        userQuery,
-        verifiedMatch,
-        researchRecord
-      );
-      const spec = {
-        ...verifiedMatch,
-        prompt: userQuery,
-        generationSource: 'curated-preset' as const,
-        researchRecord,
-        validationReport,
-        scientificSpecification: buildScientificConceptSpecification(
-          userQuery,
-          verifiedMatch,
-          researchRecord
-        ),
-      };
-      modelCache.set(normKey, { spec, timestamp: Date.now() });
-      return {
-        success: true,
-        model: spec,
-        isFallback: false,
-        activeModel: 'verified-scientific-template',
-        requestId: reqId,
-      };
-    }
-  }
-
   if (!aiClient) {
     // Synthesize custom multi-part 3D model using the Research-Driven Procedural Scientific 3D Synthesizer
-    const synthesized = findCuratedFallback(userQuery, options?.forceFresh, researchRecord);
+    const synthesized = findCuratedFallback(trimmedQuery, true, researchRecord);
     const validationReport = validateResearchGroundedModel(
-      userQuery,
+      trimmedQuery,
       synthesized,
       researchRecord
     );
     const spec = {
       ...synthesized,
-      prompt: userQuery,
+      prompt: trimmedQuery,
       generationSource: synthesized.generationSource || ('procedural-synthesizer' as const),
       researchRecord,
       validationReport,
       scientificSpecification: buildScientificConceptSpecification(
-        userQuery,
+        trimmedQuery,
         synthesized,
         researchRecord
       ),
@@ -1495,6 +1566,12 @@ export async function generate3DModel(
       model: spec,
       isFallback: false,
       activeModel: 'procedural-scientific-synthesizer',
+      matchDecision: {
+        outcome: 'custom-generation',
+        selectedModelId: spec.id,
+        confidence: 0.9,
+        reason: `Synthesized custom 3D model for "${trimmedQuery}".`,
+      },
       requestId: reqId,
     };
   }
