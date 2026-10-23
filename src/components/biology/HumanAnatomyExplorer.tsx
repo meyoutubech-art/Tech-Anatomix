@@ -732,6 +732,11 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const modelGroupRef = useRef<THREE.Group | null>(null);
   const guideGroupRef = useRef<THREE.Group | null>(null);
+  const baseTubeRef = useRef<THREE.Mesh | null>(null);
+  const startRingRef = useRef<THREE.Mesh | null>(null);
+  const navelDotRef = useRef<THREE.Mesh | null>(null);
+  const endRingRef = useRef<THREE.Mesh | null>(null);
+  const cameraFollowCutRef = useRef<boolean>(false);
   const probeMeshRef = useRef<THREE.Group | null>(null);
   const progressTubeRef = useRef<THREE.Mesh | null>(null);
   const incisionHemoRef = useRef<THREE.Mesh | null>(null);
@@ -832,6 +837,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   // Reset Camera View to frame the anterior front torso
   const handleResetCamera = () => {
     if (!controlsRef.current || !modelGroupRef.current || !cameraRef.current) return;
+    cameraFollowCutRef.current = false;
     const box = new THREE.Box3().setFromObject(modelGroupRef.current);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 2;
@@ -873,6 +879,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   // Unified Progress Update Handler
   const handleProgressUpdate = (newVal: number) => {
     const clamped = Math.max(0, Math.min(1, newVal));
+    cameraFollowCutRef.current = true;
     setProgress(clamped);
 
     // Audio feedback
@@ -953,6 +960,37 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
 
     // 0. Part/recess the underlying human skin mesh along the active incision path
     updateSkinIncisionRecess(progress, calibration, dissectionState);
+
+    // 0b. Progressively hide the blue/cyan guide line and waypoint markers along the already-cut path
+    if (baseTubeRef.current) {
+      if (progress >= 0.98) {
+        baseTubeRef.current.visible = false;
+      } else {
+        baseTubeRef.current.visible = true;
+        const nextBaseGeo = new THREE.TubeGeometry(curve, 64, 0.0035, 8, false);
+        const cutSegments = Math.min(64, Math.ceil(progress * 64));
+        const indicesPerSegment = 8 * 6; // radialSegments (8) * 6 indices per quad
+        nextBaseGeo.setDrawRange(
+          cutSegments * indicesPerSegment,
+          (64 - cutSegments) * indicesPerSegment
+        );
+        const prevBaseGeo = baseTubeRef.current.geometry;
+        baseTubeRef.current.geometry = nextBaseGeo;
+        if (prevBaseGeo) prevBaseGeo.dispose();
+      }
+    }
+    if (startRingRef.current) {
+      startRingRef.current.position.copy(curve.getPointAt(0));
+      startRingRef.current.visible = progress <= 0.02;
+    }
+    if (navelDotRef.current) {
+      navelDotRef.current.position.copy(curve.getPointAt(0.5));
+      navelDotRef.current.visible = progress < 0.48;
+    }
+    if (endRingRef.current) {
+      endRingRef.current.position.copy(curve.getPointAt(1));
+      endRingRef.current.visible = progress < 0.96;
+    }
 
     // 1. Update Probe Position in 3D
     if (probeMeshRef.current) {
@@ -1134,8 +1172,8 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     // Build Initial Guide Geometry
     const curve = buildGuideCurve(calibration);
 
-    // A. Base Guide Tube (Subtle cyan line)
-    const baseTubeGeo = new THREE.TubeGeometry(curve, 32, 0.0035, 8, false);
+    // A. Base Guide Tube (Subtle cyan line that hides progressively as cut advances)
+    const baseTubeGeo = new THREE.TubeGeometry(curve, 64, 0.0035, 8, false);
     const baseTubeMat = new THREE.MeshStandardMaterial({
       color: 0x06b6d4,
       emissive: 0x0891b2,
@@ -1145,6 +1183,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     });
     const baseTubeMesh = new THREE.Mesh(baseTubeGeo, baseTubeMat);
     guideGroup.add(baseTubeMesh);
+    baseTubeRef.current = baseTubeMesh;
 
     // B1. Zone 1 Red Visceral Organ: Thoracic Heart (emerges slowly where upper/mid chest is cut)
     const thoracicHeartGroup = createThoracicHeartOrgan();
@@ -1285,6 +1324,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const startRing = new THREE.Mesh(startRingGeo, startRingMat);
     startRing.position.copy(startPt);
     guideGroup.add(startRing);
+    startRingRef.current = startRing;
 
     // Navel Landmark Dot (Umbilicus)
     const navelDotGeo = new THREE.SphereGeometry(0.005, 12, 12);
@@ -1296,6 +1336,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const navelDot = new THREE.Mesh(navelDotGeo, navelDotMat);
     navelDot.position.copy(midPt);
     guideGroup.add(navelDot);
+    navelDotRef.current = navelDot;
 
     // End Waypoint Marker (Suprapubic)
     const endRingGeo = new THREE.TorusGeometry(0.012, 0.002, 8, 24);
@@ -1307,6 +1348,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const endRing = new THREE.Mesh(endRingGeo, endRingMat);
     endRing.position.copy(endPt);
     guideGroup.add(endRing);
+    endRingRef.current = endRing;
 
     // D. 3D Virtual Dissection Tool (Abstract educational optical probe cursor)
     const probeGroup = new THREE.Group();
@@ -1491,6 +1533,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
             // If starting near the top (<= 0.35) or near current progress, activate drag
             if (calculatedProgress <= Math.max(0.35, lastProgressRef.current + 0.2)) {
               isDraggingGuideRef.current = true;
+              cameraFollowCutRef.current = true;
               controls.enabled = false; // Disable orbit controls to prevent camera jerk
               handleProgressUpdate(calculatedProgress);
               return true;
@@ -1535,13 +1578,58 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Animation Loop: handles slow vascular blood spreading & slow emergence of red internal organs where cut
+    // Animation Loop: handles slow vascular blood spreading, slow organ emergence, and camera tracking along cut
     let lastFrameTime = performance.now();
     const animate = () => {
       animId = requestAnimationFrame(animate);
       const now = performance.now();
       const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) * 0.001));
       lastFrameTime = now;
+
+      const activeProg = lastProgressRef.current;
+      const activeCurve = buildGuideCurve(calibrationRef.current);
+
+      // Pause automatic camera tracking if the user manually orbits/pans the 3D scene outside of cutting
+      if (controls.isPointerDown && !isDraggingGuideRef.current && !isDraggingVerticalSliderRef.current) {
+        cameraFollowCutRef.current = false;
+      }
+
+      // Moderate camera zoom to starting point when dissection starts & smooth vertical tracking along the cut
+      if (cameraFollowCutRef.current) {
+        const baseRadius = controls.initialRadius || 2.35;
+        const posX = positionGroupRef.current?.position.x ?? 0;
+        const posY = positionGroupRef.current?.position.y ?? 0;
+
+        if (activeProg > 0.002 || isDraggingGuideRef.current || isDraggingVerticalSliderRef.current) {
+          // Moderate zoom (~66% of full-body distance: not too close, not too far)
+          const dissectionZoomRadius = Math.max(1.32, baseRadius * 0.66);
+          const cutU = Math.max(0, Math.min(1, activeProg));
+          const cutPt = activeCurve.getPointAt(cutU);
+
+          // Camera target starts at upper chest starting point and moves down smoothly with the cut
+          const desiredTargetX = posX + cutPt.x;
+          const desiredTargetY = posY + cutPt.y * 0.78;
+          const desiredTargetZ = 0.04;
+
+          const camLerp = Math.min(1.0, dt * 5.2);
+          controls.target.x += (desiredTargetX - controls.target.x) * camLerp;
+          controls.target.y += (desiredTargetY - controls.target.y) * camLerp;
+          controls.target.z += (desiredTargetZ - controls.target.z) * camLerp;
+          controls.targetRadius += (dissectionZoomRadius - controls.targetRadius) * camLerp;
+          controls.targetTheta += (0 - controls.targetTheta) * camLerp;
+          controls.targetPhi += (Math.PI / 2.02 - controls.targetPhi) * camLerp;
+        } else {
+          // Smoothly restore to initial full-body framing when reset to 0%
+          const camLerp = Math.min(1.0, dt * 5.5);
+          controls.target.lerp(controls.initialTarget, camLerp);
+          controls.targetRadius += (baseRadius - controls.targetRadius) * camLerp;
+          controls.targetTheta += (controls.initialTheta - controls.targetTheta) * camLerp;
+          controls.targetPhi += (controls.initialPhi - controls.targetPhi) * camLerp;
+          if (Math.abs(controls.radius - baseRadius) < 0.015 && controls.target.distanceTo(controls.initialTarget) < 0.015) {
+            cameraFollowCutRef.current = false;
+          }
+        }
+      }
 
       controls.update();
 
@@ -1556,7 +1644,6 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         tipLight.intensity = 0.5 + Math.sin(time) * 0.2;
       }
 
-      const activeProg = lastProgressRef.current;
       if (activeProg > 0.01 && dissectionStateRef.current !== 'IDLE') {
         const maxStation = Math.floor(activeProg * 64);
         let needsGeoRebuild = false;
@@ -1575,8 +1662,6 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
             needsGeoRebuild = true;
           }
         }
-
-        const activeCurve = buildGuideCurve(calibrationRef.current);
 
         if (needsGeoRebuild && progressTubeRef.current && incisionHemoRef.current) {
           const { furrowGeo, hemoGeo } = buildRefinedIncisionGeometries(

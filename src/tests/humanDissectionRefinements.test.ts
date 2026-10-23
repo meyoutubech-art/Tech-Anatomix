@@ -94,5 +94,16 @@ test('TECH-ANATOMIX — Human Body Dissection Interaction Fixes (Fix 1, Fix 2, F
     assert.ok(code.includes('function createIntestinalCoilsOrgan'), 'Must build vascular red Intestinal Coils organ for lower abdominal incision');
     assert.ok(code.includes('organEmergenceRef'), 'Must animate slow time-progressive emergence of red organs where cut');
   });
+
+  // ---------------------------------------------------------------------------
+  // FIX 5: Progressive Blue Guide Line Hiding & Camera Zoom / Follow Along Cut
+  // ---------------------------------------------------------------------------
+  await t.test('Fix 5: Blue guide line progressively hides as cut advances and camera moderately zooms and follows the cut downward', () => {
+    assert.ok(code.includes('baseTubeRef'), 'Must track base guide tube ref to hide cut segments');
+    assert.ok(code.includes('nextBaseGeo.setDrawRange'), 'Must use setDrawRange to progressively hide the already-cut portion of the blue guide line');
+    assert.ok(code.includes('cameraFollowCutRef'), 'Must track camera follow state during active dissection');
+    assert.ok(code.includes('dissectionZoomRadius'), 'Must moderately zoom in toward starting point when dissection starts');
+    assert.ok(code.includes('desiredTargetY = posY + cutPt.y * 0.78'), 'Must smoothly pan camera vertically along the active cut point');
+  });
 });
 
