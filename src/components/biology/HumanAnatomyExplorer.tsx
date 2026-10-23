@@ -187,10 +187,171 @@ export interface GuideCalibration {
 }
 
 /**
- * Create anatomically accurate 3D Stomach (Gaster) model situated in the
- * epigastric and left hypochondriac region.
- * Its local origin (0, 0, 0) is placed at its anatomical central core so that
- * scale operations naturally expand and bloom smoothly from the center.
+ * Generates a soft-feathered procedural 2D CanvasTexture for realistic wet vascular fluid
+ * seepage along the incised skin margins, eliminating hard polygon edges.
+ */
+function createVascularDiffusionTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const imgData = ctx.createImageData(canvas.width, canvas.height);
+  const data = imgData.data;
+
+  for (let y = 0; y < canvas.height; y++) {
+    const v = y / (canvas.height - 1);
+    // Organic multi-frequency capillary wave along incision length
+    const wave =
+      0.72 +
+      0.14 * Math.sin(v * Math.PI * 14.0) +
+      0.09 * Math.cos(v * Math.PI * 31.0) +
+      0.05 * Math.sin(v * Math.PI * 53.0);
+
+    for (let x = 0; x < canvas.width; x++) {
+      // u = 0 is inner incised dermal lip; u = 1 is outer spreading capillary margin on skin
+      const u = x / (canvas.width - 1);
+      const idx = (y * canvas.width + x) * 4;
+
+      const normU = u / Math.max(0.25, wave);
+      if (normU >= 1.0) {
+        data[idx] = 110;
+        data[idx + 1] = 8;
+        data[idx + 2] = 16;
+        data[idx + 3] = 0;
+      } else {
+        // Rich dark venous core at cut lip transitioning to wet arterial crimson and feathering to 0 alpha
+        const coreMix = Math.min(1, normU / 0.42);
+        const r = Math.round(78 + 118 * coreMix - 35 * Math.pow(normU, 2));
+        const g = Math.round(5 + 14 * (1 - normU));
+        const b = Math.round(12 + 18 * (1 - normU));
+        const alpha = Math.pow(1 - Math.pow(normU, 1.45), 1.85);
+
+        data[idx] = Math.max(0, Math.min(255, r));
+        data[idx + 1] = Math.max(0, Math.min(255, g));
+        data[idx + 2] = Math.max(0, Math.min(255, b));
+        data[idx + 3] = Math.round(alpha * 248);
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * Zone 1 Organ (Upper/Mid Sternal Cut): Beating Crimson Heart Myocardium & Coronary Vessels (Cor)
+ */
+function createThoracicHeartOrgan(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'thoracic_heart_organ';
+
+  const myocardiumMat = new THREE.MeshStandardMaterial({
+    color: 0xb91c1c,
+    emissive: 0x450a0a,
+    emissiveIntensity: 0.35,
+    roughness: 0.22,
+    metalness: 0.08,
+  });
+
+  // Left & Right Ventricular Myocardial Cone centered at origin
+  const ventricleGeo = new THREE.SphereGeometry(0.0115, 24, 24);
+  ventricleGeo.scale(0.86, 1.35, 0.76);
+  const ventricleMesh = new THREE.Mesh(ventricleGeo, myocardiumMat);
+  ventricleMesh.rotation.z = 0.22;
+  group.add(ventricleMesh);
+
+  // Superior Aortic / Pulmonary Root Arch
+  const aortaCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.0, 0.008, 0.002),
+    new THREE.Vector3(0.002, 0.016, 0.003),
+    new THREE.Vector3(-0.002, 0.021, 0.001),
+  ]);
+  const aortaGeo = new THREE.TubeGeometry(aortaCurve, 14, 0.0036, 12, false);
+  const aortaMat = new THREE.MeshStandardMaterial({
+    color: 0xdc2626,
+    emissive: 0x7f1d1d,
+    emissiveIntensity: 0.4,
+    roughness: 0.24,
+  });
+  group.add(new THREE.Mesh(aortaGeo, aortaMat));
+
+  // Anterior Interventricular Coronary Artery (LAD)
+  const ladCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.001, 0.010, 0.008),
+    new THREE.Vector3(-0.002, 0.001, 0.009),
+    new THREE.Vector3(-0.004, -0.009, 0.007),
+  ]);
+  const ladGeo = new THREE.TubeGeometry(ladCurve, 12, 0.0009, 8, false);
+  const ladMat = new THREE.MeshStandardMaterial({
+    color: 0xef4444,
+    emissive: 0x991b1b,
+    emissiveIntensity: 0.55,
+    roughness: 0.18,
+  });
+  group.add(new THREE.Mesh(ladGeo, ladMat));
+
+  return group;
+}
+
+/**
+ * Zone 2 Organ (Lower Sternum / Subxiphoid Cut): Glossy Red-Maroon Hepatic Liver Lobes (Hepar)
+ */
+function createHepaticLiverOrgan(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'hepatic_liver_organ';
+
+  const liverMat = new THREE.MeshStandardMaterial({
+    color: 0x881337,
+    emissive: 0x3b0414,
+    emissiveIntensity: 0.32,
+    roughness: 0.20,
+    metalness: 0.10,
+  });
+
+  // Left & Right Medial Hepatic Lobes visible through upper abdominal midline
+  const rightLobeGeo = new THREE.SphereGeometry(0.011, 24, 24);
+  rightLobeGeo.scale(0.85, 1.25, 0.72);
+  const rightLobe = new THREE.Mesh(rightLobeGeo, liverMat);
+  rightLobe.position.set(0.003, 0.002, 0);
+  rightLobe.rotation.z = -0.15;
+  group.add(rightLobe);
+
+  const leftLobeGeo = new THREE.SphereGeometry(0.0095, 24, 24);
+  leftLobeGeo.scale(0.82, 1.15, 0.68);
+  const leftLobe = new THREE.Mesh(leftLobeGeo, liverMat);
+  leftLobe.position.set(-0.004, 0.004, 0.001);
+  leftLobe.rotation.z = 0.20;
+  group.add(leftLobe);
+
+  // Hepatic Vascular Branching Sinusoid
+  const vesselCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.005, 0.009, 0.007),
+    new THREE.Vector3(0.000, 0.000, 0.0085),
+    new THREE.Vector3(-0.005, -0.008, 0.006),
+  ]);
+  const vesselGeo = new THREE.TubeGeometry(vesselCurve, 12, 0.0009, 8, false);
+  const vesselMat = new THREE.MeshStandardMaterial({
+    color: 0xdc2626,
+    emissive: 0x7f1d1d,
+    emissiveIntensity: 0.5,
+    roughness: 0.18,
+  });
+  group.add(new THREE.Mesh(vesselGeo, vesselMat));
+
+  return group;
+}
+
+/**
+ * Zone 3 Organ (Epigastric Cut): Create anatomically accurate 3D Stomach (Gaster) model
+ * situated in the epigastric region. Its local origin (0, 0, 0) is placed at its
+ * anatomical central core so that scale operations naturally expand and bloom smoothly from the center.
  */
 function createAnatomicalStomach(): THREE.Group {
   const group = new THREE.Group();
@@ -203,8 +364,10 @@ function createAnatomicalStomach(): THREE.Group {
 
   // Visceral gastric serosa material (deep crimson base with warm anatomical tones and wet specular luster)
   const stomachMat = new THREE.MeshStandardMaterial({
-    color: 0x991b1b,
-    roughness: 0.28,
+    color: 0xb91c1c,
+    emissive: 0x450a0a,
+    emissiveIntensity: 0.30,
+    roughness: 0.24,
     metalness: 0.10,
   });
 
@@ -275,15 +438,64 @@ function createAnatomicalStomach(): THREE.Group {
 }
 
 /**
+ * Zone 4 Organ (Umbilical / Hypogastric Cut): Coiled Red Vascular Small Intestine Loops (Intestinum tenue)
+ */
+function createIntestinalCoilsOrgan(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'intestinal_coils_organ';
+
+  const serosaMat = new THREE.MeshStandardMaterial({
+    color: 0xc81e1e,
+    emissive: 0x450a0a,
+    emissiveIntensity: 0.32,
+    roughness: 0.24,
+    metalness: 0.08,
+  });
+
+  const coilCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.005, 0.032, 0.001),
+    new THREE.Vector3(0.006, 0.022, 0.004),
+    new THREE.Vector3(-0.006, 0.011, 0.005),
+    new THREE.Vector3(0.006, 0.000, 0.005),
+    new THREE.Vector3(-0.005, -0.012, 0.004),
+    new THREE.Vector3(0.005, -0.023, 0.003),
+    new THREE.Vector3(-0.003, -0.033, 0.001),
+  ]);
+  const coilGeo = new THREE.TubeGeometry(coilCurve, 40, 0.0048, 14, false);
+  const coilMesh = new THREE.Mesh(coilGeo, serosaMat);
+  group.add(coilMesh);
+
+  // Mesenteric Red Arterial Vasa Recta
+  const mesenteryCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.000, 0.028, 0.0055),
+    new THREE.Vector3(-0.002, 0.012, 0.0068),
+    new THREE.Vector3(0.002, -0.005, 0.0068),
+    new THREE.Vector3(-0.001, -0.022, 0.0052),
+  ]);
+  const mesenteryGeo = new THREE.TubeGeometry(mesenteryCurve, 24, 0.0011, 8, false);
+  const mesenteryMat = new THREE.MeshStandardMaterial({
+    color: 0xef4444,
+    emissive: 0x991b1b,
+    emissiveIntensity: 0.55,
+    roughness: 0.18,
+  });
+  group.add(new THREE.Mesh(mesenteryGeo, mesenteryMat));
+
+  return group;
+}
+
+/**
  * Builds refined surgical incision geometry with:
  * 1. Fusiform / lenticular surgical retraction profile from chest middle down to active scalpel tip
  * 2. Smooth rounded superior entry apex fillet (no needle-like pointedness or wide shovel edge)
  * 3. Multi-layered vertex-colored dermal walls & recessed dark visceral cavity bed
- * 4. Realistic, wet-sheen vascular crimson blood margins with organic capillary beading
+ * 4. Time-progressive slow vascular crimson fluid seepage (segmentSpread) with soft UVs & gravity trickle
  */
 function buildRefinedIncisionGeometries(
   curve: THREE.CatmullRomCurve3,
-  progress: number
+  progress: number,
+  segmentSpread?: Float32Array,
+  segmentRetract?: Float32Array
 ): { furrowGeo: THREE.BufferGeometry; hemoGeo: THREE.BufferGeometry } {
   const furrowGeo = new THREE.BufferGeometry();
   const hemoGeo = new THREE.BufferGeometry();
@@ -300,6 +512,7 @@ function buildRefinedIncisionGeometries(
   const furrowIndices: number[] = [];
 
   const hemoPositions: number[] = [];
+  const hemoUvs: number[] = [];
   const hemoIndices: number[] = [];
 
   const p0 = curve.getPointAt(0);
@@ -309,7 +522,8 @@ function buildRefinedIncisionGeometries(
 
   // Fix 3: Moderately wider upper aperture reference half-width (~26mm) shaped by fusiform retraction
   const wUpper = 0.026;
-  const wEntryApex = wUpper * 0.24; // ~6.2mm half-width at superior entry apex for natural rounded start
+  const topRetractLevel = segmentRetract ? Math.max(0.25, segmentRetract[0]) : 1.0;
+  const wEntryApex = wUpper * 0.22 * (0.45 + 0.55 * topRetractLevel);
 
   // Anatomical layer colors for vertex-shaded incision depth
   const colDermalLip = new THREE.Color(0x991b1b);   // incised vascular dermis lip
@@ -343,17 +557,27 @@ function buildRefinedIncisionGeometries(
   // Each segment has 5 vertices across: [leftOuter, leftMid, deepCenter, rightMid, rightOuter]
   for (let i = 0; i <= segmentCount; i++) {
     const u = i / segmentCount;
-    const pt = curve.getPointAt(u * progress);
-    const tangent = curve.getTangentAt(u * progress).normalize();
+    const absU = u * progress;
+    const stationIdx = Math.min(64, Math.floor(absU * 64));
+
+    // Time-driven slow tissue retraction and slow vascular seepage at this station
+    const rawRetract = segmentRetract ? segmentRetract[stationIdx] : 1.0;
+    const retractEase = 0.25 + 0.75 * (rawRetract * rawRetract * (3 - 2 * rawRetract));
+
+    const rawSpread = segmentSpread ? segmentSpread[stationIdx] : 1.0;
+    const spreadEase = rawSpread * rawSpread * (3 - 2 * rawSpread);
+
+    const pt = curve.getPointAt(absU);
+    const tangent = curve.getTangentAt(absU).normalize();
     const lateral = new THREE.Vector3().crossVectors(tangent, normal).normalize();
     if (lateral.x < 0) lateral.negate();
 
     // Smooth fusiform surgical retraction: widens from rounded superior entry apex into chest/epigastrium, then tapers to scalpel tip
     const topRetraction = 0.26 + 0.74 * Math.sin(Math.min(1, u / 0.22) * (Math.PI / 2));
-    const baseHalfWidth = (0.0042 + (wUpper * 0.72 - 0.0042) * Math.pow(1 - u, 1.25)) * topRetraction;
+    const baseHalfWidth = (0.0042 + (wUpper * 0.72 - 0.0042) * Math.pow(1 - u, 1.25)) * topRetraction * retractEase;
     // Smooth visceral window dilation around epigastric stomach region
-    const stomachFactor = Math.sin(Math.PI * Math.min(1, Math.max(0, (u * progress - 0.12) / 0.55)));
-    const visceralBulge = progress > 0.05 ? 0.0045 * stomachFactor * Math.sin(u * Math.PI) : 0;
+    const stomachFactor = Math.sin(Math.PI * Math.min(1, Math.max(0, (absU - 0.08) / 0.75)));
+    const visceralBulge = progress > 0.05 ? 0.0045 * stomachFactor * Math.sin(u * Math.PI) * retractEase : 0;
     const halfWidth = i === 0 ? wEntryApex : baseHalfWidth + visceralBulge;
 
     const midWidth = halfWidth * 0.58;
@@ -396,44 +620,73 @@ function buildRefinedIncisionGeometries(
       }
     }
 
-    // Fix 2: Realistic vascular crimson blood margins along active cut lips with organic capillary beading
-    const beadPulse = 1.0 + 0.35 * Math.sin(u * progress * 46.0) + 0.22 * Math.cos(u * progress * 88.0);
-    const hemoWidth = (0.0040 + 0.0025 * Math.sin(u * Math.PI)) * beadPulse;
-    const hLeftOuter = leftOuter.clone().sub(lateral.clone().multiplyScalar(hemoWidth));
-    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(0.0018));
-    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(0.0018));
-    const hRightOuter = rightOuter.clone().add(lateral.clone().multiplyScalar(hemoWidth));
+    // Fix 2: Slow, organic vascular crimson seepage along incised skin margins
+    // Starts as a fine line (1.5mm) when first cut and slowly spreads outward up to ~16mm over ~2.8 seconds with gravity trickle
+    const organicLobes =
+      1.0 +
+      0.42 * Math.sin(absU * 38.0 + 0.7) +
+      0.28 * Math.cos(absU * 79.0) +
+      0.18 * Math.sin(absU * 135.0);
+    const leftLobeVar = 0.88 + 0.26 * Math.sin(absU * 52.0 + 1.4);
+    const rightLobeVar = 0.88 + 0.26 * Math.cos(absU * 61.0 + 0.5);
+
+    const baseSeepWidth = 0.0018 + (0.0115 * spreadEase) * (0.45 + 0.55 * Math.sin(u * Math.PI));
+    const hemoWidthLeft = baseSeepWidth * organicLobes * leftLobeVar;
+    const hemoWidthRight = baseSeepWidth * organicLobes * rightLobeVar;
+    // Slow downward gravity trickle on outer spreading edge
+    const gravityTrickleY = -0.0055 * spreadEase * spreadEase * Math.max(0.2, Math.sin(absU * 48.0 + 1.1));
+
+    const hLeftOuter = leftOuter
+      .clone()
+      .sub(lateral.clone().multiplyScalar(hemoWidthLeft))
+      .add(new THREE.Vector3(0, gravityTrickleY, -0.0005));
+    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(0.0022));
+    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(0.0022));
+    const hRightOuter = rightOuter
+      .clone()
+      .add(lateral.clone().multiplyScalar(hemoWidthRight))
+      .add(new THREE.Vector3(0, gravityTrickleY, -0.0005));
 
     const hRow = hemoPositions.length / 3;
     hemoPositions.push(hLeftOuter.x, hLeftOuter.y, hLeftOuter.z + 0.0012);
-    hemoPositions.push(hLeftInner.x, hLeftInner.y, hLeftInner.z + 0.0015);
-    hemoPositions.push(hRightInner.x, hRightInner.y, hRightInner.z + 0.0015);
+    hemoPositions.push(hLeftInner.x, hLeftInner.y, hLeftInner.z + 0.0016);
+    hemoPositions.push(hRightInner.x, hRightInner.y, hRightInner.z + 0.0016);
     hemoPositions.push(hRightOuter.x, hRightOuter.y, hRightOuter.z + 0.0012);
+
+    // UVs for soft feathered alpha diffusion texture (u=0 at inner cut lip, u=1 at outer skin margin)
+    hemoUvs.push(
+      1.0, absU * 3.0,
+      0.0, absU * 3.0,
+      0.0, absU * 3.0,
+      1.0, absU * 3.0
+    );
 
     if (i > 0) {
       const prevH = hRow - 4;
-      // Left vascular blood band
+      // Left vascular seepage band
       hemoIndices.push(prevH, hRow, prevH + 1);
       hemoIndices.push(prevH + 1, hRow, hRow + 1);
-      // Right vascular blood band
+      // Right vascular seepage band
       hemoIndices.push(prevH + 2, hRow + 2, prevH + 3);
       hemoIndices.push(prevH + 3, hRow + 2, hRow + 3);
     }
 
-    // Superior apex blood rim connection
+    // Superior apex rim connection
     if (i === 0) {
       const topBloodPt = p0.clone().add(new THREE.Vector3(0, wEntryApex * 0.9, 0.0055));
       const topBloodIdx = hemoPositions.length / 3;
       hemoPositions.push(topBloodPt.x, topBloodPt.y, topBloodPt.z);
+      hemoUvs.push(0.5, 0.0);
       hemoIndices.push(hRow, hRow + 1, topBloodIdx);
       hemoIndices.push(topBloodIdx, hRow + 2, hRow + 3);
     }
 
-    // Active cutting tip vascular cap: connect blood lips around leading apex of scalpel
+    // Active cutting tip vascular cap: connect lips around leading apex of scalpel
     if (i === segmentCount) {
       const tipCapPt = pt.clone().add(tangent.clone().multiplyScalar(0.005)).add(new THREE.Vector3(0, 0, 0.0055));
       const tipCapIdx = hemoPositions.length / 3;
       hemoPositions.push(tipCapPt.x, tipCapPt.y, tipCapPt.z);
+      hemoUvs.push(0.5, absU * 3.0);
       hemoIndices.push(hRow, tipCapIdx, hRow + 1);
       hemoIndices.push(hRow + 2, tipCapIdx, hRow + 3);
     }
@@ -445,6 +698,7 @@ function buildRefinedIncisionGeometries(
   furrowGeo.computeVertexNormals();
 
   hemoGeo.setAttribute('position', new THREE.Float32BufferAttribute(hemoPositions, 3));
+  hemoGeo.setAttribute('uv', new THREE.Float32BufferAttribute(hemoUvs, 2));
   hemoGeo.setIndex(hemoIndices);
   hemoGeo.computeVertexNormals();
 
@@ -482,7 +736,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   const progressTubeRef = useRef<THREE.Mesh | null>(null);
   const incisionHemoRef = useRef<THREE.Mesh | null>(null);
   const activeHemoHaloRef = useRef<THREE.Mesh | null>(null);
+  const thoracicHeartRef = useRef<THREE.Group | null>(null);
+  const hepaticLiverRef = useRef<THREE.Group | null>(null);
   const stomachGroupRef = useRef<THREE.Group | null>(null);
+  const intestinalCoilsRef = useRef<THREE.Group | null>(null);
+  const hemoBeadsRef = useRef<Array<{ mesh: THREE.Mesh; uPos: number; side: number; speed: number }>>([]);
+  const segmentSpreadRef = useRef<Float32Array>(new Float32Array(65));
+  const segmentRetractRef = useRef<Float32Array>(new Float32Array(65));
+  const organEmergenceRef = useRef<Float32Array>(new Float32Array(4));
   const raycastHitPlaneRef = useRef<THREE.Mesh | null>(null);
   const skinMeshDataRef = useRef<Array<{
     posAttr: THREE.BufferAttribute;
@@ -681,6 +942,9 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     []
   );
 
+  const calibrationRef = useRef<GuideCalibration>(calibration);
+  calibrationRef.current = calibration;
+
   // Update 3D Visual elements based on progress and calibration
   useEffect(() => {
     if (!guideGroupRef.current) return;
@@ -697,19 +961,46 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       probeMeshRef.current.visible = dissectionState !== 'IDLE';
     }
 
-    // 2. Update Refined Incision Furrow & Vascular Red Feedback (Fix 2 & Fix 3)
+    // 2. Update Refined Incision Furrow & Slow-Spreading Vascular Red Feedback
     if (progressTubeRef.current && incisionHemoRef.current) {
       if (progress <= 0.01 || dissectionState === 'IDLE') {
+        segmentSpreadRef.current.fill(0);
+        segmentRetractRef.current.fill(0);
+        organEmergenceRef.current.fill(0);
         progressTubeRef.current.visible = false;
         incisionHemoRef.current.visible = false;
         if (activeHemoHaloRef.current) {
           activeHemoHaloRef.current.visible = false;
         }
+        hemoBeadsRef.current.forEach((b) => {
+          b.mesh.visible = false;
+        });
       } else {
         progressTubeRef.current.visible = true;
         incisionHemoRef.current.visible = true;
 
-        const { furrowGeo, hemoGeo } = buildRefinedIncisionGeometries(curve, progress);
+        // Seed newly cut stations with initial capillary contact so they spread slowly in animate()
+        const maxStation = Math.floor(progress * 64);
+        for (let k = 0; k <= 64; k++) {
+          if (k <= maxStation) {
+            if (segmentRetractRef.current[k] < 0.16) {
+              segmentRetractRef.current[k] = 0.16;
+            }
+            if (segmentSpreadRef.current[k] < 0.06) {
+              segmentSpreadRef.current[k] = 0.06;
+            }
+          } else {
+            segmentRetractRef.current[k] = 0;
+            segmentSpreadRef.current[k] = 0;
+          }
+        }
+
+        const { furrowGeo, hemoGeo } = buildRefinedIncisionGeometries(
+          curve,
+          progress,
+          segmentSpreadRef.current,
+          segmentRetractRef.current
+        );
         const oldFurrow = progressTubeRef.current.geometry;
         progressTubeRef.current.geometry = furrowGeo;
         if (oldFurrow) oldFurrow.dispose();
@@ -729,18 +1020,30 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       }
     }
 
-    // 3. Stomach Region Expansion from Central Region (Fix 1: centered inside parted incision window)
+    // 3. Visceral Red Organs Emergence (Thoracic Heart, Hepatic Liver, Muscular J-Stomach, Intestinal Coils)
     if (stomachGroupRef.current) {
       if (progress <= 0.02 || dissectionState === 'IDLE') {
         stomachGroupRef.current.visible = false;
         stomachGroupRef.current.scale.set(0.001, 0.001, 0.001);
+        if (thoracicHeartRef.current) {
+          thoracicHeartRef.current.visible = false;
+          thoracicHeartRef.current.scale.set(0.001, 0.001, 0.001);
+        }
+        if (hepaticLiverRef.current) {
+          hepaticLiverRef.current.visible = false;
+          hepaticLiverRef.current.scale.set(0.001, 0.001, 0.001);
+        }
+        if (intestinalCoilsRef.current) {
+          intestinalCoilsRef.current.visible = false;
+          intestinalCoilsRef.current.scale.set(0.001, 0.001, 0.001);
+        }
       } else {
-        // Epigastric / stomach region spans progress ~0.04 to ~0.52
-        const tStomach = Math.min(1, Math.max(0, (progress - 0.04) / 0.42));
+        // Epigastric / stomach region spans progress ~0.04 to ~0.52 combined with slow time emergence
+        const tStomach = Math.min(1, Math.max(0, (progress - 0.04) / 0.42)) * Math.max(0.22, organEmergenceRef.current[2]);
         const sEase = tStomach * tStomach * (3 - 2 * tStomach); // smoothstep curve
         // Blooms smoothly and radially outward from central origin inside the incision cavity
         const stomachScale = 0.15 + 0.85 * sEase;
-        stomachGroupRef.current.visible = true;
+        stomachGroupRef.current.visible = progress >= 0.22;
         stomachGroupRef.current.scale.set(stomachScale, stomachScale, stomachScale);
         stomachGroupRef.current.position.set(
           -0.002 + sEase * 0.001,
@@ -843,21 +1146,48 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const baseTubeMesh = new THREE.Mesh(baseTubeGeo, baseTubeMat);
     guideGroup.add(baseTubeMesh);
 
-    // B. Anatomical Stomach Organ (Fix 1: Stomach Region Expansion from central core)
+    // B1. Zone 1 Red Visceral Organ: Thoracic Heart (emerges slowly where upper/mid chest is cut)
+    const thoracicHeartGroup = createThoracicHeartOrgan();
+    thoracicHeartGroup.position.set(0.0, 0.34, 0.126);
+    thoracicHeartGroup.scale.set(0.001, 0.001, 0.001);
+    thoracicHeartGroup.visible = false;
+    thoracicHeartGroup.renderOrder = 2;
+    guideGroup.add(thoracicHeartGroup);
+    thoracicHeartRef.current = thoracicHeartGroup;
+
+    // B2. Zone 2 Red Visceral Organ: Hepatic Liver Lobes (emerges slowly where subxiphoid/upper epigastrium is cut)
+    const hepaticLiverGroup = createHepaticLiverOrgan();
+    hepaticLiverGroup.position.set(-0.003, 0.24, 0.126);
+    hepaticLiverGroup.scale.set(0.001, 0.001, 0.001);
+    hepaticLiverGroup.visible = false;
+    hepaticLiverGroup.renderOrder = 2;
+    guideGroup.add(hepaticLiverGroup);
+    hepaticLiverRef.current = hepaticLiverGroup;
+
+    // B3. Zone 3 Red Visceral Organ: Anatomical Stomach (Fix 1: Stomach Region Expansion from central core)
     const stomachGroup = createAnatomicalStomach();
-    stomachGroup.position.set(-0.002, 0.16, 0.130);
+    stomachGroup.position.set(-0.002, 0.15, 0.130);
     stomachGroup.scale.set(0.001, 0.001, 0.001);
     stomachGroup.visible = false;
     stomachGroup.renderOrder = 2;
     guideGroup.add(stomachGroup);
     stomachGroupRef.current = stomachGroup;
 
+    // B4. Zone 4 Red Visceral Organ: Vascular Small Intestine Coils (emerges slowly where umbilical/lower abdomen is cut)
+    const intestinalCoilsGroup = createIntestinalCoilsOrgan();
+    intestinalCoilsGroup.position.set(0.0, 0.01, 0.116);
+    intestinalCoilsGroup.scale.set(0.001, 0.001, 0.001);
+    intestinalCoilsGroup.visible = false;
+    intestinalCoilsGroup.renderOrder = 2;
+    guideGroup.add(intestinalCoilsGroup);
+    intestinalCoilsRef.current = intestinalCoilsGroup;
+
     // C. Refined Incision Furrow (Fix 3: multi-layered vertex-shaded dermal walls & deep cavity bed)
     const progTubeGeo = new THREE.BufferGeometry();
     const progTubeMat = new THREE.MeshStandardMaterial({
       color: 0xffffff, // uses per-vertex colors (0x3d1308 fascia / 0x1a0307 deep cavity)
       vertexColors: true,
-      roughness: 0.42,
+      roughness: 0.34,
       metalness: 0.08,
       side: THREE.DoubleSide,
       polygonOffset: true,
@@ -870,14 +1200,19 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     guideGroup.add(progTubeMesh);
     progressTubeRef.current = progTubeMesh;
 
-    // D. Incision Vascular Red Margins (Fix 2: realistic glossy arterial/venous blood along parted skin lips)
+    // D. Incision Vascular Red Seepage (Fix 2: feathered organic diffusion texture that spreads slowly over time)
+    const vascularDiffusionTex = createVascularDiffusionTexture();
     const hemoGeo = new THREE.BufferGeometry();
     const hemoMat = new THREE.MeshStandardMaterial({
-      color: 0xb91c1c, // rich wet arterial crimson (0x881337 venous base)
-      emissive: 0x991b1b,
-      emissiveIntensity: 0.62,
-      roughness: 0.16,
-      metalness: 0.08,
+      color: 0xffffff, // tinted by rich crimson texture + vertex colors (0x881337 venous base)
+      map: vascularDiffusionTex,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      emissive: 0x7f1d1d,
+      emissiveIntensity: 0.42,
+      roughness: 0.12, // glossy wet fluid sheen
+      metalness: 0.10,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -2,
@@ -888,6 +1223,34 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     hemoMesh.renderOrder = 3;
     guideGroup.add(hemoMesh);
     incisionHemoRef.current = hemoMesh;
+
+    // D2. Slow-Swelling Vascular Meniscus Beads / Droplets along the incised skin edge
+    const beadGeo = new THREE.SphereGeometry(0.0038, 12, 10);
+    beadGeo.scale(0.85, 1.35, 0.65);
+    const beadMat = new THREE.MeshStandardMaterial({
+      color: 0x991b1b,
+      emissive: 0x450a0a,
+      emissiveIntensity: 0.45,
+      roughness: 0.08, // specular wet droplet highlight
+      metalness: 0.14,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+    });
+    const beadsList: Array<{ mesh: THREE.Mesh; uPos: number; side: number; speed: number }> = [];
+    for (let bIdx = 0; bIdx < 18; bIdx++) {
+      const bMesh = new THREE.Mesh(beadGeo, beadMat);
+      bMesh.visible = false;
+      bMesh.renderOrder = 4;
+      guideGroup.add(bMesh);
+      beadsList.push({
+        mesh: bMesh,
+        uPos: 0.04 + (bIdx / 18) * 0.90,
+        side: bIdx % 2 === 0 ? -1 : 1,
+        speed: 0.65 + (bIdx % 5) * 0.14,
+      });
+    }
+    hemoBeadsRef.current = beadsList;
 
     // E. Active Cutting Tip Capillary Halo (Fix 2: surface-conforming localized vascular feedback)
     const haloGeo = new THREE.RingGeometry(0.003, 0.009, 24);
@@ -1119,8 +1482,8 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
 
         // Check if pointer is within the sternal-abdominal midline tolerance (±0.075m)
         if (Math.abs(localHit.x) <= 0.075) {
-          const topY = 0.44 * calibration.lengthScale + calibration.yOffset;
-          const botY = -0.12 * calibration.lengthScale + calibration.yOffset;
+          const topY = 0.44 * calibrationRef.current.lengthScale + calibrationRef.current.yOffset;
+          const botY = -0.12 * calibrationRef.current.lengthScale + calibrationRef.current.yOffset;
           const span = topY - botY;
           const calculatedProgress = (topY - localHit.y) / span;
 
@@ -1172,9 +1535,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Animation Loop
+    // Animation Loop: handles slow vascular blood spreading & slow emergence of red internal organs where cut
+    let lastFrameTime = performance.now();
     const animate = () => {
       animId = requestAnimationFrame(animate);
+      const now = performance.now();
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) * 0.001));
+      lastFrameTime = now;
+
       controls.update();
 
       // Gentle auto-rotation when not interacting and enabled
@@ -1184,8 +1552,178 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
 
       // Pulse probe focal light when in GUIDE_READY or INTERACTION_ACTIVE
       if (probeMeshRef.current && dissectionStateRef.current !== 'IDLE') {
-        const time = Date.now() * 0.004;
+        const time = now * 0.004;
         tipLight.intensity = 0.5 + Math.sin(time) * 0.2;
+      }
+
+      const activeProg = lastProgressRef.current;
+      if (activeProg > 0.01 && dissectionStateRef.current !== 'IDLE') {
+        const maxStation = Math.floor(activeProg * 64);
+        let needsGeoRebuild = false;
+
+        // 1. Slowly advance dermal retraction & vascular blood spread at every cut station
+        for (let k = 0; k <= maxStation; k++) {
+          if (segmentRetractRef.current[k] < 1.0) {
+            // Dermal lips part over ~1.5 seconds after scalpel passes
+            segmentRetractRef.current[k] = Math.min(1.0, segmentRetractRef.current[k] + dt * 0.68);
+            needsGeoRebuild = true;
+          }
+          if (segmentSpreadRef.current[k] < 1.0) {
+            // Blood slowly spreads outward & seeps down over ~3.0 seconds after scalpel passes
+            const stationWave = 0.28 + 0.12 * Math.sin(k * 0.45);
+            segmentSpreadRef.current[k] = Math.min(1.0, segmentSpreadRef.current[k] + dt * stationWave);
+            needsGeoRebuild = true;
+          }
+        }
+
+        const activeCurve = buildGuideCurve(calibrationRef.current);
+
+        if (needsGeoRebuild && progressTubeRef.current && incisionHemoRef.current) {
+          const { furrowGeo, hemoGeo } = buildRefinedIncisionGeometries(
+            activeCurve,
+            activeProg,
+            segmentSpreadRef.current,
+            segmentRetractRef.current
+          );
+          const oldF = progressTubeRef.current.geometry;
+          progressTubeRef.current.geometry = furrowGeo;
+          if (oldF) oldF.dispose();
+
+          const oldH = incisionHemoRef.current.geometry;
+          incisionHemoRef.current.geometry = hemoGeo;
+          if (oldH) oldH.dispose();
+        }
+
+        // 2. Animate slow-forming glossy crimson meniscus droplets along the incised skin edge
+        const wUpper = 0.026;
+        const wLower = 0.018;
+        hemoBeadsRef.current.forEach((bead, bIdx) => {
+          if (bead.uPos <= activeProg - 0.015) {
+            const stIdx = Math.min(64, Math.floor(bead.uPos * 64));
+            const localSpread = segmentSpreadRef.current[stIdx];
+            const localRetract = segmentRetractRef.current[stIdx];
+            if (localSpread > 0.08) {
+              bead.mesh.visible = true;
+              const pt = activeCurve.getPointAt(bead.uPos);
+              const uNorm = bead.uPos;
+              const baseHalfW = (wUpper * (1 - uNorm) + wLower * uNorm) * (0.35 + 0.65 * localRetract);
+              const trickleY = Math.pow(localSpread, 1.5) * 0.008 * ((bIdx % 3) + 1) * 0.45;
+              const lateralOut = baseHalfW + localSpread * (0.004 + (bIdx % 4) * 0.0022);
+              bead.mesh.position.set(
+                pt.x + bead.side * lateralOut,
+                pt.y - trickleY,
+                pt.z + 0.0038
+              );
+              const beadScale = Math.min(1.0, localSpread * 1.15) * (0.75 + 0.25 * Math.sin(now * 0.002 * bead.speed + bIdx));
+              bead.mesh.scale.set(beadScale, beadScale * (1.0 + localSpread * 0.45), beadScale);
+            } else {
+              bead.mesh.visible = false;
+            }
+          } else {
+            bead.mesh.visible = false;
+          }
+        });
+
+        // 3. Slowly emerge red internal organs where the body has been cut
+        // Zone 0: Thoracic Heart (emerges where upper/mid chest is cut: activeProg >= 0.04)
+        if (thoracicHeartRef.current) {
+          if (activeProg >= 0.04) {
+            organEmergenceRef.current[0] = Math.min(1.0, organEmergenceRef.current[0] + dt * 0.38);
+          } else {
+            organEmergenceRef.current[0] = Math.max(0.0, organEmergenceRef.current[0] - dt * 1.2);
+          }
+          const e0 = organEmergenceRef.current[0];
+          if (e0 > 0.01) {
+            const ease0 = e0 * e0 * (3 - 2 * e0);
+            const heartBeat = 1.0 + Math.sin(now * 0.0075) * 0.045 * ease0;
+            const hScale = (0.15 + 0.85 * ease0) * heartBeat;
+            const heartAnchor = activeCurve.getPointAt(0.11);
+            thoracicHeartRef.current.visible = true;
+            thoracicHeartRef.current.scale.set(hScale, hScale, hScale);
+            thoracicHeartRef.current.position.set(
+              heartAnchor.x + 0.001,
+              heartAnchor.y,
+              heartAnchor.z - 0.022 + ease0 * 0.026 // slowly emerges outward through chest incision
+            );
+          } else {
+            thoracicHeartRef.current.visible = false;
+          }
+        }
+
+        // Zone 1: Hepatic Liver Lobes (emerges where subxiphoid / upper epigastrium is cut: activeProg >= 0.18)
+        if (hepaticLiverRef.current) {
+          if (activeProg >= 0.18) {
+            organEmergenceRef.current[1] = Math.min(1.0, organEmergenceRef.current[1] + dt * 0.35);
+          } else {
+            organEmergenceRef.current[1] = Math.max(0.0, organEmergenceRef.current[1] - dt * 1.2);
+          }
+          const e1 = organEmergenceRef.current[1];
+          if (e1 > 0.01) {
+            const ease1 = e1 * e1 * (3 - 2 * e1);
+            const resp = 1.0 + Math.sin(now * 0.0025) * 0.02 * ease1;
+            const lScale = (0.15 + 0.85 * ease1) * resp;
+            const liverAnchor = activeCurve.getPointAt(0.26);
+            hepaticLiverRef.current.visible = true;
+            hepaticLiverRef.current.scale.set(lScale, lScale, lScale);
+            hepaticLiverRef.current.position.set(
+              liverAnchor.x - 0.003 * ease1,
+              liverAnchor.y,
+              liverAnchor.z - 0.021 + ease1 * 0.025 // slowly emerges outward where subxiphoid is cut
+            );
+          } else {
+            hepaticLiverRef.current.visible = false;
+          }
+        }
+
+        // Zone 2: Muscular Red J-Stomach (emerges where mid-epigastrium is cut: activeProg >= 0.28)
+        if (stomachGroupRef.current) {
+          if (activeProg >= 0.24) {
+            organEmergenceRef.current[2] = Math.min(1.0, organEmergenceRef.current[2] + dt * 0.34);
+          } else {
+            organEmergenceRef.current[2] = Math.max(0.0, organEmergenceRef.current[2] - dt * 1.2);
+          }
+          const e2 = organEmergenceRef.current[2];
+          if (e2 > 0.01) {
+            const ease2 = e2 * e2 * (3 - 2 * e2);
+            const peristalsis = 1.0 + Math.sin(now * 0.003 + 1.2) * 0.025 * ease2;
+            const sScale = (0.15 + 0.85 * ease2) * peristalsis;
+            const stomachAnchor = activeCurve.getPointAt(0.46);
+            stomachGroupRef.current.visible = true;
+            stomachGroupRef.current.scale.set(sScale, sScale, sScale);
+            stomachGroupRef.current.position.set(
+              stomachAnchor.x + 0.002 * ease2,
+              stomachAnchor.y,
+              stomachAnchor.z - 0.020 + ease2 * 0.026 // slowly emerges outward where mid-abdomen is cut
+            );
+          } else {
+            stomachGroupRef.current.visible = false;
+          }
+        }
+
+        // Zone 3: Vascular Red Intestinal Coils (emerges where umbilical / lower abdomen is cut: activeProg >= 0.54)
+        if (intestinalCoilsRef.current) {
+          if (activeProg >= 0.54) {
+            organEmergenceRef.current[3] = Math.min(1.0, organEmergenceRef.current[3] + dt * 0.33);
+          } else {
+            organEmergenceRef.current[3] = Math.max(0.0, organEmergenceRef.current[3] - dt * 1.2);
+          }
+          const e3 = organEmergenceRef.current[3];
+          if (e3 > 0.01) {
+            const ease3 = e3 * e3 * (3 - 2 * e3);
+            const wave = 1.0 + Math.sin(now * 0.0035 + 2.4) * 0.025 * ease3;
+            const iScale = (0.15 + 0.85 * ease3) * wave;
+            const gutAnchor = activeCurve.getPointAt(0.74);
+            intestinalCoilsRef.current.visible = true;
+            intestinalCoilsRef.current.scale.set(iScale, iScale, iScale);
+            intestinalCoilsRef.current.position.set(
+              gutAnchor.x,
+              gutAnchor.y,
+              gutAnchor.z - 0.020 + ease3 * 0.026 // slowly emerges outward where lower abdomen is cut
+            );
+          } else {
+            intestinalCoilsRef.current.visible = false;
+          }
+        }
       }
 
       renderer.render(scene, camera);
@@ -1209,6 +1747,9 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       controls.dispose();
+      beadGeo.dispose();
+      beadMat.dispose();
+      if (vascularDiffusionTex) vascularDiffusionTex.dispose();
       if (progressTubeRef.current?.geometry) progressTubeRef.current.geometry.dispose();
       if (incisionHemoRef.current?.geometry) incisionHemoRef.current.geometry.dispose();
       if (activeHemoHaloRef.current?.geometry) activeHemoHaloRef.current.geometry.dispose();

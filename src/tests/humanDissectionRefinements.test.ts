@@ -79,4 +79,20 @@ test('TECH-ANATOMIX — Human Body Dissection Interaction Fixes (Fix 1, Fix 2, F
     assert.ok(code.includes('updateSkinIncisionRecess'), 'Must dynamically recess underlying skin along active incision to prevent skin clipping');
     assert.ok(code.includes('0x965d37'), 'Must apply warm medium-dark brown skin tone to human body mesh');
   });
+
+  // ---------------------------------------------------------------------------
+  // FIX 4: Slow Realistic Vascular Spreading & Slow Emergence of Red Organs Where Cut
+  // ---------------------------------------------------------------------------
+  await t.test('Fix 4: Vascular fluid spreads slowly over time and red visceral organs slowly emerge where cut', () => {
+    assert.ok(code.includes('function createVascularDiffusionTexture'), 'Must generate feathered organic vascular diffusion texture');
+    assert.ok(code.includes('segmentSpreadRef') && code.includes('segmentRetractRef'), 'Must track per-station slow vascular spread and dermal retraction over time');
+    assert.ok(code.includes('hemoUvs'), 'Must map UVs for soft-feathered vascular seepage falloff');
+    assert.ok(code.includes('hemoBeadsRef'), 'Must animate slow-forming crimson meniscus droplets along the incised skin edge');
+    assert.ok(code.includes('function createThoracicHeartOrgan'), 'Must build red Thoracic Heart organ for upper chest incision');
+    assert.ok(code.includes('function createHepaticLiverOrgan'), 'Must build red-maroon Hepatic Liver organ for subxiphoid incision');
+    assert.ok(code.includes('function createAnatomicalStomach'), 'Must build red Muscular J-Stomach organ for mid-epigastric incision');
+    assert.ok(code.includes('function createIntestinalCoilsOrgan'), 'Must build vascular red Intestinal Coils organ for lower abdominal incision');
+    assert.ok(code.includes('organEmergenceRef'), 'Must animate slow time-progressive emergence of red organs where cut');
+  });
 });
+
