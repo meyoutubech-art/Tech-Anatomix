@@ -201,72 +201,72 @@ function createAnatomicalStomach(): THREE.Group {
     region: 'epigastrium',
   };
 
-  // Visceral gastric serosa material (deep crimson base with warm amber tones and realistic specular luster)
+  // Visceral gastric serosa material (deep crimson base with warm anatomical tones and wet specular luster)
   const stomachMat = new THREE.MeshStandardMaterial({
-    color: 0x9e1c1c,
-    roughness: 0.36,
-    metalness: 0.12,
+    color: 0x991b1b,
+    roughness: 0.28,
+    metalness: 0.10,
   });
 
-  // 1. Corpus (Main J-shaped central gastric reservoir centered at origin)
-  const corpusGeo = new THREE.SphereGeometry(0.038, 28, 28);
-  corpusGeo.scale(0.92, 1.38, 0.82);
+  // 1. Corpus (Main J-shaped central gastric reservoir centered at origin, proportioned to fit inside the parted incision window)
+  const corpusGeo = new THREE.SphereGeometry(0.0125, 28, 28);
+  corpusGeo.scale(0.88, 1.55, 0.72);
   const corpusMesh = new THREE.Mesh(corpusGeo, stomachMat);
   corpusMesh.position.set(0, 0, 0); // Origin at central core
-  corpusMesh.rotation.z = -0.28;
+  corpusMesh.rotation.z = -0.18;
   corpusMesh.castShadow = true;
   corpusMesh.receiveShadow = true;
   group.add(corpusMesh);
 
-  // 2. Fundus (Superior rounded dome situated under left diaphragm)
-  const fundusGeo = new THREE.SphereGeometry(0.028, 24, 24);
-  fundusGeo.scale(1.12, 1.05, 0.90);
+  // 2. Fundus (Superior rounded dome situated under left diaphragm inside incision window)
+  const fundusGeo = new THREE.SphereGeometry(0.0095, 24, 24);
+  fundusGeo.scale(1.05, 1.05, 0.78);
   const fundusMesh = new THREE.Mesh(fundusGeo, stomachMat);
-  fundusMesh.position.set(-0.012, 0.036, 0.002);
+  fundusMesh.position.set(-0.003, 0.013, 0.001);
   fundusMesh.castShadow = true;
   group.add(fundusMesh);
 
   // 3. Pyloric Antrum & Pylorus (Tapering muscular exit leading medially to duodenum)
   const pylorusCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.006, -0.032, 0.005),
-    new THREE.Vector3(0.014, -0.036, 0.008),
-    new THREE.Vector3(0.032, -0.028, 0.003),
+    new THREE.Vector3(-0.002, -0.011, 0.002),
+    new THREE.Vector3(0.004, -0.013, 0.003),
+    new THREE.Vector3(0.009, -0.010, 0.001),
   ]);
-  const pylorusGeo = new THREE.TubeGeometry(pylorusCurve, 16, 0.013, 16, false);
+  const pylorusGeo = new THREE.TubeGeometry(pylorusCurve, 16, 0.0045, 16, false);
   const pylorusMesh = new THREE.Mesh(pylorusGeo, stomachMat);
   pylorusMesh.castShadow = true;
   group.add(pylorusMesh);
 
   // 4. Greater Curvature Vascular Striation (Subtle gastric micro-ridges along greater curve)
   const rugaeCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.006, 0.028, 0.024),
-    new THREE.Vector3(-0.016, 0.004, 0.028),
-    new THREE.Vector3(-0.008, -0.022, 0.022),
+    new THREE.Vector3(-0.002, 0.010, 0.008),
+    new THREE.Vector3(-0.005, 0.001, 0.009),
+    new THREE.Vector3(-0.003, -0.008, 0.007),
   ]);
-  const rugaeGeo = new THREE.TubeGeometry(rugaeCurve, 16, 0.0016, 8, false);
+  const rugaeGeo = new THREE.TubeGeometry(rugaeCurve, 16, 0.0008, 8, false);
   const rugaeMat = new THREE.MeshStandardMaterial({
     color: 0x881337,
-    roughness: 0.35,
+    roughness: 0.25,
     emissive: 0x9f1239,
-    emissiveIntensity: 0.35,
+    emissiveIntensity: 0.45,
   });
   const rugaeMesh = new THREE.Mesh(rugaeGeo, rugaeMat);
   group.add(rugaeMesh);
 
   // 5. Gastroepiploic Arterial Arcade (Branching vascular arcade along greater curvature)
   const vascularCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.018, 0.042, 0.006),
-    new THREE.Vector3(-0.042, 0.012, 0.018),
-    new THREE.Vector3(-0.038, -0.024, 0.022),
-    new THREE.Vector3(-0.018, -0.045, 0.016),
-    new THREE.Vector3(0.024, -0.034, 0.006),
+    new THREE.Vector3(-0.005, 0.014, 0.003),
+    new THREE.Vector3(-0.011, 0.004, 0.006),
+    new THREE.Vector3(-0.010, -0.008, 0.007),
+    new THREE.Vector3(-0.005, -0.015, 0.005),
+    new THREE.Vector3(0.007, -0.011, 0.002),
   ]);
-  const vascularGeo = new THREE.TubeGeometry(vascularCurve, 24, 0.0022, 8, false);
+  const vascularGeo = new THREE.TubeGeometry(vascularCurve, 24, 0.0010, 8, false);
   const vascularMat = new THREE.MeshStandardMaterial({
-    color: 0xbe123c,
-    roughness: 0.3,
-    emissive: 0x9f1239,
-    emissiveIntensity: 0.45,
+    color: 0xdc2626,
+    roughness: 0.22,
+    emissive: 0x991b1b,
+    emissiveIntensity: 0.55,
   });
   const vascularMesh = new THREE.Mesh(vascularGeo, vascularMat);
   group.add(vascularMesh);
@@ -276,10 +276,10 @@ function createAnatomicalStomach(): THREE.Group {
 
 /**
  * Builds refined surgical incision geometry with:
- * 1. Moderately wider upper opening (epigastric notch ~52mm total opening)
- * 2. Smooth rounded superior entry apex fillet (no needle-like pointedness!)
- * 3. Smooth transition to the active scalpel cut point
- * 4. Subtle, non-graphic anatomical vascular red (hemostatic) margins conforming to surface
+ * 1. Fusiform / lenticular surgical retraction profile from chest middle down to active scalpel tip
+ * 2. Smooth rounded superior entry apex fillet (no needle-like pointedness or wide shovel edge)
+ * 3. Multi-layered vertex-colored dermal walls & recessed dark visceral cavity bed
+ * 4. Realistic, wet-sheen vascular crimson blood margins with organic capillary beading
  */
 function buildRefinedIncisionGeometries(
   curve: THREE.CatmullRomCurve3,
@@ -292,10 +292,11 @@ function buildRefinedIncisionGeometries(
     return { furrowGeo, hemoGeo };
   }
 
-  const segmentCount = Math.max(12, Math.ceil(progress * 48));
+  const segmentCount = Math.max(16, Math.ceil(progress * 64));
   const normal = new THREE.Vector3(0, 0, 1);
 
   const furrowPositions: number[] = [];
+  const furrowColors: number[] = [];
   const furrowIndices: number[] = [];
 
   const hemoPositions: number[] = [];
@@ -306,23 +307,31 @@ function buildRefinedIncisionGeometries(
   const lat0 = new THREE.Vector3().crossVectors(t0, normal).normalize();
   if (lat0.x < 0) lat0.negate();
 
-  // Fix 3: Moderately wider upper aperture half-width (~26mm half-width, 52mm total opening)
+  // Fix 3: Moderately wider upper aperture reference half-width (~26mm) shaped by fusiform retraction
   const wUpper = 0.026;
+  const wEntryApex = wUpper * 0.24; // ~6.2mm half-width at superior entry apex for natural rounded start
+
+  // Anatomical layer colors for vertex-shaded incision depth
+  const colDermalLip = new THREE.Color(0x991b1b);   // incised vascular dermis lip
+  const colSubdermalWall = new THREE.Color(0x4c0519); // steep subcutaneous muscular wall
+  const colDeepCavity = new THREE.Color(0x1a0307);  // deep shadowed coelomic cavity floor
 
   // 1. Smooth rounded superior apex fillet (Fix 3: removes needle-like point)
   const arcSteps = 12;
-  const apexCenter = p0.clone().add(new THREE.Vector3(0, 0.004, -0.002));
+  const apexCenter = p0.clone().add(new THREE.Vector3(0, 0.002, 0.003));
   const apexCenterIdx = 0;
   furrowPositions.push(apexCenter.x, apexCenter.y, apexCenter.z);
+  furrowColors.push(colSubdermalWall.r, colSubdermalWall.g, colSubdermalWall.b);
 
   const arcVertexIndices: number[] = [];
   for (let s = 0; s <= arcSteps; s++) {
     const theta = Math.PI - (s / arcSteps) * Math.PI; // Arc from left to right
-    const arcX = Math.cos(theta) * wUpper;
-    const arcY = Math.sin(theta) * (wUpper * 0.40);
-    const arcPt = p0.clone().add(lat0.clone().multiplyScalar(arcX)).add(new THREE.Vector3(0, arcY, 0.002));
+    const arcX = Math.cos(theta) * wEntryApex;
+    const arcY = Math.sin(theta) * (wEntryApex * 0.85);
+    const arcPt = p0.clone().add(lat0.clone().multiplyScalar(arcX)).add(new THREE.Vector3(0, arcY, 0.004));
     const idx = furrowPositions.length / 3;
     furrowPositions.push(arcPt.x, arcPt.y, arcPt.z);
+    furrowColors.push(colDermalLip.r, colDermalLip.g, colDermalLip.b);
     arcVertexIndices.push(idx);
 
     if (s > 0) {
@@ -330,7 +339,7 @@ function buildRefinedIncisionGeometries(
     }
   }
 
-  // 2. Traversed cut path down anterior midline
+  // 2. Traversed cut path down anterior sternal-abdominal midline
   // Each segment has 5 vertices across: [leftOuter, leftMid, deepCenter, rightMid, rightOuter]
   for (let i = 0; i <= segmentCount; i++) {
     const u = i / segmentCount;
@@ -339,21 +348,22 @@ function buildRefinedIncisionGeometries(
     const lateral = new THREE.Vector3().crossVectors(tangent, normal).normalize();
     if (lateral.x < 0) lateral.negate();
 
-    // Smooth taper from wider upper opening down towards active cutting tip
-    const baseHalfWidth = 0.0075 + (wUpper - 0.0075) * Math.pow(1 - u, 1.25);
-    // Smooth visceral window dilation around epigastric stomach region (progress 0.05 - 0.50)
-    const stomachFactor = Math.sin(Math.PI * Math.min(1, Math.max(0, (u * progress - 0.03) / 0.45)));
-    const visceralBulge = progress > 0.05 ? 0.0055 * stomachFactor : 0;
-    const halfWidth = baseHalfWidth + visceralBulge;
+    // Smooth fusiform surgical retraction: widens from rounded superior entry apex into chest/epigastrium, then tapers to scalpel tip
+    const topRetraction = 0.26 + 0.74 * Math.sin(Math.min(1, u / 0.22) * (Math.PI / 2));
+    const baseHalfWidth = (0.0042 + (wUpper * 0.72 - 0.0042) * Math.pow(1 - u, 1.25)) * topRetraction;
+    // Smooth visceral window dilation around epigastric stomach region
+    const stomachFactor = Math.sin(Math.PI * Math.min(1, Math.max(0, (u * progress - 0.12) / 0.55)));
+    const visceralBulge = progress > 0.05 ? 0.0045 * stomachFactor * Math.sin(u * Math.PI) : 0;
+    const halfWidth = i === 0 ? wEntryApex : baseHalfWidth + visceralBulge;
 
-    const midWidth = halfWidth * 0.55;
-    const depth = 0.008 * (1 - u * 0.45); // contoured depth along incision
+    const midWidth = halfWidth * 0.58;
+    const depth = 0.005 * (1 - u * 0.45); // contoured depth along incision
 
-    const leftOuter = pt.clone().sub(lateral.clone().multiplyScalar(halfWidth)).add(new THREE.Vector3(0, 0, 0.002));
-    const leftMid = pt.clone().sub(lateral.clone().multiplyScalar(midWidth)).sub(new THREE.Vector3(0, 0, depth * 0.4));
-    const deepCenter = pt.clone().sub(new THREE.Vector3(0, 0, depth));
-    const rightMid = pt.clone().add(lateral.clone().multiplyScalar(midWidth)).sub(new THREE.Vector3(0, 0, depth * 0.4));
-    const rightOuter = pt.clone().add(lateral.clone().multiplyScalar(halfWidth)).add(new THREE.Vector3(0, 0, 0.002));
+    const leftOuter = pt.clone().sub(lateral.clone().multiplyScalar(halfWidth)).add(new THREE.Vector3(0, 0, 0.0045));
+    const leftMid = pt.clone().sub(lateral.clone().multiplyScalar(midWidth)).add(new THREE.Vector3(0, 0, 0.002));
+    const deepCenter = pt.clone().sub(new THREE.Vector3(0, 0, depth * 0.25));
+    const rightMid = pt.clone().add(lateral.clone().multiplyScalar(midWidth)).add(new THREE.Vector3(0, 0, 0.002));
+    const rightOuter = pt.clone().add(lateral.clone().multiplyScalar(halfWidth)).add(new THREE.Vector3(0, 0, 0.0045));
 
     const rowStart = furrowPositions.length / 3;
     furrowPositions.push(leftOuter.x, leftOuter.y, leftOuter.z);
@@ -361,6 +371,14 @@ function buildRefinedIncisionGeometries(
     furrowPositions.push(deepCenter.x, deepCenter.y, deepCenter.z);
     furrowPositions.push(rightMid.x, rightMid.y, rightMid.z);
     furrowPositions.push(rightOuter.x, rightOuter.y, rightOuter.z);
+
+    furrowColors.push(
+      colDermalLip.r, colDermalLip.g, colDermalLip.b,
+      colSubdermalWall.r, colSubdermalWall.g, colSubdermalWall.b,
+      colDeepCavity.r, colDeepCavity.g, colDeepCavity.b,
+      colSubdermalWall.r, colSubdermalWall.g, colSubdermalWall.b,
+      colDermalLip.r, colDermalLip.g, colDermalLip.b
+    );
 
     if (i === 0) {
       // Seamless connection from rounded apex arc to first row of incision strip
@@ -378,32 +396,42 @@ function buildRefinedIncisionGeometries(
       }
     }
 
-    // Fix 2: Subtle educational vascular crimson margins along active cut lips
-    const hemoWidth = 0.0065; // ~6.5mm clearly visible yet restrained margin
+    // Fix 2: Realistic vascular crimson blood margins along active cut lips with organic capillary beading
+    const beadPulse = 1.0 + 0.35 * Math.sin(u * progress * 46.0) + 0.22 * Math.cos(u * progress * 88.0);
+    const hemoWidth = (0.0040 + 0.0025 * Math.sin(u * Math.PI)) * beadPulse;
     const hLeftOuter = leftOuter.clone().sub(lateral.clone().multiplyScalar(hemoWidth));
-    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(0.001));
-    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(0.001));
+    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(0.0018));
+    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(0.0018));
     const hRightOuter = rightOuter.clone().add(lateral.clone().multiplyScalar(hemoWidth));
 
     const hRow = hemoPositions.length / 3;
-    hemoPositions.push(hLeftOuter.x, hLeftOuter.y, hLeftOuter.z + 0.001);
-    hemoPositions.push(hLeftInner.x, hLeftInner.y, hLeftInner.z + 0.001);
-    hemoPositions.push(hRightInner.x, hRightInner.y, hRightInner.z + 0.001);
-    hemoPositions.push(hRightOuter.x, hRightOuter.y, hRightOuter.z + 0.001);
+    hemoPositions.push(hLeftOuter.x, hLeftOuter.y, hLeftOuter.z + 0.0012);
+    hemoPositions.push(hLeftInner.x, hLeftInner.y, hLeftInner.z + 0.0015);
+    hemoPositions.push(hRightInner.x, hRightInner.y, hRightInner.z + 0.0015);
+    hemoPositions.push(hRightOuter.x, hRightOuter.y, hRightOuter.z + 0.0012);
 
     if (i > 0) {
       const prevH = hRow - 4;
-      // Left vascular band
+      // Left vascular blood band
       hemoIndices.push(prevH, hRow, prevH + 1);
       hemoIndices.push(prevH + 1, hRow, hRow + 1);
-      // Right vascular band
+      // Right vascular blood band
       hemoIndices.push(prevH + 2, hRow + 2, prevH + 3);
       hemoIndices.push(prevH + 3, hRow + 2, hRow + 3);
     }
 
-    // Active cutting tip vascular cap: connect lips around leading apex of scalpel
+    // Superior apex blood rim connection
+    if (i === 0) {
+      const topBloodPt = p0.clone().add(new THREE.Vector3(0, wEntryApex * 0.9, 0.0055));
+      const topBloodIdx = hemoPositions.length / 3;
+      hemoPositions.push(topBloodPt.x, topBloodPt.y, topBloodPt.z);
+      hemoIndices.push(hRow, hRow + 1, topBloodIdx);
+      hemoIndices.push(topBloodIdx, hRow + 2, hRow + 3);
+    }
+
+    // Active cutting tip vascular cap: connect blood lips around leading apex of scalpel
     if (i === segmentCount) {
-      const tipCapPt = pt.clone().add(tangent.clone().multiplyScalar(0.005)).add(new THREE.Vector3(0, 0, 0.002));
+      const tipCapPt = pt.clone().add(tangent.clone().multiplyScalar(0.005)).add(new THREE.Vector3(0, 0, 0.0055));
       const tipCapIdx = hemoPositions.length / 3;
       hemoPositions.push(tipCapPt.x, tipCapPt.y, tipCapPt.z);
       hemoIndices.push(hRow, tipCapIdx, hRow + 1);
@@ -412,6 +440,7 @@ function buildRefinedIncisionGeometries(
   }
 
   furrowGeo.setAttribute('position', new THREE.Float32BufferAttribute(furrowPositions, 3));
+  furrowGeo.setAttribute('color', new THREE.Float32BufferAttribute(furrowColors, 3));
   furrowGeo.setIndex(furrowIndices);
   furrowGeo.computeVertexNormals();
 
@@ -455,6 +484,11 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   const activeHemoHaloRef = useRef<THREE.Mesh | null>(null);
   const stomachGroupRef = useRef<THREE.Group | null>(null);
   const raycastHitPlaneRef = useRef<THREE.Mesh | null>(null);
+  const skinMeshDataRef = useRef<Array<{
+    posAttr: THREE.BufferAttribute;
+    origPositions: Float32Array;
+    center: THREE.Vector3;
+  }>>([]);
   const audioFXRef = useRef<DissectionAudioFX>(new DissectionAudioFX());
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -502,20 +536,23 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   const lastProgressRef = useRef<number>(progress);
   lastProgressRef.current = progress;
 
-  // Build the 3D Catmull-Rom Curve along the anterior abdominal midline
+  // Build the 3D Catmull-Rom Curve from Chest Middle (mid-sternum) down to Suprapubic boundary
   const buildGuideCurve = useCallback(
     (calib: GuideCalibration) => {
-      const yLen = 0.24 * calib.lengthScale;
-      const topY = 0.12 * calib.lengthScale + calib.yOffset;
-      const midY = 0.0 + calib.yOffset;
-      const botY = -0.12 * calib.lengthScale + calib.yOffset;
+      const topY = 0.44 * calib.lengthScale + calib.yOffset;        // Chest middle (mid-sternum / pectoral midline)
+      const upperChestY = 0.30 * calib.lengthScale + calib.yOffset; // Lower chest / xiphoid process
+      const epigastricY = 0.16 * calib.lengthScale + calib.yOffset; // Epigastrium (upper abdomen)
+      const midY = 0.02 * calib.lengthScale + calib.yOffset;        // Umbilicus (navel landmark)
+      const lowerAbdY = -0.05 * calib.lengthScale + calib.yOffset;  // Lower umbilical / hypogastrium
+      const botY = -0.12 * calib.lengthScale + calib.yOffset;       // Suprapubic boundary (inferior limit — not stretched downwards)
       const zOff = calib.zOffset;
 
       const points = [
-        new THREE.Vector3(0, topY, 0.148 + zOff),          // Epigastrium (superior margin, below sternum)
-        new THREE.Vector3(0, topY * 0.5, 0.141 + zOff),    // Upper umbilical abdomen
-        new THREE.Vector3(0, midY, 0.134 + zOff),          // Umbilicus (navel landmark)
-        new THREE.Vector3(0, botY * 0.5, 0.114 + zOff),    // Lower umbilical / hypogastrium
+        new THREE.Vector3(0, topY, 0.154 + zOff),          // Chest middle (superior margin at mid-sternum)
+        new THREE.Vector3(0, upperChestY, 0.150 + zOff),   // Lower sternum / xiphoid process
+        new THREE.Vector3(0, epigastricY, 0.148 + zOff),   // Epigastrium (upper abdomen)
+        new THREE.Vector3(0, midY, 0.136 + zOff),          // Umbilicus (navel landmark)
+        new THREE.Vector3(0, lowerAbdY, 0.116 + zOff),     // Lower umbilical / hypogastrium
         new THREE.Vector3(0, botY, 0.096 + zOff),          // Suprapubic boundary (inferior limit)
       ];
 
@@ -531,17 +568,19 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     audioFXRef.current.enabled = !next;
   };
 
-  // Reset Camera View to frame the torso
+  // Reset Camera View to frame the anterior front torso
   const handleResetCamera = () => {
     if (!controlsRef.current || !modelGroupRef.current || !cameraRef.current) return;
     const box = new THREE.Box3().setFromObject(modelGroupRef.current);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 2;
     const fov = cameraRef.current.fov * (Math.PI / 180);
-    const cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2)) * 1.35;
+    const cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2)) * 1.05;
+    const frontTarget = new THREE.Vector3(0, 0.10, 0);
 
-    cameraRef.current.position.set(0, 0.02, cameraZ);
-    controlsRef.current.reset(cameraZ, Math.PI / 2, Math.PI / 2.05, new THREE.Vector3(0, 0, 0));
+    modelGroupRef.current.rotation.set(0, 0, 0);
+    cameraRef.current.position.set(0, 0.12, cameraZ);
+    controlsRef.current.reset(cameraZ, 0, Math.PI / 2.02, frontTarget);
   };
 
   // Toggle Wireframe Mesh
@@ -590,11 +629,66 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     }
   };
 
+  // Helper to dynamically part/recess the anterior human skin mesh under the active incision so skin never clips through the cut
+  const updateSkinIncisionRecess = useCallback(
+    (currProgress: number, calib: GuideCalibration, state: DissectionState) => {
+      if (!skinMeshDataRef.current.length) return;
+      const topY = 0.44 * calib.lengthScale + calib.yOffset;
+      const botY = -0.12 * calib.lengthScale + calib.yOffset;
+      const cutBottomY = topY - (topY - botY) * currProgress;
+
+      for (const { posAttr, origPositions, center } of skinMeshDataRef.current) {
+        const arr = posAttr.array as Float32Array;
+        const count = posAttr.count;
+
+        if (currProgress <= 0.01 || state === 'IDLE') {
+          arr.set(origPositions);
+          posAttr.needsUpdate = true;
+          continue;
+        }
+
+        for (let i = 0; i < count; i++) {
+          const idx = i * 3;
+          const rx = origPositions[idx];
+          const ry = origPositions[idx + 1];
+          const rz = origPositions[idx + 2];
+
+          // Sketchfab_model matrix maps: worldX = rx - cx, worldY = rz - cy, worldZ = -ry - cz
+          const wx = rx - center.x;
+          const wy = rz - center.y;
+          const wz = -ry - center.z;
+
+          if (wz > 0.04 && Math.abs(wx) < 0.034 && wy <= topY + 0.006 && wy >= cutBottomY - 0.006) {
+            const xRatio = Math.min(1, Math.abs(wx) / 0.034);
+            const distFromEnds = Math.min(
+              Math.max(0, topY + 0.006 - wy),
+              Math.max(0, wy - (cutBottomY - 0.006))
+            );
+            const yFeather = Math.min(1, distFromEnds / 0.018);
+            const recess = 0.026 * Math.cos(xRatio * (Math.PI / 2)) * yFeather;
+            arr[idx] = rx;
+            arr[idx + 1] = ry + recess; // +ry moves vertex deeper inward (-worldZ)
+            arr[idx + 2] = rz;
+          } else {
+            arr[idx] = rx;
+            arr[idx + 1] = ry;
+            arr[idx + 2] = rz;
+          }
+        }
+        posAttr.needsUpdate = true;
+      }
+    },
+    []
+  );
+
   // Update 3D Visual elements based on progress and calibration
   useEffect(() => {
     if (!guideGroupRef.current) return;
 
     const curve = buildGuideCurve(calibration);
+
+    // 0. Part/recess the underlying human skin mesh along the active incision path
+    updateSkinIncisionRecess(progress, calibration, dissectionState);
 
     // 1. Update Probe Position in 3D
     if (probeMeshRef.current) {
@@ -628,14 +722,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         if (activeHemoHaloRef.current) {
           const activeTipPt = curve.getPointAt(progress);
           const activeTangent = curve.getTangentAt(progress).normalize();
-          activeHemoHaloRef.current.position.copy(activeTipPt).add(new THREE.Vector3(0, 0, 0.0025));
+          activeHemoHaloRef.current.position.copy(activeTipPt).add(new THREE.Vector3(0, 0, 0.0055));
           activeHemoHaloRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), activeTangent);
           activeHemoHaloRef.current.visible = dissectionState === 'INTERACTION_ACTIVE';
         }
       }
     }
 
-    // 3. Stomach Region Expansion from Central Region (Fix 1)
+    // 3. Stomach Region Expansion from Central Region (Fix 1: centered inside parted incision window)
     if (stomachGroupRef.current) {
       if (progress <= 0.02 || dissectionState === 'IDLE') {
         stomachGroupRef.current.visible = false;
@@ -644,18 +738,18 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         // Epigastric / stomach region spans progress ~0.04 to ~0.52
         const tStomach = Math.min(1, Math.max(0, (progress - 0.04) / 0.42));
         const sEase = tStomach * tStomach * (3 - 2 * tStomach); // smoothstep curve
-        // Blooms smoothly and radially outward from central origin
+        // Blooms smoothly and radially outward from central origin inside the incision cavity
         const stomachScale = 0.15 + 0.85 * sEase;
         stomachGroupRef.current.visible = true;
         stomachGroupRef.current.scale.set(stomachScale, stomachScale, stomachScale);
         stomachGroupRef.current.position.set(
-          -0.030 + sEase * 0.004,
-          0.075,
+          -0.002 + sEase * 0.001,
+          0.16,
           0.128 + sEase * 0.024 // emerges visibly forward through opened incision aperture
         );
       }
     }
-  }, [progress, calibration, dissectionState, buildGuideCurve]);
+  }, [progress, calibration, dissectionState, buildGuideCurve, updateSkinIncisionRecess]);
 
   // Main Three.js Scene Setup
   useEffect(() => {
@@ -695,20 +789,20 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     });
     controlsRef.current = controls;
 
-    // Professional Scientific Studio Lighting Rig
-    const ambientLight = new THREE.AmbientLight(0xf8fafc, 0.92);
+    // Balanced Studio Lighting Rig to showcase rich medium-dark brown skin tone and anatomical muscle definition
+    const ambientLight = new THREE.AmbientLight(0xf8fafc, 0.68);
     scene.add(ambientLight);
 
-    const mainLight = new THREE.DirectionalLight(0xfffbeb, 1.45);
+    const mainLight = new THREE.DirectionalLight(0xfffbeb, 1.18);
     mainLight.position.set(4, 7, 5);
     mainLight.castShadow = true;
     scene.add(mainLight);
 
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.68);
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.48);
     fillLight.position.set(-4, -1, -3);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.72);
+    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.55);
     rimLight.position.set(0, 5, -5);
     scene.add(rimLight);
 
@@ -751,36 +845,39 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
 
     // B. Anatomical Stomach Organ (Fix 1: Stomach Region Expansion from central core)
     const stomachGroup = createAnatomicalStomach();
-    stomachGroup.position.set(-0.030, 0.075, 0.130);
+    stomachGroup.position.set(-0.002, 0.16, 0.130);
     stomachGroup.scale.set(0.001, 0.001, 0.001);
     stomachGroup.visible = false;
     stomachGroup.renderOrder = 2;
     guideGroup.add(stomachGroup);
     stomachGroupRef.current = stomachGroup;
 
-    // C. Refined Incision Furrow (Fix 3: wider upper opening & smooth transition)
+    // C. Refined Incision Furrow (Fix 3: multi-layered vertex-shaded dermal walls & deep cavity bed)
     const progTubeGeo = new THREE.BufferGeometry();
     const progTubeMat = new THREE.MeshStandardMaterial({
-      color: 0x3d1308, // deep subdermal fascia bed
-      roughness: 0.52,
-      metalness: 0.06,
+      color: 0xffffff, // uses per-vertex colors (0x3d1308 fascia / 0x1a0307 deep cavity)
+      vertexColors: true,
+      roughness: 0.42,
+      metalness: 0.08,
       side: THREE.DoubleSide,
       polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
     });
     const progTubeMesh = new THREE.Mesh(progTubeGeo, progTubeMat);
     progTubeMesh.visible = false;
+    progTubeMesh.renderOrder = 1;
     guideGroup.add(progTubeMesh);
     progressTubeRef.current = progTubeMesh;
 
-    // D. Incision Vascular Red Margins (Fix 2: subtle educational non-graphic hemostatic response)
+    // D. Incision Vascular Red Margins (Fix 2: realistic glossy arterial/venous blood along parted skin lips)
     const hemoGeo = new THREE.BufferGeometry();
     const hemoMat = new THREE.MeshStandardMaterial({
-      color: 0x881337, // deep anatomical venous/capillary ruby
-      emissive: 0x4c0519,
-      emissiveIntensity: 0.45,
-      roughness: 0.35,
+      color: 0xb91c1c, // rich wet arterial crimson (0x881337 venous base)
+      emissive: 0x991b1b,
+      emissiveIntensity: 0.62,
+      roughness: 0.16,
+      metalness: 0.08,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -2,
@@ -788,6 +885,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     });
     const hemoMesh = new THREE.Mesh(hemoGeo, hemoMat);
     hemoMesh.visible = false;
+    hemoMesh.renderOrder = 3;
     guideGroup.add(hemoMesh);
     incisionHemoRef.current = hemoMesh;
 
@@ -795,16 +893,17 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const haloGeo = new THREE.RingGeometry(0.003, 0.009, 24);
     const haloMat = new THREE.MeshStandardMaterial({
       color: 0x881337,
-      emissive: 0x9f1239,
-      emissiveIntensity: 0.75,
-      roughness: 0.35,
+      emissive: 0xdc2626,
+      emissiveIntensity: 0.85,
+      roughness: 0.20,
       side: THREE.DoubleSide,
       polygonOffset: true,
-      polygonOffsetFactor: -3,
-      polygonOffsetUnits: -3,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
     });
     const haloMesh = new THREE.Mesh(haloGeo, haloMat);
     haloMesh.visible = false;
+    haloMesh.renderOrder = 4;
     guideGroup.add(haloMesh);
     activeHemoHaloRef.current = haloMesh;
 
@@ -813,7 +912,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const midPt = curve.getPointAt(0.5);
     const endPt = curve.getPointAt(1);
 
-    // Start Waypoint Marker (Epigastrium)
+    // Start Waypoint Marker (Chest Middle)
     const startRingGeo = new THREE.TorusGeometry(0.012, 0.002, 8, 24);
     const startRingMat = new THREE.MeshStandardMaterial({
       color: 0x22d3ee,
@@ -886,14 +985,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     guideGroup.add(probeGroup);
     probeMeshRef.current = probeGroup;
 
-    // E. Raycasting Collision Proxy Plane (Attached right over anterior abdomen)
-    const hitPlaneGeo = new THREE.PlaneGeometry(0.28, 0.38);
+    // E. Raycasting Collision Proxy Plane (Covers chest middle Y=0.44 down to suprapubic Y=-0.12)
+    const hitPlaneGeo = new THREE.PlaneGeometry(0.28, 0.72);
     const hitPlaneMat = new THREE.MeshBasicMaterial({
       visible: false,
       side: THREE.DoubleSide,
     });
     const hitPlane = new THREE.Mesh(hitPlaneGeo, hitPlaneMat);
-    hitPlane.position.set(0, 0.0, 0.138);
+    hitPlane.position.set(0, 0.16, 0.145);
     guideGroup.add(hitPlane);
     raycastHitPlaneRef.current = hitPlane;
 
@@ -906,6 +1005,13 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       let triangleCount = 0;
       let meshCount = 0;
 
+      // Center geometry bounding box first so we know exact model center
+      const box = new THREE.Box3().setFromObject(loadedScene);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      skinMeshDataRef.current = [];
+
       loadedScene.traverse((child: THREE.Object3D) => {
         if (child instanceof THREE.Mesh) {
           meshCount++;
@@ -913,6 +1019,15 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
             triangleCount += child.geometry.index
               ? child.geometry.index.count / 3
               : child.geometry.attributes.position.count / 3;
+
+            const posAttr = child.geometry.attributes.position as THREE.BufferAttribute | undefined;
+            if (posAttr && posAttr.array) {
+              skinMeshDataRef.current.push({
+                posAttr,
+                origPositions: new Float32Array(posAttr.array as Float32Array),
+                center: center.clone(),
+              });
+            }
           }
           child.castShadow = true;
           child.receiveShadow = true;
@@ -920,15 +1035,16 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           if (child.material) {
             const mats = Array.isArray(child.material) ? child.material : [child.material];
             mats.forEach((mat) => {
+              // Natural warm medium-dark brown skin tone ("somewhat more dark brown not so much")
               if (mat instanceof THREE.MeshStandardMaterial) {
                 if (!mat.map) {
-                  mat.color = new THREE.Color(0xd9a07a);
-                  mat.roughness = 0.65;
-                  mat.metalness = 0.05;
+                  mat.color = new THREE.Color(0x965d37);
+                  mat.roughness = 0.56;
+                  mat.metalness = 0.04;
                 }
               } else if (mat instanceof THREE.MeshPhongMaterial) {
                 if (!mat.map) {
-                  mat.color = new THREE.Color(0xd9a07a);
+                  mat.color = new THREE.Color(0x965d37);
                 }
               }
             });
@@ -939,21 +1055,19 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       setModelStats({ triangles: Math.round(triangleCount), meshes: meshCount });
       modelGroup.add(loadedScene);
 
-      // Center geometry bounding box exactly
-      const box = new THREE.Box3().setFromObject(loadedScene);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-
       loadedScene.position.sub(center);
+      modelGroup.rotation.set(0, 0, 0);
 
-      // Frame camera properly to highlight the torso and abdominal region
+      // Automatically position and orient human GLB to face the front (theta = 0)
       const maxDim = Math.max(size.x, size.y, size.z) || 2;
       const fov = camera.fov * (Math.PI / 180);
-      const cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2)) * 1.35;
+      const cameraZ = Math.abs((maxDim / 2) / Math.tan(fov / 2)) * 1.05;
+      const frontTarget = new THREE.Vector3(0, 0.10, 0);
 
-      camera.position.set(0, 0.02, cameraZ);
-      controls.target.set(0, 0, 0);
-      controls.reset(cameraZ, Math.PI / 2, Math.PI / 2.05, new THREE.Vector3(0, 0, 0));
+      camera.position.set(0, 0.12, cameraZ);
+      controls.target.copy(frontTarget);
+      controls.reset(cameraZ, 0, Math.PI / 2.02, frontTarget);
+      controls.saveInitialState(new THREE.Vector3(0, 0.12, cameraZ), frontTarget);
 
       setLoading(false);
       setLoadError(null);
@@ -1003,9 +1117,9 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         // Convert hit point into guideGroup local coordinates
         const localHit = guideGroupRef.current.worldToLocal(hit.point.clone());
 
-        // Check if pointer is within the abdominal midline tolerance (±0.075m)
+        // Check if pointer is within the sternal-abdominal midline tolerance (±0.075m)
         if (Math.abs(localHit.x) <= 0.075) {
-          const topY = 0.12 * calibration.lengthScale + calibration.yOffset;
+          const topY = 0.44 * calibration.lengthScale + calibration.yOffset;
           const botY = -0.12 * calibration.lengthScale + calibration.yOffset;
           const span = topY - botY;
           const calculatedProgress = (topY - localHit.y) / span;
@@ -1106,408 +1220,341 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     };
   }, []); // Run once on mount
 
-  // Keep dissectionState ref updated for event handlers
+  // Keep dissectionState ref updated for event handlers (Virtual Dissection is always active)
   const dissectionStateRef = useRef<DissectionState>(dissectionState);
-  dissectionStateRef.current = dissectionState;
+  dissectionStateRef.current = dissectionState === 'IDLE' ? 'GUIDE_READY' : dissectionState;
 
-  // Toggle Dissection Mode Button
-  const handleToggleDissectionMode = () => {
-    if (dissectionState === 'IDLE') {
-      setDissectionState('GUIDE_READY');
-      handleResetCamera(); // Align view to abdominal guide
-    } else {
-      setDissectionState('IDLE');
-      if (controlsRef.current) controlsRef.current.enabled = true;
-      isDraggingGuideRef.current = false;
-    }
+  // Vertical Touch Slider Ref & Pointer/Touch Handler for smooth touchscreen scrubbing
+  const verticalSliderTrackRef = useRef<HTMLDivElement>(null);
+  const isDraggingVerticalSliderRef = useRef<boolean>(false);
+
+  const updateProgressFromVerticalTrack = (clientY: number) => {
+    const track = verticalSliderTrackRef.current;
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.height <= 0) return;
+    // Top of vertical slider = 0% (Epigastrium start), Bottom = 100% (Suprapubic end)
+    const ratio = (clientY - rect.top) / rect.height;
+    handleProgressUpdate( Math.max(0, Math.min(1, ratio)) );
   };
 
   return (
     <div ref={wrapperRef} className="flex flex-col gap-3 w-full">
       <div className="relative w-full h-[540px] sm:h-[600px] lg:h-[660px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col select-none">
-        {/* 3D Canvas Mount */}
-      <div
-        ref={mountRef}
-        className={`w-full h-full flex-1 ${
-          dissectionState !== 'IDLE' ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'
-        }`}
-      />
+        {/* 3D Canvas Mount (midline incision along linea alba is always active) */}
+        <div
+          ref={mountRef}
+          className="w-full h-full flex-1 cursor-crosshair"
+        />
 
-      {/* TOP HEADER CONTROLS RIBBON */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none gap-2">
-        <div className="flex items-center gap-2 pointer-events-auto">
-          <div className="bg-slate-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700/80 text-xs font-bold text-white shadow-md flex items-center gap-2">
-            <User className="w-4 h-4 text-sky-400" />
-            <span className="hidden sm:inline">External Human Specimen</span>
-            <span className="sm:hidden">Human Body</span>
-            <span className="text-[10px] text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800 font-mono">
-              3D GLB
-            </span>
-          </div>
-
-          {/* Mode Pill */}
-          <span
-            className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
-              dissectionState === 'IDLE'
-                ? 'bg-slate-900/80 text-slate-300 border-slate-700'
-                : 'bg-cyan-950/90 text-cyan-300 border-cyan-500/50'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5 text-cyan-400" />
-            {dissectionState === 'IDLE' ? 'Orbit & Zoom Mode' : 'Virtual Dissection Active'}
-          </span>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
-          {/* Direct Transition Action Button */}
-          <button
-            onClick={onExploreInternalOrgans}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold text-xs shadow-lg shadow-rose-950/40 ring-1 ring-rose-400/40 transition-all cursor-pointer"
-            title="Explore Internal Organs (Sketchfab Viewer)"
-          >
-            <Heart className="w-3.5 h-3.5 text-rose-200 fill-rose-300" />
-            <span className="hidden sm:inline">Explore Internal Organs</span>
-            <span className="sm:hidden">Organs</span>
-            <ArrowRight className="w-3.5 h-3.5 text-rose-200" />
-          </button>
-
-          <button
-            onClick={toggleMute}
-            className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
-          >
-            {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-cyan-400" />}
-          </button>
-
-          <button
-            onClick={() => setShowCalibration((prev) => !prev)}
-            className={`p-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
-              showCalibration
-                ? 'bg-cyan-600 text-white border-cyan-400'
-                : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:text-white'
-            }`}
-            title="Calibrate Guide Alignment & Position"
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={handleToggleWireframe}
-            className={`hidden sm:inline-flex px-3 py-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
-              isWireframe
-                ? 'bg-sky-600 text-white border-sky-400'
-                : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:text-white'
-            }`}
-            title="Toggle Wireframe Mesh"
-          >
-            {isWireframe ? 'Skin' : 'Wireframe'}
-          </button>
-
-          <button
-            onClick={handleResetCamera}
-            className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-            title="Reset Camera Framing"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={onToggleFullscreen}
-            className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-            title={isFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* 3D FLOATING CALLOUT ANNOTATION (Static scientific label) */}
-      <div className="absolute top-16 left-3 z-10 pointer-events-none">
-        <div className="bg-slate-900/85 backdrop-blur-sm border border-cyan-500/40 rounded-xl px-3 py-2 text-[11px] text-cyan-200 shadow-xl max-w-[240px] space-y-0.5">
-          <div className="flex items-center gap-1.5 font-bold text-white">
-            <span className="w-2 h-2 rounded-full bg-cyan-400" />
-            <span>Virtual Dissection Guide</span>
-          </div>
-          <p className="text-[10px] text-slate-400 leading-tight">
-            Anterior abdominal midline (linea alba). Educational demonstration, not clinical surgery.
-          </p>
-        </div>
-      </div>
-
-      {/* CALIBRATION / ALIGNMENT POPUP (Manual alignment configuration) */}
-      {showCalibration && (
-        <div className="absolute top-16 right-3 z-20 w-72 bg-slate-900/95 backdrop-blur-md rounded-2xl border border-cyan-500/40 p-4 shadow-2xl text-xs text-slate-200 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-            <span className="font-bold text-white flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-              Guide Alignment Settings
-            </span>
+        {/* TOP-RIGHT ACTION CONTROLS (Unmarked utility controls preserved) */}
+        <div className="absolute top-3 right-3 z-10 flex items-center justify-end pointer-events-none gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
             <button
-              onClick={() => setShowCalibration(false)}
-              className="text-slate-400 hover:text-white cursor-pointer"
+              onClick={toggleMute}
+              className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+              title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
             >
-              <X className="w-4 h-4" />
+              {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-cyan-400" />}
+            </button>
+
+            <button
+              onClick={() => setShowCalibration((prev) => !prev)}
+              className={`p-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                showCalibration
+                  ? 'bg-cyan-600 text-white border-cyan-400'
+                  : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:text-white'
+              }`}
+              title="Calibrate Guide Alignment & Position"
+            >
+              <Sliders className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={handleToggleWireframe}
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                isWireframe
+                  ? 'bg-sky-600 text-white border-sky-400'
+                  : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:text-white'
+              }`}
+              title="Toggle Wireframe Mesh"
+            >
+              {isWireframe ? 'Skin' : 'Wireframe'}
+            </button>
+
+            <button
+              onClick={handleResetCamera}
+              className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+              title="Reset Camera Framing"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={onToggleFullscreen}
+              className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+              title={isFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
           </div>
-
-          <div className="space-y-2">
-            <div>
-              <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                <span>Vertical Shift (Y)</span>
-                <span className="font-mono text-cyan-300">{calibration.yOffset.toFixed(3)}m</span>
-              </div>
-              <input
-                type="range"
-                min="-0.06"
-                max="0.06"
-                step="0.005"
-                value={calibration.yOffset}
-                onChange={(e) =>
-                  setCalibration((prev) => ({ ...prev, yOffset: parseFloat(e.target.value) }))
-                }
-                className="w-full accent-cyan-500 cursor-pointer"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                <span>Skin Offset (Z depth)</span>
-                <span className="font-mono text-cyan-300">{calibration.zOffset.toFixed(3)}m</span>
-              </div>
-              <input
-                type="range"
-                min="0.002"
-                max="0.025"
-                step="0.002"
-                value={calibration.zOffset}
-                onChange={(e) =>
-                  setCalibration((prev) => ({ ...prev, zOffset: parseFloat(e.target.value) }))
-                }
-                className="w-full accent-cyan-500 cursor-pointer"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[11px] text-slate-400 mb-1">
-                <span>Guide Length Scale</span>
-                <span className="font-mono text-cyan-300">{calibration.lengthScale.toFixed(2)}x</span>
-              </div>
-              <input
-                type="range"
-                min="0.8"
-                max="1.25"
-                step="0.05"
-                value={calibration.lengthScale}
-                onChange={(e) =>
-                  setCalibration((prev) => ({ ...prev, lengthScale: parseFloat(e.target.value) }))
-                }
-                className="w-full accent-cyan-500 cursor-pointer"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={() => setCalibration({ yOffset: 0.0, zOffset: 0.008, lengthScale: 1.0 })}
-            className="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition-colors cursor-pointer"
-          >
-            Reset to Anatomical Default
-          </button>
         </div>
-      )}
 
-      {/* COMPLETION MODAL OVERLAY (Section 6: Non-graphic educational reveal) */}
-      {showCompletionModal && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
-          <div className="max-w-md w-full bg-slate-900 border border-emerald-500/50 rounded-2xl p-6 text-white shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                  Virtual Incision Simulated
-                </span>
-                <h3 className="text-lg font-bold text-white">Demonstration Complete</h3>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              The anterior abdominal wall demonstration path along the linea alba has been fully traversed (100%).
-              Reflecting this tissue layer unlocks observation of the coelomic cavity and visceral organ systems.
-            </p>
-
-            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
-              <span className="font-semibold text-slate-300 block">Scientific Transparency Notice:</span>
-              <p>
-                The deep human internal organs are hosted in an interactive, separate 3D dataset by unlim3d.
-                Click below to transition to the interactive visceral inspection suite.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-              <button
-                onClick={() => {
-                  setShowCompletionModal(false);
-                  onExploreInternalOrgans();
-                }}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 font-bold text-xs text-white shadow-lg shadow-rose-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <Heart className="w-4 h-4 text-rose-200 fill-rose-300" />
-                <span>Explore Internal Organs</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                onClick={() => setShowCompletionModal(false)}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold text-xs text-slate-300 transition-colors cursor-pointer"
-              >
-                Review Model
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* UNIFIED COLLAPSIBLE BOTTOM CONTROL DOCK (Three.js Skill Directive) */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 w-[94%] max-w-3xl pointer-events-auto">
-        <div className="bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-800 shadow-2xl p-3 sm:p-4 space-y-3">
-          {/* Top Row: State Indicator & Toggle Collapse */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleToggleDissectionMode}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  dissectionState === 'IDLE'
-                    ? 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-md'
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>
-                  {dissectionState === 'IDLE' ? 'Enable Virtual Dissection' : 'Dissection Mode Active'}
-                </span>
-              </button>
-
-              <span className="text-slate-500 text-xs hidden sm:inline">|</span>
-
-              <span className="text-xs text-slate-300 font-medium hidden sm:inline">
-                {dissectionState === 'IDLE' && 'Click Enable to activate the abdominal guide.'}
-                {dissectionState === 'GUIDE_READY' && 'Drag probe from top start marker downward along cyan guide.'}
-                {dissectionState === 'INTERACTION_ACTIVE' && `Progress: ${Math.round(progress * 100)}% traversed.`}
-                {dissectionState === 'INTERACTION_COMPLETE' && 'Complete! Internal organs unlocked.'}
+        {/* CALIBRATION / ALIGNMENT POPUP (Manual alignment configuration) */}
+        {showCalibration && (
+          <div className="absolute top-16 right-3 z-20 w-72 bg-slate-900/95 backdrop-blur-md rounded-2xl border border-cyan-500/40 p-4 shadow-2xl text-xs text-slate-200 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <span className="font-bold text-white flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                Guide Alignment Settings
               </span>
-            </div>
-
-            <div className="flex items-center gap-2">
               <button
-                onClick={onResetDissection}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
-                title="Reset Demonstration"
+                onClick={() => setShowCalibration(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-
-              <button
-                onClick={() => setShowHudCollapsed((prev) => !prev)}
-                className="p-1.5 text-slate-400 hover:text-white cursor-pointer"
-                title={showHudCollapsed ? 'Expand Dock' : 'Collapse Dock'}
-              >
-                {showHudCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <X className="w-4 h-4" />
               </button>
             </div>
+
+            <div className="space-y-2">
+              <div>
+                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                  <span>Vertical Shift (Y)</span>
+                  <span className="font-mono text-cyan-300">{calibration.yOffset.toFixed(3)}m</span>
+                </div>
+                <input
+                  type="range"
+                  min="-0.06"
+                  max="0.06"
+                  step="0.005"
+                  value={calibration.yOffset}
+                  onChange={(e) =>
+                    setCalibration((prev) => ({ ...prev, yOffset: parseFloat(e.target.value) }))
+                  }
+                  className="w-full accent-cyan-500 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                  <span>Skin Offset (Z depth)</span>
+                  <span className="font-mono text-cyan-300">{calibration.zOffset.toFixed(3)}m</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.002"
+                  max="0.025"
+                  step="0.002"
+                  value={calibration.zOffset}
+                  onChange={(e) =>
+                    setCalibration((prev) => ({ ...prev, zOffset: parseFloat(e.target.value) }))
+                  }
+                  className="w-full accent-cyan-500 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                  <span>Guide Length Scale</span>
+                  <span className="font-mono text-cyan-300">{calibration.lengthScale.toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.8"
+                  max="1.25"
+                  step="0.05"
+                  value={calibration.lengthScale}
+                  onChange={(e) =>
+                    setCalibration((prev) => ({ ...prev, lengthScale: parseFloat(e.target.value) }))
+                  }
+                  className="w-full accent-cyan-500 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => setCalibration({ yOffset: 0.0, zOffset: 0.008, lengthScale: 1.0 })}
+              className="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition-colors cursor-pointer"
+            >
+              Reset to Anatomical Default
+            </button>
           </div>
+        )}
 
-          {/* Expandable Body */}
-          {!showHudCollapsed && (
-            <div className="space-y-3 pt-2 border-t border-slate-800/80">
-              {/* Progress Bar & Landmarks */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">Abdominal Linea Alba Guide</span>
-                  <span className="font-mono font-bold text-cyan-400">
-                    {Math.round(progress * 100)}%
+        {/* COMPLETION MODAL OVERLAY (Section 6: Non-graphic educational reveal) */}
+        {showCompletionModal && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+            <div className="max-w-md w-full bg-slate-900 border border-emerald-500/50 rounded-2xl p-6 text-white shadow-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                    Virtual Incision Simulated
                   </span>
-                </div>
-
-                <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative">
-                  <div
-                    className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 transition-all duration-75"
-                    style={{ width: `${progress * 100}%` }}
-                  />
-                  {/* Landmark ticks */}
-                  <div className="absolute inset-0 flex justify-between px-1 pointer-events-none opacity-40">
-                    <span className="w-0.5 h-full bg-white/40" />
-                    <span className="w-0.5 h-full bg-white/40" />
-                    <span className="w-0.5 h-full bg-white/40" />
-                  </div>
-                </div>
-
-                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                  <span>Start (Epigastrium)</span>
-                  <span>Mid (Umbilicus)</span>
-                  <span>End (Suprapubic)</span>
+                  <h3 className="text-lg font-bold text-white">Demonstration Complete</h3>
                 </div>
               </div>
 
-              {/* Tactile Scrubber & Accessibility Stepping Controls */}
-              <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
-                <div className="w-full flex-1 flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
-                  <span className="text-[11px] text-slate-400 shrink-0 font-medium">
-                    Tactile Probe Scrubber:
-                  </span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={Math.round(progress * 100)}
-                    onChange={(e) => {
-                      if (dissectionState === 'IDLE') setDissectionState('GUIDE_READY');
-                      handleProgressUpdate(parseInt(e.target.value, 10) / 100);
-                    }}
-                    className="w-full accent-cyan-400 cursor-pointer"
-                  />
-                </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                The anterior abdominal wall demonstration path along the linea alba has been fully traversed (100%).
+                Reflecting this tissue layer unlocks observation of the coelomic cavity and visceral organ systems.
+              </p>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <span className="font-semibold text-slate-300 block">Scientific Transparency Notice:</span>
+                <p>
+                  The deep human internal organs are hosted in an interactive, separate 3D dataset by unlim3d.
+                  Click below to transition to the interactive visceral inspection suite.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                <button
+                  onClick={() => {
+                    setShowCompletionModal(false);
+                    onExploreInternalOrgans();
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 font-bold text-xs text-white shadow-lg shadow-rose-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Heart className="w-4 h-4 text-rose-200 fill-rose-300" />
+                  <span>Explore Internal Organs</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
 
                 <button
-                  onClick={handleAdvanceStep}
-                  disabled={progress >= 1.0}
-                  className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 font-semibold text-xs transition-colors cursor-pointer shrink-0 border border-slate-700"
+                  onClick={() => setShowCompletionModal(false)}
+                  className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold text-xs text-slate-300 transition-colors cursor-pointer"
                 >
-                  +25% Incision Step
+                  Review Model
                 </button>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md text-white gap-3 p-6 pointer-events-none">
-          <div className="w-10 h-10 rounded-full border-3 border-cyan-500/20 border-t-cyan-400 animate-spin" />
-          <div className="text-center space-y-1">
-            <span className="text-xs font-bold text-slate-200">Loading External Human Body 3D Model...</span>
-            <p className="text-[11px] text-slate-400">Loading Google Drive GLB asset (ID: {DRIVE_GLB_ID})</p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Error Overlay */}
-      {loadError && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md text-white gap-3 p-6 text-center">
-          <AlertCircle className="w-10 h-10 text-rose-500" />
-          <h4 className="text-sm font-bold text-rose-300">Failed to Load GLB Model</h4>
-          <p className="text-xs text-slate-400 max-w-sm">{loadError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold text-white cursor-pointer shadow-md"
+        {/* VERTICAL TOUCH-SCREEN DISSECTION SLIDER DOCK ON THE SIDE OF THE VIEWER SCREEN */}
+        <div
+          data-testid="vertical-dissection-dock"
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 pointer-events-auto flex flex-col items-center gap-2.5 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl px-2.5 py-3.5 shadow-2xl"
+        >
+          {/* Percentage Readout */}
+          <span className="font-mono font-bold text-[11px] text-cyan-400">
+            {Math.round(progress * 100)}%
+          </span>
+
+          {/* Vertical Tactile Scrubber Track for Touch Screen & Mouse */}
+          <div
+            ref={verticalSliderTrackRef}
+            data-testid="vertical-dissection-slider"
+            role="slider"
+            aria-label="Vertical Dissection Scrubber"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+            tabIndex={0}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              isDraggingVerticalSliderRef.current = true;
+              updateProgressFromVerticalTrack(e.clientY);
+            }}
+            onPointerMove={(e) => {
+              if (!isDraggingVerticalSliderRef.current) return;
+              e.stopPropagation();
+              updateProgressFromVerticalTrack(e.clientY);
+            }}
+            onPointerUp={(e) => {
+              if (!isDraggingVerticalSliderRef.current) return;
+              e.stopPropagation();
+              isDraggingVerticalSliderRef.current = false;
+              try {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              } catch {}
+            }}
+            onPointerCancel={() => {
+              isDraggingVerticalSliderRef.current = false;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                handleProgressUpdate(progress + 0.05);
+              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                handleProgressUpdate(progress - 0.05);
+              }
+            }}
+            className="relative w-7 h-52 sm:h-60 flex items-center justify-center cursor-pointer touch-none select-none py-1"
+            title="Slide vertically to perform abdominal midline dissection (0% to 100%)"
           >
-            Retry Load
+            {/* Background Track Bar */}
+            <div className="w-2.5 h-full bg-slate-950 rounded-full overflow-hidden border border-slate-700/80 relative">
+              {/* Filled Progress from Top (0% Epigastrium) to Bottom (100% Suprapubic) */}
+              <div
+                className="w-full bg-gradient-to-b from-cyan-400 via-teal-400 to-emerald-400 transition-all duration-75"
+                style={{ height: `${progress * 100}%` }}
+              />
+              {/* Landmark Ticks (Start / Mid / End) */}
+              <div className="absolute inset-0 flex flex-col justify-between py-1 pointer-events-none opacity-40">
+                <span className="w-full h-0.5 bg-white/40" />
+                <span className="w-full h-0.5 bg-white/40" />
+                <span className="w-full h-0.5 bg-white/40" />
+              </div>
+            </div>
+
+            {/* Touch Thumb Handle */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border-2 border-cyan-400 shadow-lg shadow-cyan-500/40 pointer-events-none transition-transform"
+              style={{ top: `calc(${progress * 100}% - 10px)` }}
+            />
+          </div>
+
+          {/* Step +25% Button */}
+          <button
+            onClick={handleAdvanceStep}
+            disabled={progress >= 1.0}
+            className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 font-bold text-[10px] transition-colors cursor-pointer border border-slate-700"
+            title="+25% Incision Step"
+          >
+            +25%
+          </button>
+
+          {/* Reset Dissection Button */}
+          <button
+            onClick={onResetDissection}
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700"
+            title="Reset Dissection"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
-      )}
+
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md text-white gap-3 p-6 pointer-events-none">
+            <div className="w-10 h-10 rounded-full border-3 border-cyan-500/20 border-t-cyan-400 animate-spin" />
+            <div className="text-center space-y-1">
+              <span className="text-xs font-bold text-slate-200">Loading External Human Body 3D Model...</span>
+              <p className="text-[11px] text-slate-400">Loading Google Drive GLB asset (ID: {DRIVE_GLB_ID})</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error Overlay */}
+        {loadError && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md text-white gap-3 p-6 text-center">
+            <AlertCircle className="w-10 h-10 text-rose-500" />
+            <h4 className="text-sm font-bold text-rose-300">Failed to Load GLB Model</h4>
+            <p className="text-xs text-slate-400 max-w-sm">{loadError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold text-white cursor-pointer shadow-md"
+            >
+              Retry Load
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Universal 3D Model Position Controls (Directly BELOW the 3D Viewer) */}
@@ -1583,11 +1630,10 @@ const InternalOrgansEmbedViewer: React.FC<InternalOrgansEmbedViewerProps> = ({
 };
 
 export const HumanAnatomyExplorer: React.FC = () => {
-  // Master Single Active Viewer State
+  // Master Single Active Viewer State — Virtual Dissection is always ON ('GUIDE_READY') by default
   const [activeView, setActiveView] = useState<'external' | 'internal'>('external');
-  const [dissectionState, setDissectionState] = useState<DissectionState>('IDLE');
+  const [dissectionState, setDissectionState] = useState<DissectionState>('GUIDE_READY');
   const [progress, setProgress] = useState<number>(0.0);
-  const [selectedOrganId, setSelectedOrganId] = useState<string>('human_heart');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
 
@@ -1612,23 +1658,22 @@ export const HumanAnatomyExplorer: React.FC = () => {
     }, 450);
   };
 
-  // Return to External Body View
+  // Return to External Body View (keeps Virtual Dissection active)
   const handleReturnToExternal = () => {
     setIsTransitioning(true);
     setTimeout(() => {
       setActiveView('external');
+      setDissectionState('GUIDE_READY');
       setIsTransitioning(false);
     }, 350);
   };
 
-  // Full Reset Demonstration Handler (Section 9)
+  // Full Reset Demonstration Handler (keeps Virtual Dissection always active)
   const handleResetDemonstration = () => {
     setProgress(0.0);
-    setDissectionState('IDLE');
+    setDissectionState('GUIDE_READY');
     setActiveView('external');
   };
-
-  const selectedOrgan = HUMAN_ORGAN_LIST.find((o) => o.id === selectedOrganId) || HUMAN_ORGAN_LIST[0];
 
   return (
     <HumanViewerErrorBoundary onReset={handleResetDemonstration}>
@@ -1640,75 +1685,6 @@ export const HumanAnatomyExplorer: React.FC = () => {
             : 'p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-xl'
         }`}
       >
-        {/* Header Ribbon */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                  activeView === 'external'
-                    ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5" />
-                {activeView === 'external' ? 'External Body Specimen' : 'Internal Visceral Organs'}
-              </span>
-              <span className="text-slate-600 text-xs">·</span>
-              <span className="text-xs text-rose-300 font-semibold italic">Dissect Your Cell!</span>
-            </div>
-
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              {activeView === 'external'
-                ? 'Human Anatomy Explorer — Virtual Dissection Suite'
-                : 'Explore the Internal Organs (Coelomic Visceral Specimen)'}
-            </h2>
-            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              {activeView === 'external'
-                ? 'Inspect external musculoskeletal morphology in 3D. Activate the virtual dissection tool to simulate the abdominal midline incision and unlock internal viscera.'
-                : 'Interactive 3D internal organs specimen (Sketchfab embed by unlim3d). Inspect the 4-chambered heart, lobar lungs, liver, stomach, and kidneys with native controls.'}
-            </p>
-          </div>
-
-          {/* Switcher & Reset Ribbon */}
-          <div className="flex items-center gap-2 p-1.5 bg-slate-950 rounded-2xl border border-slate-800 shrink-0">
-            <button
-              onClick={() => setActiveView('external')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeView === 'external'
-                  ? 'bg-cyan-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>External Body</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveView('internal');
-                setDissectionState('ORGANS_REVEALED');
-              }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeView === 'internal'
-                  ? 'bg-rose-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Heart className="w-3.5 h-3.5" />
-              <span>Internal Organs</span>
-            </button>
-
-            <button
-              onClick={handleResetDemonstration}
-              className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-900 rounded-xl transition-colors cursor-pointer"
-              title="Reset Virtual Dissection Demonstration"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
         {/* Transition Flash Banner */}
         {isTransitioning && (
           <div className="w-full p-4 rounded-xl bg-slate-950 border border-cyan-500/40 text-center text-cyan-300 text-xs font-semibold animate-pulse">
@@ -1735,88 +1711,6 @@ export const HumanAnatomyExplorer: React.FC = () => {
               onToggleFullscreen={toggleFullscreen}
               onReturnToExternalBody={handleReturnToExternal}
             />
-          )}
-        </div>
-
-        {/* Organ Systems Interactive Dossier */}
-        <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-rose-400" />
-                <span>Human Organ Systems Dossier</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Detailed anatomical locations, biological functions, and clinical notes for key visceral organ systems.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              {HUMAN_ORGAN_LIST.map((organ) => {
-                const isSelected = selectedOrganId === organ.id;
-                return (
-                  <button
-                    key={organ.id}
-                    onClick={() => setSelectedOrganId(organ.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-rose-600 text-white shadow-xs border border-rose-500'
-                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
-                    }`}
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: organ.color }}
-                    />
-                    <span>{organ.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Selected Organ Detail Card */}
-          {selectedOrgan && (
-            <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-8 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedOrgan.color }}
-                  />
-                  <h4 className="text-sm font-bold text-white">{selectedOrgan.name}</h4>
-                  <span className="text-xs italic text-slate-400">({selectedOrgan.scientificName})</span>
-                  <span className="text-[10px] font-semibold text-rose-300 bg-rose-950/80 px-2 py-0.5 rounded border border-rose-800 ml-auto">
-                    {selectedOrgan.system}
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-300 leading-relaxed">{selectedOrgan.function}</p>
-
-                <div className="pt-2 text-xs text-slate-400 flex items-start gap-1.5">
-                  <span className="font-semibold text-slate-300 shrink-0">Clinical Significance:</span>
-                  <span>{selectedOrgan.clinicalSignificance}</span>
-                </div>
-              </div>
-
-              <div className="md:col-span-4 p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-2 text-[11px]">
-                <div>
-                  <span className="text-slate-500 uppercase font-semibold text-[10px] block">
-                    Anatomical Location
-                  </span>
-                  <span className="text-slate-200 mt-0.5 block">{selectedOrgan.location}</span>
-                </div>
-
-                <div className="pt-2 border-t border-slate-800">
-                  <span className="text-slate-500 uppercase font-semibold text-[10px] block">
-                    Comparative Physiology
-                  </span>
-                  <span className="text-slate-400 mt-0.5 block leading-relaxed">
-                    Four-chambered heart with complete interventricular septum and negative pressure thoracic respiration.
-                  </span>
-                </div>
-              </div>
-            </div>
           )}
         </div>
       </div>

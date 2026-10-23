@@ -21,17 +21,21 @@ test('Human Anatomy Virtual Dissection System (Phase 2 Test Suite)', async (t) =
     assert.strictEqual(magic, 'glTF', 'File must have valid glTF binary header');
   });
 
-  await t.test('Abdominal Guide Geometry is model-relative and accurately aligns with anterior torso', () => {
-    // Model anterior abdominal coordinates:
-    // Top (Epigastrium): Y ≈ +0.12, Z ≈ 0.148
-    // Mid (Umbilicus): Y ≈ 0.00, Z ≈ 0.134
-    // Bottom (Suprapubic): Y ≈ -0.12, Z ≈ 0.096
+  await t.test('Abdominal Guide Geometry stretches upwards to chest middle (Y=0.44) without stretching downwards (Y=-0.12)', () => {
+    // Model anterior sternal-abdominal coordinates:
+    // Top (Chest middle / mid-sternum): Y ≈ +0.44, Z ≈ 0.154
+    // Upper-mid (Xiphoid): Y ≈ +0.30, Z ≈ 0.150
+    // Epigastrium: Y ≈ +0.16, Z ≈ 0.148
+    // Mid (Umbilicus): Y ≈ +0.02, Z ≈ 0.136
+    // Hypogastrium: Y ≈ -0.05, Z ≈ 0.116
+    // Bottom (Suprapubic, unchanged): Y ≈ -0.12, Z ≈ 0.096
     const zOffset = 0.008;
     const points = [
-      new THREE.Vector3(0, 0.12, 0.148 + zOffset),
-      new THREE.Vector3(0, 0.06, 0.141 + zOffset),
-      new THREE.Vector3(0, 0.00, 0.134 + zOffset),
-      new THREE.Vector3(0, -0.06, 0.114 + zOffset),
+      new THREE.Vector3(0, 0.44, 0.154 + zOffset),
+      new THREE.Vector3(0, 0.30, 0.150 + zOffset),
+      new THREE.Vector3(0, 0.16, 0.148 + zOffset),
+      new THREE.Vector3(0, 0.02, 0.136 + zOffset),
+      new THREE.Vector3(0, -0.05, 0.116 + zOffset),
       new THREE.Vector3(0, -0.12, 0.096 + zOffset),
     ];
     const curve = new THREE.CatmullRomCurve3(points);
@@ -40,17 +44,21 @@ test('Human Anatomy Virtual Dissection System (Phase 2 Test Suite)', async (t) =
     const midPt = curve.getPointAt(0.5);
     const endPt = curve.getPointAt(1.0);
 
-    // X should be centered at 0 (linea alba midline)
+    // X should be centered at 0 (midline)
     assert.strictEqual(Math.round(startPt.x * 1000) / 1000, 0, 'Start point must be centered at x=0');
     assert.strictEqual(Math.round(midPt.x * 1000) / 1000, 0, 'Mid point must be centered at x=0');
     assert.strictEqual(Math.round(endPt.x * 1000) / 1000, 0, 'End point must be centered at x=0');
 
-    // Y values should progress monotonically downward from epigastrium to suprapubic
-    assert.ok(startPt.y > midPt.y, 'Start Y (epigastrium) must be superior to mid Y (umbilicus)');
-    assert.ok(midPt.y > endPt.y, 'Mid Y (umbilicus) must be superior to end Y (suprapubic)');
+    // Top must reach chest middle (~0.44) and bottom must remain at -0.12 (not stretched downwards)
+    assert.ok(Math.abs(startPt.y - 0.44) < 0.001, 'Start Y must reach chest middle (0.44)');
+    assert.ok(Math.abs(endPt.y - (-0.12)) < 0.001, 'End Y must remain at -0.12 without stretching downwards');
+
+    // Y values should progress monotonically downward from chest middle to suprapubic
+    assert.ok(startPt.y > midPt.y, 'Start Y (chest middle) must be superior to mid Y');
+    assert.ok(midPt.y > endPt.y, 'Mid Y must be superior to end Y (suprapubic)');
 
     // Z values should stay in front of body (Z > 0.08)
-    assert.ok(startPt.z > 0.10, 'Start Z must follow anterior abdominal contour');
+    assert.ok(startPt.z > 0.10, 'Start Z must follow anterior chest contour');
     assert.ok(midPt.z > 0.10, 'Mid Z must follow anterior abdominal contour');
     assert.ok(endPt.z > 0.08, 'End Z must follow anterior abdominal contour');
   });
@@ -114,7 +122,7 @@ test('Human Anatomy Virtual Dissection System (Phase 2 Test Suite)', async (t) =
     );
   });
 
-  await t.test('Human Anatomy explorer UI maintains clean, non-graphic scientific educational tone', () => {
+  await t.test('Human Anatomy explorer UI removes screenshot-marked clutter, keeps dissection always on, and places vertical touch slider on side of viewer', () => {
     const componentCode = fs.readFileSync(
       path.resolve('src/components/biology/HumanAnatomyExplorer.tsx'),
       'utf-8'
@@ -127,8 +135,27 @@ test('Human Anatomy Virtual Dissection System (Phase 2 Test Suite)', async (t) =
       assert.ok(!regex.test(componentCode), `Component must not contain graphic term: '${term}'`);
     });
 
+    // Verify screenshot-marked elements and Enable Virtual Dissection toggle/text are removed
+    assert.ok(!componentCode.includes('Human Anatomy Explorer — Virtual Dissection Suite'), 'Must remove marked top header ribbon');
+    assert.ok(!componentCode.includes('External Human Specimen'), 'Must remove marked top-left specimen badge');
+    assert.ok(!componentCode.includes('Orbit & Zoom Mode'), 'Must remove marked mode pill');
+    assert.ok(!componentCode.includes('Virtual Dissection Guide'), 'Must remove marked floating callout box');
+    assert.ok(!componentCode.includes('Enable Virtual Dissection'), 'Must remove Enable Virtual Dissection button');
+    assert.ok(!componentCode.includes('Click Enable to activate the abdominal guide.'), 'Must remove Enable Virtual Dissection prompt text');
+    assert.ok(!componentCode.includes('Human Organ Systems Dossier'), 'Must remove marked duplicate Organ Systems Dossier inside viewer container');
+
+    // Verify virtual dissection is always on ('GUIDE_READY' by default) and vertical side slider exists
+    assert.ok(componentCode.includes("useState<DissectionState>('GUIDE_READY')"), 'Virtual dissection must be always on by default');
+    assert.ok(componentCode.includes('data-testid="vertical-dissection-dock"'), 'Must include vertical dissection dock on the side of the viewer');
+    assert.ok(componentCode.includes('data-testid="vertical-dissection-slider"'), 'Must include vertical touch-screen dissection slider');
+
+    // Verify human GLB automatically positions to the front (theta = 0, not Math.PI / 2 side profile) and cut stretches upwards to chest middle (0.44) without stretching downwards (-0.12)
+    assert.ok(componentCode.includes('controls.reset(cameraZ, 0, Math.PI / 2.02, frontTarget)'), 'Must auto-orient human GLB to front (theta = 0) on load');
+    assert.ok(!componentCode.includes('controls.reset(cameraZ, Math.PI / 2,'), 'Must not orient human GLB sideways (theta = Math.PI / 2)');
+    assert.ok(componentCode.includes('const topY = 0.44 * calib.lengthScale + calib.yOffset;'), 'Dissection cut must stretch upwards to chest middle (topY = 0.44)');
+    assert.ok(componentCode.includes('const botY = -0.12 * calib.lengthScale + calib.yOffset;'), 'Dissection cut must not stretch downwards (botY = -0.12)');
+
     // Ensure educational terminology is present
-    assert.ok(componentCode.includes('Virtual Dissection Guide'), 'Must include Virtual Dissection Guide');
     assert.ok(componentCode.includes('linea alba'), 'Must reference anatomical linea alba');
     assert.ok(componentCode.includes('Demonstration Complete'), 'Must include Demonstration Complete state');
     assert.ok(componentCode.includes('Explore Internal Organs'), 'Must include Explore Internal Organs action');

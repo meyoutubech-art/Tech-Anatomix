@@ -75,5 +75,8 @@ test('TECH-ANATOMIX — Human Body Dissection Interaction Fixes (Fix 1, Fix 2, F
     assert.ok(code.includes('Math.pow(1 - u'), 'Must use smooth non-linear power curve for graceful taper');
     assert.ok(code.includes('visceralBulge') || code.includes('stomachFactor'), 'Must provide visceral window dilation around stomach region');
     assert.ok(code.includes('deepCenter'), 'Must include 3D contoured recessed fascia bed');
+    assert.ok(code.includes('furrowColors'), 'Must include multi-layered vertex-colored incision depth');
+    assert.ok(code.includes('updateSkinIncisionRecess'), 'Must dynamically recess underlying skin along active incision to prevent skin clipping');
+    assert.ok(code.includes('0x965d37'), 'Must apply warm medium-dark brown skin tone to human body mesh');
   });
 });
