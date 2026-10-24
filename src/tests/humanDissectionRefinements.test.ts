@@ -105,5 +105,14 @@ test('TECH-ANATOMIX — Human Body Dissection Interaction Fixes (Fix 1, Fix 2, F
     assert.ok(code.includes('dissectionZoomRadius'), 'Must moderately zoom in toward starting point when dissection starts');
     assert.ok(code.includes('desiredTargetY = posY + cutPt.y * 0.78'), 'Must smoothly pan camera vertically along the active cut point');
   });
+
+  // ---------------------------------------------------------------------------
+  // FIX 6: Open Pitch-Black Surgical Gap Within Cut & Velocity-Responsive Blood Spread
+  // ---------------------------------------------------------------------------
+  await t.test('Fix 6: Deep pitch-black surgical gap remains visible within the cut and blood spreading speed scales with cutting velocity', () => {
+    assert.ok(code.includes('0x010001') && code.includes('roughness: 0.96'), 'Must render a deep pitch-black matte interior surgical gap');
+    assert.ok(code.includes('halfWidth * 0.24'), 'Must anchor inner blood edges at parted dermal lips so the central black gap stays open');
+    assert.ok(code.includes('cutVelocityRef') && code.includes('stationSpeedRef'), 'Must track cutting velocity and per-station speed so fast cuts spread blood faster and slow cuts spread slowly');
+  });
 });
 

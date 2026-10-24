@@ -528,17 +528,17 @@ function buildRefinedIncisionGeometries(
   const topRetractLevel = segmentRetract ? Math.max(0.25, segmentRetract[0]) : 1.0;
   const wEntryApex = wUpper * 0.22 * (0.45 + 0.55 * topRetractLevel);
 
-  // Anatomical layer colors for vertex-shaded incision depth
-  const colDermalLip = new THREE.Color(0x991b1b);   // incised vascular dermis lip
-  const colSubdermalWall = new THREE.Color(0x4c0519); // steep subcutaneous muscular wall
-  const colDeepCavity = new THREE.Color(0x1a0307);  // deep shadowed coelomic cavity floor
+  // Anatomical layer colors for vertex-shaded incision depth (deep pitch-black inner gap + dark crimson dermal rim)
+  const colDermalLip = new THREE.Color(0x881337);     // incised vascular dermis lip
+  const colSubdermalWall = new THREE.Color(0x060102); // steep near-black subcutaneous wall
+  const colDeepCavity = new THREE.Color(0x010001);    // 0x1a0307 pitch-black shadowed coelomic cavity gap
 
   // 1. Smooth rounded superior apex fillet (Fix 3: removes needle-like point)
   const arcSteps = 12;
   const apexCenter = p0.clone().add(new THREE.Vector3(0, 0.002, 0.003));
   const apexCenterIdx = 0;
   furrowPositions.push(apexCenter.x, apexCenter.y, apexCenter.z);
-  furrowColors.push(colSubdermalWall.r, colSubdermalWall.g, colSubdermalWall.b);
+  furrowColors.push(colDeepCavity.r, colDeepCavity.g, colDeepCavity.b);
 
   const arcVertexIndices: number[] = [];
   for (let s = 0; s <= arcSteps; s++) {
@@ -563,9 +563,9 @@ function buildRefinedIncisionGeometries(
     const absU = u * progress;
     const stationIdx = Math.min(64, Math.floor(absU * 64));
 
-    // Time-driven slow tissue retraction and slow vascular seepage at this station
+    // Time-driven tissue retraction and velocity-responsive vascular seepage at this station
     const rawRetract = segmentRetract ? segmentRetract[stationIdx] : 1.0;
-    const retractEase = 0.25 + 0.75 * (rawRetract * rawRetract * (3 - 2 * rawRetract));
+    const retractEase = 0.28 + 0.72 * (rawRetract * rawRetract * (3 - 2 * rawRetract));
 
     const rawSpread = segmentSpread ? segmentSpread[stationIdx] : 1.0;
     const spreadEase = rawSpread * rawSpread * (3 - 2 * rawSpread);
@@ -576,20 +576,20 @@ function buildRefinedIncisionGeometries(
     if (lateral.x < 0) lateral.negate();
 
     // Smooth fusiform surgical retraction: widens from rounded superior entry apex into chest/epigastrium, then tapers to scalpel tip
-    const topRetraction = 0.26 + 0.74 * Math.sin(Math.min(1, u / 0.22) * (Math.PI / 2));
-    const baseHalfWidth = (0.0042 + (wUpper * 0.72 - 0.0042) * Math.pow(1 - u, 1.25)) * topRetraction * retractEase;
+    const topRetraction = 0.28 + 0.72 * Math.sin(Math.min(1, u / 0.20) * (Math.PI / 2));
+    const baseHalfWidth = (0.0048 + (wUpper * 0.78 - 0.0048) * Math.pow(1 - u, 1.2)) * topRetraction * retractEase;
     // Smooth visceral window dilation around epigastric stomach region
     const stomachFactor = Math.sin(Math.PI * Math.min(1, Math.max(0, (absU - 0.08) / 0.75)));
-    const visceralBulge = progress > 0.05 ? 0.0045 * stomachFactor * Math.sin(u * Math.PI) * retractEase : 0;
+    const visceralBulge = progress > 0.05 ? 0.0052 * stomachFactor * Math.sin(u * Math.PI) * retractEase : 0;
     const halfWidth = i === 0 ? wEntryApex : baseHalfWidth + visceralBulge;
 
-    const midWidth = halfWidth * 0.58;
-    const depth = 0.005 * (1 - u * 0.45); // contoured depth along incision
+    const midWidth = halfWidth * 0.66;
+    const depth = 0.009 * (1 - u * 0.35); // deep recessed black cavity cleft along incision
 
     const leftOuter = pt.clone().sub(lateral.clone().multiplyScalar(halfWidth)).add(new THREE.Vector3(0, 0, 0.0045));
-    const leftMid = pt.clone().sub(lateral.clone().multiplyScalar(midWidth)).add(new THREE.Vector3(0, 0, 0.002));
-    const deepCenter = pt.clone().sub(new THREE.Vector3(0, 0, depth * 0.25));
-    const rightMid = pt.clone().add(lateral.clone().multiplyScalar(midWidth)).add(new THREE.Vector3(0, 0, 0.002));
+    const leftMid = pt.clone().sub(lateral.clone().multiplyScalar(midWidth)).add(new THREE.Vector3(0, 0, 0.0022));
+    const deepCenter = pt.clone().sub(new THREE.Vector3(0, 0, depth * 0.35));
+    const rightMid = pt.clone().add(lateral.clone().multiplyScalar(midWidth)).add(new THREE.Vector3(0, 0, 0.0022));
     const rightOuter = pt.clone().add(lateral.clone().multiplyScalar(halfWidth)).add(new THREE.Vector3(0, 0, 0.0045));
 
     const rowStart = furrowPositions.length / 3;
@@ -623,8 +623,8 @@ function buildRefinedIncisionGeometries(
       }
     }
 
-    // Fix 2: Thick, wide, organic vascular crimson seepage along incised skin margins
-    // Starts with a substantial crimson band (~8.5mm per side) when cut and slowly spreads outward up to ~45mm per side (~90-110mm total width) with gravity trickle
+    // Fix 2: Thick, wide, organic vascular crimson seepage along BOTH sides of the open black incision gap
+    // Leaves the central black gap (-midWidth to +midWidth) open so the cut looks genuinely parted
     const organicLobes =
       1.08 +
       0.38 * Math.sin(absU * 34.0 + 0.7) +
@@ -636,15 +636,16 @@ function buildRefinedIncisionGeometries(
     const baseSeepWidth = 0.0085 + (0.036 * spreadEase) * (0.65 + 0.35 * Math.sin(u * Math.PI));
     const hemoWidthLeft = baseSeepWidth * organicLobes * leftLobeVar;
     const hemoWidthRight = baseSeepWidth * organicLobes * rightLobeVar;
-    // Slow downward gravity trickle on outer spreading edge
+    // Downward gravity trickle on outer spreading edge
     const gravityTrickleY = -0.012 * spreadEase * spreadEase * Math.max(0.25, Math.sin(absU * 48.0 + 1.1));
 
     const hLeftOuter = leftOuter
       .clone()
       .sub(lateral.clone().multiplyScalar(hemoWidthLeft))
       .add(new THREE.Vector3(0, gravityTrickleY, -0.0004));
-    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(halfWidth * 0.68));
-    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(halfWidth * 0.68));
+    // Anchor inner blood edge along the parted dermal lip so the central black gap remains clearly open
+    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(halfWidth * 0.24));
+    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(halfWidth * 0.24));
     const hRightOuter = rightOuter
       .clone()
       .add(lateral.clone().multiplyScalar(hemoWidthRight))
@@ -666,25 +667,21 @@ function buildRefinedIncisionGeometries(
 
     if (i > 0) {
       const prevH = hRow - 4;
-      // Left wide vascular seepage band
+      // Left wide vascular seepage band (flanking the open central black gap)
       hemoIndices.push(prevH, hRow, prevH + 1);
       hemoIndices.push(prevH + 1, hRow, hRow + 1);
-      // Central crimson pooling bridge across incision bed so the blood line is thick and continuous
-      hemoIndices.push(prevH + 1, hRow + 1, prevH + 2);
-      hemoIndices.push(prevH + 2, hRow + 1, hRow + 2);
-      // Right wide vascular seepage band
+      // Right wide vascular seepage band (flanking the open central black gap)
       hemoIndices.push(prevH + 2, hRow + 2, prevH + 3);
       hemoIndices.push(prevH + 3, hRow + 2, hRow + 3);
     }
 
-    // Superior apex rim connection
+    // Superior apex rim connection around top of cut
     if (i === 0) {
-      const topBloodPt = p0.clone().add(new THREE.Vector3(0, wEntryApex * 1.65, 0.0058));
+      const topBloodPt = p0.clone().add(new THREE.Vector3(0, wEntryApex * 1.55, 0.0058));
       const topBloodIdx = hemoPositions.length / 3;
       hemoPositions.push(topBloodPt.x, topBloodPt.y, topBloodPt.z);
       hemoUvs.push(0.25, 0.0);
       hemoIndices.push(hRow, hRow + 1, topBloodIdx);
-      hemoIndices.push(hRow + 1, hRow + 2, topBloodIdx);
       hemoIndices.push(topBloodIdx, hRow + 2, hRow + 3);
     }
 
@@ -695,7 +692,6 @@ function buildRefinedIncisionGeometries(
       hemoPositions.push(tipCapPt.x, tipCapPt.y, tipCapPt.z);
       hemoUvs.push(0.25, absU * 2.5);
       hemoIndices.push(hRow, tipCapIdx, hRow + 1);
-      hemoIndices.push(hRow + 1, tipCapIdx, hRow + 2);
       hemoIndices.push(hRow + 2, tipCapIdx, hRow + 3);
     }
   }
@@ -756,6 +752,9 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
   const hemoBeadsRef = useRef<Array<{ mesh: THREE.Mesh; uPos: number; side: number; speed: number }>>([]);
   const segmentSpreadRef = useRef<Float32Array>(new Float32Array(65));
   const segmentRetractRef = useRef<Float32Array>(new Float32Array(65));
+  const stationSpeedRef = useRef<Float32Array>(new Float32Array(65));
+  const cutVelocityRef = useRef<number>(0.22);
+  const lastCutTimestampRef = useRef<number>(0);
   const organEmergenceRef = useRef<Float32Array>(new Float32Array(4));
   const raycastHitPlaneRef = useRef<THREE.Mesh | null>(null);
   const skinMeshDataRef = useRef<Array<{
@@ -884,10 +883,22 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     handleProgressUpdate(nextProgress);
   };
 
-  // Unified Progress Update Handler
+  // Unified Progress Update Handler (tracks cutting velocity so fast cuts spread blood faster and slow cuts spread slowly)
   const handleProgressUpdate = (newVal: number) => {
     const clamped = Math.max(0, Math.min(1, newVal));
     cameraFollowCutRef.current = true;
+
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const dtCut = lastCutTimestampRef.current > 0
+      ? Math.max(0.008, Math.min(0.45, (nowMs - lastCutTimestampRef.current) * 0.001))
+      : 0.05;
+    const dProg = Math.abs(clamped - lastProgressRef.current);
+    if (dProg > 0.0004) {
+      const instVel = dProg / dtCut; // progress/sec: ~0.12 for slow cut, ~0.5 for medium, ~1.5-3.5 for fast cut
+      cutVelocityRef.current = Math.max(0.08, Math.min(4.0, cutVelocityRef.current * 0.35 + instVel * 0.65));
+      lastCutTimestampRef.current = nowMs;
+    }
+
     setProgress(clamped);
 
     // Audio feedback
@@ -1007,11 +1018,13 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       probeMeshRef.current.visible = dissectionState !== 'IDLE';
     }
 
-    // 2. Update Refined Incision Furrow & Slow-Spreading Vascular Red Feedback
+    // 2. Update Refined Incision Furrow & Velocity-Responsive Vascular Red Feedback
     if (progressTubeRef.current && incisionHemoRef.current) {
       if (progress <= 0.01 || dissectionState === 'IDLE') {
         segmentSpreadRef.current.fill(0);
         segmentRetractRef.current.fill(0);
+        stationSpeedRef.current.fill(0);
+        cutVelocityRef.current = 0.22;
         organEmergenceRef.current.fill(0);
         progressTubeRef.current.visible = false;
         incisionHemoRef.current.visible = false;
@@ -1025,19 +1038,28 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         progressTubeRef.current.visible = true;
         incisionHemoRef.current.visible = true;
 
-        // Seed newly cut stations with initial capillary contact so they spread slowly in animate()
+        // Seed newly cut stations with initial capillary contact & record cutting speed at each station
         const maxStation = Math.floor(progress * 64);
+        const activeVel = Math.max(0.10, Math.min(3.5, cutVelocityRef.current));
+        const initSpreadSeed = Math.min(0.32, 0.06 + activeVel * 0.08);
+        const initRetractSeed = Math.min(0.38, 0.16 + activeVel * 0.08);
         for (let k = 0; k <= 64; k++) {
           if (k <= maxStation) {
-            if (segmentRetractRef.current[k] < 0.22) {
-              segmentRetractRef.current[k] = 0.22;
+            if (stationSpeedRef.current[k] <= 0.01) {
+              stationSpeedRef.current[k] = activeVel;
+            } else {
+              stationSpeedRef.current[k] = Math.max(stationSpeedRef.current[k], activeVel * 0.85);
             }
-            if (segmentSpreadRef.current[k] < 0.18) {
-              segmentSpreadRef.current[k] = 0.18;
+            if (segmentRetractRef.current[k] < initRetractSeed) {
+              segmentRetractRef.current[k] = initRetractSeed;
+            }
+            if (segmentSpreadRef.current[k] < initSpreadSeed) {
+              segmentSpreadRef.current[k] = initSpreadSeed;
             }
           } else {
             segmentRetractRef.current[k] = 0;
             segmentSpreadRef.current[k] = 0;
+            stationSpeedRef.current[k] = 0;
           }
         }
 
@@ -1229,13 +1251,13 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     guideGroup.add(intestinalCoilsGroup);
     intestinalCoilsRef.current = intestinalCoilsGroup;
 
-    // C. Refined Incision Furrow (Fix 3: multi-layered vertex-shaded dermal walls & deep cavity bed)
+    // C. Refined Incision Furrow (Fix 3: deep pitch-black interior surgical gap & steep dermal walls)
     const progTubeGeo = new THREE.BufferGeometry();
     const progTubeMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff, // uses per-vertex colors (0x3d1308 fascia / 0x1a0307 deep cavity)
+      color: 0xffffff, // uses per-vertex colors (0x3d1308 fascia / 0x1a0307 deep pitch-black cavity gap)
       vertexColors: true,
-      roughness: 0.34,
-      metalness: 0.08,
+      roughness: 0.96,
+      metalness: 0.0,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -3,
@@ -1651,20 +1673,24 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         tipLight.intensity = 0.5 + Math.sin(time) * 0.2;
       }
 
+      // Decay instantaneous cutting velocity smoothly when scalpel pauses
+      cutVelocityRef.current = Math.max(0.10, cutVelocityRef.current * Math.exp(-dt * 2.5));
+
       if (activeProg > 0.01 && dissectionStateRef.current !== 'IDLE') {
         const maxStation = Math.floor(activeProg * 64);
         let needsGeoRebuild = false;
 
-        // 1. Slowly advance dermal retraction & vascular blood spread at every cut station
+        // 1. Advance dermal retraction & velocity-responsive vascular blood spread at every cut station
+        // Fast cutting -> fast blood spreading; Slow cutting -> slow blood spreading
         for (let k = 0; k <= maxStation; k++) {
+          const stationVel = Math.max(stationSpeedRef.current[k] || 0.16, cutVelocityRef.current * 0.85);
           if (segmentRetractRef.current[k] < 1.0) {
-            // Dermal lips part over ~1.5 seconds after scalpel passes
-            segmentRetractRef.current[k] = Math.min(1.0, segmentRetractRef.current[k] + dt * 0.68);
+            const retractRate = 0.28 + stationVel * 0.65;
+            segmentRetractRef.current[k] = Math.min(1.0, segmentRetractRef.current[k] + dt * retractRate);
             needsGeoRebuild = true;
           }
           if (segmentSpreadRef.current[k] < 1.0) {
-            // Blood slowly spreads outward to a wide, thick crimson band over ~2.2 seconds after scalpel passes
-            const stationWave = 0.38 + 0.14 * Math.sin(k * 0.45);
+            const stationWave = (0.12 + stationVel * 0.72) * (0.85 + 0.25 * Math.sin(k * 0.45));
             segmentSpreadRef.current[k] = Math.min(1.0, segmentSpreadRef.current[k] + dt * stationWave);
             needsGeoRebuild = true;
           }
@@ -1716,7 +1742,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           }
         });
 
-        // 3. Slowly emerge red internal organs where the body has been cut
+        // 3. Slowly emerge red internal organs inside the parted black surgical gap
         // Zone 0: Thoracic Heart (emerges where upper/mid chest is cut: activeProg >= 0.04)
         if (thoracicHeartRef.current) {
           if (activeProg >= 0.04) {
@@ -1728,14 +1754,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           if (e0 > 0.01) {
             const ease0 = e0 * e0 * (3 - 2 * e0);
             const heartBeat = 1.0 + Math.sin(now * 0.0075) * 0.045 * ease0;
-            const hScale = (0.15 + 0.85 * ease0) * heartBeat;
+            const hScale = (0.12 + 0.64 * ease0) * heartBeat;
             const heartAnchor = activeCurve.getPointAt(0.11);
             thoracicHeartRef.current.visible = true;
             thoracicHeartRef.current.scale.set(hScale, hScale, hScale);
             thoracicHeartRef.current.position.set(
               heartAnchor.x + 0.001,
               heartAnchor.y,
-              heartAnchor.z - 0.022 + ease0 * 0.026 // slowly emerges outward through chest incision
+              heartAnchor.z - 0.024 + ease0 * 0.022 // emerges inside the black chest incision cavity
             );
           } else {
             thoracicHeartRef.current.visible = false;
@@ -1753,14 +1779,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           if (e1 > 0.01) {
             const ease1 = e1 * e1 * (3 - 2 * e1);
             const resp = 1.0 + Math.sin(now * 0.0025) * 0.02 * ease1;
-            const lScale = (0.15 + 0.85 * ease1) * resp;
+            const lScale = (0.12 + 0.64 * ease1) * resp;
             const liverAnchor = activeCurve.getPointAt(0.26);
             hepaticLiverRef.current.visible = true;
             hepaticLiverRef.current.scale.set(lScale, lScale, lScale);
             hepaticLiverRef.current.position.set(
-              liverAnchor.x - 0.003 * ease1,
+              liverAnchor.x - 0.002 * ease1,
               liverAnchor.y,
-              liverAnchor.z - 0.021 + ease1 * 0.025 // slowly emerges outward where subxiphoid is cut
+              liverAnchor.z - 0.023 + ease1 * 0.021 // emerges inside the black subxiphoid cavity
             );
           } else {
             hepaticLiverRef.current.visible = false;
@@ -1778,14 +1804,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           if (e2 > 0.01) {
             const ease2 = e2 * e2 * (3 - 2 * e2);
             const peristalsis = 1.0 + Math.sin(now * 0.003 + 1.2) * 0.025 * ease2;
-            const sScale = (0.15 + 0.85 * ease2) * peristalsis;
+            const sScale = (0.12 + 0.66 * ease2) * peristalsis;
             const stomachAnchor = activeCurve.getPointAt(0.46);
             stomachGroupRef.current.visible = true;
             stomachGroupRef.current.scale.set(sScale, sScale, sScale);
             stomachGroupRef.current.position.set(
-              stomachAnchor.x + 0.002 * ease2,
+              stomachAnchor.x + 0.001 * ease2,
               stomachAnchor.y,
-              stomachAnchor.z - 0.020 + ease2 * 0.026 // slowly emerges outward where mid-abdomen is cut
+              stomachAnchor.z - 0.022 + ease2 * 0.022 // emerges inside the black mid-abdominal cavity
             );
           } else {
             stomachGroupRef.current.visible = false;
@@ -1803,14 +1829,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           if (e3 > 0.01) {
             const ease3 = e3 * e3 * (3 - 2 * e3);
             const wave = 1.0 + Math.sin(now * 0.0035 + 2.4) * 0.025 * ease3;
-            const iScale = (0.15 + 0.85 * ease3) * wave;
+            const iScale = (0.12 + 0.64 * ease3) * wave;
             const gutAnchor = activeCurve.getPointAt(0.74);
             intestinalCoilsRef.current.visible = true;
             intestinalCoilsRef.current.scale.set(iScale, iScale, iScale);
             intestinalCoilsRef.current.position.set(
               gutAnchor.x,
               gutAnchor.y,
-              gutAnchor.z - 0.020 + ease3 * 0.026 // slowly emerges outward where lower abdomen is cut
+              gutAnchor.z - 0.022 + ease3 * 0.022 // emerges inside the black lower-abdominal cavity
             );
           } else {
             intestinalCoilsRef.current.visible = false;
