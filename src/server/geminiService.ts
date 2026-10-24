@@ -1822,6 +1822,21 @@ export async function chatWithLabMentor(question: string, modelTitle?: string, s
     .join(', ');
 
   if (aiClient) {
+    const chemistryGroundingBlock =
+      effectiveSubject === 'Chemistry' && context?.results?.localChemistryNotes
+        ? `\nCANONICAL CHEMISTRY REGISTRY & REACTION ENGINE EVALUATION:
+- Detected User Intent: ${context?.results?.userIntent || 'reaction_explanation'}
+- Simulator Support Classification: ${context?.results?.reactionSupportClassification || 'not_applicable'}
+- Verified Registry & Reaction Engine Notes:
+"""
+${context.results.localChemistryNotes}
+"""
+CRITICAL CHEMISTRY LAB RULES:
+1. Never substitute an unrelated preset reaction when the student asks about a specific reaction.
+2. Preserve the exact balanced chemical equation, reactants, products, reaction type, and observable physical effects from the Verified Registry & Reaction Engine Notes above.
+3. Explicitly state whether the reaction is "Supported in the 3D Virtual Chemistry Lab Simulator", "Scientific Reference Reaction — Not currently executable in the 3D beaker simulator", "No Reaction Under Standard Aqueous Conditions", or "Restricted Reference Only".`
+        : '';
+
     const prompt = `STUDENT INQUIRY: "${question}"
 
 STRUCTURED MODEL CONTEXT:
@@ -1839,7 +1854,7 @@ ${
 }
 - Current Experiment Parameters: ${JSON.stringify(context?.parameters || {})}
 - Current Real-time Measurements/Outputs: ${JSON.stringify(context?.results || context?.measurements || {})}
-${context?.recentChange ? `- Recent State Change: ${JSON.stringify(context.recentChange)}` : ''}
+${context?.recentChange ? `- Recent State Change: ${JSON.stringify(context.recentChange)}` : ''}${chemistryGroundingBlock}
 
 INSTRUCTIONS FOR VIZLAB AI:
 1. Answer the student's question accurately, concisely, and encouragingly.
@@ -1858,7 +1873,7 @@ INSTRUCTIONS FOR VIZLAB AI:
           config: {
             systemInstruction:
               'You are VIZLAB AI Lab Mentor, an elite, model-aware STEM educator. Provide insightful, mathematically and biologically grounded answers connected directly to the active 3D model in front of the student. Always write units and equations using clean Unicode symbols (m/s², °, ×, →, π, √) and clean Markdown (**bold**, bullet lists)—never emit raw LaTeX like $25\\text{ m/s}$ or $45^\\circ$.',
-            temperature: 0.3,
+            temperature: 0.25,
           },
         });
 
@@ -1876,11 +1891,25 @@ INSTRUCTIONS FOR VIZLAB AI:
         reply: execution.result,
         text: execution.result,
         activeModel: execution.modelId,
+        aiProviderStatus: 'live_ai',
       };
     }
   }
 
   // Deterministic context-aware answer if AI is offline
+  if (effectiveSubject === 'Chemistry' && context?.results?.localChemistryNotes) {
+    const cleanedChemistryFallback = cleanAndFormatScientificText(
+      String(context.results.localChemistryNotes)
+    );
+    return {
+      answer: cleanedChemistryFallback,
+      reply: cleanedChemistryFallback,
+      text: cleanedChemistryFallback,
+      activeModel: 'deterministic-offline',
+      aiProviderStatus: 'deterministic_fallback',
+    };
+  }
+
   const q = question.toLowerCase();
   const paramEntries = Object.entries(context?.parameters || {});
   const resultEntries = Object.entries(context?.results || context?.measurements || {});
@@ -1909,6 +1938,7 @@ INSTRUCTIONS FOR VIZLAB AI:
     reply: cleanedFallback,
     text: cleanedFallback,
     activeModel: 'deterministic-offline',
+    aiProviderStatus: 'deterministic_fallback',
   };
 }
 

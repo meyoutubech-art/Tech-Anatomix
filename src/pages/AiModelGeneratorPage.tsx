@@ -29,7 +29,17 @@ import {
 import { synthesizeProceduralScientificModel } from '../utils/proceduralModelSynthesizer';
 import { validateScientificModel, repairCustomModelSpec } from '../utils/modelValidator';
 
-export const AiModelGeneratorPage: React.FC = () => {
+export interface AiModelGeneratorPageProps {
+  initialModelId?: string;
+  initialPrompt?: string;
+  launchKey?: number;
+}
+
+export const AiModelGeneratorPage: React.FC<AiModelGeneratorPageProps> = ({
+  initialModelId,
+  initialPrompt,
+  launchKey,
+}) => {
   const [prompt, setPrompt] = useState('');
   const [lastSubmittedPrompt, setLastSubmittedPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -147,6 +157,31 @@ export const AiModelGeneratorPage: React.FC = () => {
     });
     setConditions(newConds);
   };
+
+  useEffect(() => {
+    if (initialModelId) {
+      const directByKey = CURATED_AI_MODELS[initialModelId];
+      const directById = Object.values(CURATED_AI_MODELS).find((m) => m.id === initialModelId);
+      const chosen = directByKey || directById;
+      if (chosen) {
+        applyModelToViewer({
+          ...chosen,
+          generationSource: 'curated-preset',
+        });
+        return;
+      }
+      const decision = analyzePromptForPresetMatch(initialModelId);
+      if (decision.selectedPreset) {
+        applyModelToViewer({
+          ...decision.selectedPreset,
+          generationSource: 'curated-preset',
+        });
+      }
+    } else if (initialPrompt) {
+      const procSpec = synthesizeProceduralScientificModel(initialPrompt);
+      applyModelToViewer(procSpec);
+    }
+  }, [initialModelId, initialPrompt, launchKey]);
 
   const clearScheduledTimers = () => {
     stepTimerRef.current.forEach((t) => clearTimeout(t));

@@ -42,7 +42,7 @@ export interface ReactionDiscoveryResponse {
 /**
  * Maps a raw ReactionDefinition into a user-friendly ReactionOptionCard
  */
-function mapReactionToOptionCard(r: ReactionDefinition): ReactionOptionCard {
+export function mapReactionToOptionCard(r: ReactionDefinition): ReactionOptionCard {
   const reactantsMapped = r.reactants.map((reqId) => {
     const lookup = findOrLookupCompound(reqId);
     const def = lookup.compound || REAGENTS.find((reg) => reg.id === reqId);
@@ -69,6 +69,10 @@ function mapReactionToOptionCard(r: ReactionDefinition): ReactionOptionCard {
     catalystRequired = true;
     catalystInfo = 'Potassium Iodide (KI) is required as a homogeneous catalyst for peroxide disproportionation.';
     catalystId = 'ki';
+  } else if (r.id === 'catalase_peroxide_decomposition') {
+    catalystRequired = true;
+    catalystInfo = 'Catalase Enzyme is required as a biological catalyst for rapid peroxide disproportionation.';
+    catalystId = 'catalase_enzyme';
   } else if (r.reactants.includes('h2o2')) {
     catalystInfo = 'Optional catalyst: Manganese Dioxide (MnO₂) or Potassium Iodide (KI) dramatically accelerates gas evolution.';
   }
@@ -101,8 +105,79 @@ function mapReactionToOptionCard(r: ReactionDefinition): ReactionOptionCard {
   };
 }
 
+function normalizeQueryFormulaText(str: string): string {
+  const subMap: Record<string, string> = {
+    '₀': '0',
+    '₁': '1',
+    '₂': '2',
+    '₃': '3',
+    '₄': '4',
+    '₅': '5',
+    '₆': '6',
+    '₇': '7',
+    '₈': '8',
+    '₉': '9',
+    '⁺': '+',
+    '⁻': '-',
+    '–': '-',
+    '—': '-',
+  };
+  return str.replace(/[₀₁₂₃₄₅₆₇₈₉⁺⁻–—]/g, (ch) => subMap[ch] || ch);
+}
+
+/**
+ * Resolves specific canonical compounds mentioned in a reaction query so that
+ * specific substance queries (e.g. "lead(II) nitrate + potassium iodide" or
+ * "oxalic acid and potassium permanganate") never fall back to unrelated presets.
+ */
+function findMentionedSimulatorReagents(query: string): string[] {
+  const qNorm = normalizeQueryFormulaText(query).toLowerCase();
+  const qNoParens = qNorm.replace(/[()]/g, ' ').replace(/\s+/g, ' ');
+  const matchedIds = new Set<string>();
+
+  for (const r of REAGENTS) {
+    const rName = normalizeQueryFormulaText(r.name).toLowerCase();
+    const rNameNoParens = rName.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+    const rBase = rName.replace(/\s*\([^)]*\)/g, '').trim();
+    const rFormula = normalizeQueryFormulaText(r.formula)
+      .replace(/\((s|l|g|aq|sat\.\s*aq)\)/gi, '')
+      .trim()
+      .toLowerCase();
+
+    if (
+      (rName.length >= 4 && qNorm.includes(rName)) ||
+      (rNameNoParens.length >= 4 && qNoParens.includes(rNameNoParens)) ||
+      (rBase.length >= 5 && qNorm.includes(rBase))
+    ) {
+      matchedIds.add(r.id);
+      continue;
+    }
+
+    if (r.aliases) {
+      for (const alias of r.aliases) {
+        const aNorm = normalizeQueryFormulaText(alias).toLowerCase().trim();
+        if (aNorm.length >= 4 && qNorm.includes(aNorm)) {
+          matchedIds.add(r.id);
+          break;
+        }
+      }
+    }
+
+    if (rFormula.length >= 2) {
+      const escaped = rFormula.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const formulaRegex = new RegExp(`(?:^|\\s|\\+|\\()${escaped}(?:$|\\s|\\+|\\)|\\?|\\.|,)`, 'i');
+      if (formulaRegex.test(qNorm)) {
+        matchedIds.add(r.id);
+      }
+    }
+  }
+
+  return Array.from(matchedIds);
+}
+
 /**
  * Discovers and ranks up to 4 distinct, verified reactions matching a natural language prompt.
+ * Never returns unrelated preset reactions when the user asks about specific named substances.
  */
 export function discoverReactions(query: string): ReactionDiscoveryResponse {
   if (!query || !query.trim()) {
@@ -110,6 +185,50 @@ export function discoverReactions(query: string): ReactionDiscoveryResponse {
   }
 
   const q = query.toLowerCase().trim();
+
+  // 0. SPECIFIC NAMED COMPOUND REACTION CHECK FIRST
+  // Prevents specific queries like "What happens when lead(II) nitrate reacts with potassium iodide?"
+  // or "Explain the reaction between oxalic acid and potassium permanganate" from returning unrelated presets.
+  const mentionedIds = findMentionedSimulatorReagents(query);
+  if (mentionedIds.length >= 2) {
+    const exactOrSubset = REACTIONS.filter((rx) =>
+      rx.reactants.every((reqId) => mentionedIds.includes(reqId))
+    );
+    if (exactOrSubset.length > 0) {
+      const mapped = exactOrSubset.map(mapReactionToOptionCard).slice(0, 4);
+      return {
+        query,
+        options: mapped,
+        totalFound: mapped.length,
+        message: `Found ${mapped.length} verified simulator reaction${mapped.length > 1 ? 's' : ''} matching the requested reactants.`,
+      };
+    }
+
+    // Check if any reaction contains all mentionedIds (e.g., 2 reactants of a 2-reactant reaction)
+    const containingAllMentioned = REACTIONS.filter((rx) =>
+      mentionedIds.every((mId) => rx.reactants.includes(mId))
+    );
+    if (containingAllMentioned.length > 0) {
+      const mapped = containingAllMentioned.map(mapReactionToOptionCard).slice(0, 4);
+      return {
+        query,
+        options: mapped,
+        totalFound: mapped.length,
+        message: `Found ${mapped.length} verified simulator reaction${mapped.length > 1 ? 's' : ''} involving the requested reactants.`,
+      };
+    }
+
+    // Specific compounds were named, but no supported 3D simulator reaction exists between them
+    const namedLabels = mentionedIds
+      .map((id) => REAGENTS.find((r) => r.id === id)?.name || id)
+      .join(' + ');
+    return {
+      query,
+      options: [],
+      totalFound: 0,
+      message: `No executable 3D beaker simulation is defined for the specific combination (${namedLabels}) under standard simulator conditions.`,
+    };
+  }
 
   // 1. EFFERVESCENCE / GAS EVOLUTION INTENT (Explicit Requirement 4)
   if (
@@ -198,15 +317,15 @@ export function discoverReactions(query: string): ReactionDiscoveryResponse {
   // 4. ACID-BASE NEUTRALISATION INTENT
   if (
     q.includes('neutral') ||
-    q.includes('acid') && q.includes('base') ||
+    (q.includes('acid') && q.includes('base')) ||
     q.includes('alkali') ||
     q.includes('titrat')
   ) {
     const neutralizationIds = [
-      'neutralization',           // 1. HCl + NaOH
+      'neutralization',            // 1. HCl + NaOH
       'h2so4_naoh_neutralization', // 2. H2SO4 + NaOH
-      'indicator_base_fuchsia',   // 3. Phenolphthalein + NaOH
-      'acid_carbonate',           // 4. HCl + CaCO3
+      'indicator_base_fuchsia',    // 3. Phenolphthalein + NaOH
+      'acid_carbonate',            // 4. HCl + CaCO3
     ];
 
     const matched = neutralizationIds
@@ -276,7 +395,21 @@ export function discoverReactions(query: string): ReactionDiscoveryResponse {
     };
   }
 
-  // 7. GENERAL SEARCH FALLBACK (Matches keywords across all REACTIONS)
+  // 7. Single mentioned compound reaction lookup (e.g., "reactions with silver nitrate")
+  if (mentionedIds.length === 1) {
+    const singleMatches = REACTIONS.filter((r) => r.reactants.includes(mentionedIds[0]));
+    if (singleMatches.length > 0) {
+      const mapped = singleMatches.map(mapReactionToOptionCard).slice(0, 4);
+      return {
+        query,
+        options: mapped,
+        totalFound: singleMatches.length,
+        message: `Found ${mapped.length} verified reaction${mapped.length > 1 ? 's' : ''} involving the requested compound.`,
+      };
+    }
+  }
+
+  // 8. GENERAL SEARCH FALLBACK (Matches keywords across all REACTIONS)
   const matches = REACTIONS.filter((r) => {
     const nameMatch = r.name.toLowerCase().includes(q);
     const typeMatch = r.reactionType.toLowerCase().includes(q);
@@ -296,18 +429,35 @@ export function discoverReactions(query: string): ReactionDiscoveryResponse {
     };
   }
 
-  // Default to 4 representative educational reactions if general query provided
-  const default4 = [
-    REACTIONS.find((r) => r.id === 'vinegar_baking_soda')!,
-    REACTIONS.find((r) => r.id === 'precipitation')!,
-    REACTIONS.find((r) => r.id === 'neutralization')!,
-    REACTIONS.find((r) => r.id === 'acid_metal')!,
-  ].map(mapReactionToOptionCard);
+  // Only return the 4 general showcase examples if the user asked for general examples/suggestions
+  if (
+    q.includes('example') ||
+    q.includes('sample') ||
+    q.includes('any reaction') ||
+    q.includes('suggest') ||
+    q.includes('popular') ||
+    q.includes('preset')
+  ) {
+    const default4 = [
+      REACTIONS.find((r) => r.id === 'vinegar_baking_soda')!,
+      REACTIONS.find((r) => r.id === 'precipitation')!,
+      REACTIONS.find((r) => r.id === 'neutralization')!,
+      REACTIONS.find((r) => r.id === 'acid_metal')!,
+    ].map(mapReactionToOptionCard);
+
+    return {
+      query,
+      options: default4,
+      totalFound: 4,
+      message: 'Showing 4 representative educational reaction options.',
+    };
+  }
 
   return {
     query,
-    options: default4,
-    totalFound: 4,
-    message: 'Showing 4 representative educational reaction options. Refine your description to narrow down specific visual outcomes.',
+    options: [],
+    totalFound: 0,
+    message: 'No matching preset simulator reaction found for this specific query.',
   };
 }
+

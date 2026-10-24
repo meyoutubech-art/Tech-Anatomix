@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { SimpleOrbitControls } from '../simulations/orbitControls';
 import { PageRoute } from '../components/layout/Navbar';
-import { ArrowRight, Compass, FlaskConical, Dna, Zap, ShieldCheck, Sparkles, Camera, Activity } from 'lucide-react';
+import { ArrowRight, Compass, FlaskConical, Dna, Zap, ShieldCheck, Sparkles, Activity } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: (route: PageRoute) => void;
@@ -184,13 +184,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
-                  onClick={() => onNavigate('diagram-scan')}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors shadow-sm cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Scan a Diagram</span>
-                </button>
-                <button
                   onClick={() => onNavigate('physics')}
                   className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm cursor-pointer"
                 >
@@ -366,45 +359,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Scan a Diagram Showcase Banner */}
-      <section className="py-12 bg-white border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="p-8 rounded-3xl border border-slate-200 bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-md">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-300 bg-sky-950/80 px-2.5 py-1 rounded-md uppercase tracking-wider border border-sky-800">
-                  <Camera className="w-3.5 h-3.5" />
-                  Multimodal Vision AI
-                </span>
-                <span className="text-slate-500">·</span>
-                <span className="text-xs text-slate-300 font-medium">Textbook Photo → 3D Model</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                Have a textbook diagram? Scan it into interactive 3D.
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                Take a photo or upload an illustration from your textbook or worksheet. VIZLAB automatically detects components, pairs labels to 3D parts, and creates a split-screen learning environment with interactive linking.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-400">
-                <span className="text-slate-400 font-medium">Works with:</span>
-                <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-200">Electric Motors</span>
-                <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-200">Human Heart</span>
-                <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-200">Cell Anatomy</span>
-                <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-200">DNA Helix</span>
-                <span className="bg-slate-800 border border-slate-700 px-2 py-0.5 rounded text-slate-200">Mechanical Levers</span>
-              </div>
-            </div>
-            <button
-              onClick={() => onNavigate('diagram-scan')}
-              className="px-6 py-3.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs sm:text-sm font-bold transition-colors whitespace-nowrap cursor-pointer shadow-sm shrink-0 flex items-center gap-2"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Launch Diagram Scanner →</span>
-            </button>
           </div>
         </div>
       </section>

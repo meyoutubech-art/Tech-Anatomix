@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CellScene } from '../components/biology/CellScene';
 import { HeartScene } from '../components/biology/HeartScene';
 import { DnaScene } from '../components/biology/DnaScene';
@@ -39,11 +39,17 @@ export type BiologyModelId =
   | 'animal-cell-explorer'
   | 'plant-root-transport'
   | 'blood-circulation-microscope'
+  | 'blood-transport'
   | 'neuron-nerve-signal'
   | 'frog-anatomy';
 
-export const BiologyLabPage: React.FC = () => {
-  const [bioModel, setBioModel] = useState<BiologyModelId>('cell');
+export interface BiologyLabPageProps {
+  initialModelId?: BiologyModelId;
+  launchKey?: number;
+}
+
+export const BiologyLabPage: React.FC<BiologyLabPageProps> = ({ initialModelId, launchKey }) => {
+  const [bioModel, setBioModel] = useState<BiologyModelId>(initialModelId || 'cell');
 
   const [batchParams, setBatchParams] = useState<Record<string, number>>({});
   const [batchConds, setBatchConds] = useState<Record<string, any>>({});
@@ -81,12 +87,36 @@ export const BiologyLabPage: React.FC = () => {
         return BIOLOGY_BATCH_2_MODELS.plantRootTransport;
       case 'blood-circulation-microscope':
         return BIOLOGY_BATCH_2_MODELS.bloodMicroscope;
+      case 'blood-transport':
+        return BIOLOGY_BATCH_2_MODELS.bloodTransport;
       case 'neuron-nerve-signal':
         return BIOLOGY_BATCH_2_MODELS.neuronSignalExplorer;
       default:
         return null;
     }
   }, [bioModel]);
+
+  useEffect(() => {
+    if (initialModelId) {
+      setBioModel(initialModelId);
+    }
+  }, [initialModelId, launchKey]);
+
+  useEffect(() => {
+    if (activeCuratedSpec) {
+      const initParams: Record<string, number> = {};
+      Object.values(activeCuratedSpec.parameters || {}).forEach((p) => {
+        initParams[p.id] = p.defaultValue;
+      });
+      setBatchParams(initParams);
+
+      const initConds: Record<string, any> = {};
+      Object.values(activeCuratedSpec.conditions || {}).forEach((c) => {
+        initConds[c.id] = c.defaultValue;
+      });
+      setBatchConds(initConds);
+    }
+  }, [activeCuratedSpec]);
 
   // Build model-aware context for active biology model and selected structure
   const chatbotContext: ModelChatContext = useMemo(() => {
@@ -242,6 +272,8 @@ export const BiologyLabPage: React.FC = () => {
         return '3D Plant Root and Transport Explorer (Model 28)';
       case 'blood-circulation-microscope':
         return '3D Blood & Circulation Microscope (Model 29)';
+      case 'blood-transport':
+        return '3D Blood Transport & Gas Exchange Explorer';
       case 'neuron-nerve-signal':
         return '3D Neuron & Nerve Signal Explorer (Model 30)';
       default:

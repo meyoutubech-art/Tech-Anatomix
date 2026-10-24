@@ -1,19 +1,19 @@
 import React from 'react';
-import { Sparkles, Camera } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { PWAInstallButton } from '../common/PWAInstallButton';
 import { GlobalAudioControl } from '../common/GlobalAudioControl';
 
-export type PageRoute = 'home' | 'diagram-scan' | 'physics' | 'chemistry' | 'biology' | 'anatomy' | 'ai-generator' | 'ai-lab' | 'about';
+export type PageRoute = 'home' | 'physics' | 'chemistry' | 'biology' | 'anatomy' | 'ai-generator' | 'ai-lab' | 'about';
 
 interface NavbarProps {
   currentRoute: PageRoute;
   onNavigate: (route: PageRoute) => void;
+  onOpenSettings: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate, onOpenSettings }) => {
   const navLinks: { route: PageRoute; label: string }[] = [
     { route: 'home', label: 'Home' },
-    { route: 'diagram-scan', label: 'Scan Diagram' },
     { route: 'chemistry', label: 'Chemistry' },
     { route: 'anatomy', label: 'Anatomy' },
     { route: 'ai-generator', label: 'Create 3D Model' },
@@ -64,22 +64,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
           })}
         </nav>
 
-        {/* Zone 3: Primary Actions & PWA Controls */}
+        {/* Zone 3: Primary Actions, PWA Controls & Extreme Top-Right Settings Icon */}
         <div className="flex items-center gap-2 sm:gap-2.5">
           <GlobalAudioControl />
           <PWAInstallButton compact />
-          <button
-            onClick={() => onNavigate('diagram-scan')}
-            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200 transition-colors cursor-pointer"
-          >
-            <Camera className="w-3.5 h-3.5 text-sky-600" />
-            <span>Scan Diagram</span>
-          </button>
           <button
             onClick={() => onNavigate('physics')}
             className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors shadow-xs whitespace-nowrap cursor-pointer"
           >
             Virtual Lab
+          </button>
+          <button
+            onClick={onOpenSettings}
+            aria-label="Open Settings and Model Directory"
+            title="Settings & Model Directory"
+            className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
+          >
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>

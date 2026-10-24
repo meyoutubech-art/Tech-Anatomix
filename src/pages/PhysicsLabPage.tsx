@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { SIMULATIONS_CONFIG } from '../data/simulationsData';
 import {
@@ -515,14 +515,42 @@ export const ALL_PHYSICS_PAGE_MODELS = [
   ...PHYSICS_ADVANCED_BATCH_4_MODELS,
 ];
 
-export const PhysicsLabPage: React.FC = () => {
-  const [activeBatch, setActiveBatch] = useState<1 | 3 | 4 | 5 | 6 | 7>(1);
-  const [activeModelId, setActiveModelId] = useState<string>('solar-system');
+export interface PhysicsLabPageProps {
+  initialModelId?: string;
+  launchKey?: number;
+}
+
+export const PhysicsLabPage: React.FC<PhysicsLabPageProps> = ({ initialModelId, launchKey }) => {
+  const [activeBatch, setActiveBatch] = useState<1 | 3 | 4 | 5 | 6 | 7>(() => {
+    if (initialModelId) {
+      const found = ALL_PHYSICS_PAGE_MODELS.find((m) => m.id === initialModelId);
+      if (found) return found.batch;
+    }
+    return 1;
+  });
+  const [activeModelId, setActiveModelId] = useState<string>(() => {
+    if (initialModelId && ALL_PHYSICS_PAGE_MODELS.some((m) => m.id === initialModelId)) {
+      return initialModelId;
+    }
+    return 'solar-system';
+  });
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'universal' | 'scene'>('universal');
   const [showLabels, setShowLabels] = useState(true);
   const [physicsPrompt, setPhysicsPrompt] = useState<string>('');
   const [promptFeedback, setPromptFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialModelId) {
+      const found = ALL_PHYSICS_PAGE_MODELS.find((m) => m.id === initialModelId);
+      if (found) {
+        setActiveBatch(found.batch);
+        setActiveModelId(found.id);
+        setSelectedCategory('All');
+        setViewMode('universal');
+      }
+    }
+  }, [initialModelId, launchKey]);
 
   // Find active meta
   const activeMeta = useMemo(() => {

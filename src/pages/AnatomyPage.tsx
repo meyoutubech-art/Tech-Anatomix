@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PageRoute } from '../components/layout/Navbar';
 import { FrogAnatomyExplorer } from '../components/biology/FrogAnatomyExplorer';
 import { HumanAnatomyExplorer } from '../components/biology/HumanAnatomyExplorer';
@@ -28,6 +28,8 @@ import {
 
 interface AnatomyPageProps {
   onNavigate?: (route: PageRoute) => void;
+  initialSpecimen?: 'frog' | 'human';
+  launchKey?: number;
 }
 
 interface QuizQuestion {
@@ -109,11 +111,18 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
 // Enable human anatomy explorer in Phase 1
 export const ENABLE_HUMAN_ANATOMY = true;
 
-export const AnatomyPage: React.FC<AnatomyPageProps> = ({ onNavigate }) => {
-  const [selectedSpecimen, setSelectedSpecimen] = useState<'frog' | 'human'>('human');
+export const AnatomyPage: React.FC<AnatomyPageProps> = ({ onNavigate, initialSpecimen, launchKey }) => {
+  const [selectedSpecimen, setSelectedSpecimen] = useState<'frog' | 'human'>(initialSpecimen || 'human');
   const [activeTab, setActiveTab] = useState<'3d-model' | 'systems' | 'comparative' | 'quiz'>('3d-model');
   const [selectedQuizAnswers, setSelectedQuizAnswers] = useState<Record<number, number>>({});
   const [showQuizResults, setShowQuizResults] = useState(false);
+
+  useEffect(() => {
+    if (initialSpecimen) {
+      setSelectedSpecimen(initialSpecimen);
+      setActiveTab('3d-model');
+    }
+  }, [initialSpecimen, launchKey]);
 
   // Filter quiz questions when human anatomy is temporarily disabled
   const activeQuizQuestions = useMemo(() => {

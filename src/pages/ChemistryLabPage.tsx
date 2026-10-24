@@ -14,7 +14,6 @@ import { ChemicalReagent, ReactionDefinition } from '../types/chemistry';
 import { EducationalExplanationBox, ExplanationData } from '../components/common/EducationalExplanationBox';
 import { ReactionAiChatbot } from '../components/chemistry/ReactionAiChatbot';
 import { AiCompoundAddPanel } from '../components/chemistry/AiCompoundAddPanel';
-import { ReactionDiscoveryPanel } from '../components/chemistry/ReactionDiscoveryPanel';
 import {
   findOrLookupCompound,
   getCanonicalRegistry,
@@ -245,8 +244,13 @@ export type ChemistryWorkspaceMode =
   | 'solubility-precipitation-explorer'
   | 'buffer-solution-simulator';
 
-export const ChemistryLabPage: React.FC = () => {
-  const [chemMode, setChemMode] = useState<ChemistryWorkspaceMode>('reaction_bench');
+export interface ChemistryLabPageProps {
+  initialMode?: ChemistryWorkspaceMode;
+  launchKey?: number;
+}
+
+export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode, launchKey }) => {
+  const [chemMode, setChemMode] = useState<ChemistryWorkspaceMode>(initialMode || 'reaction_bench');
   const [batchParams, setBatchParams] = useState<Record<string, number>>({});
   const [batchConds, setBatchConds] = useState<Record<string, any>>({});
 
@@ -271,6 +275,12 @@ export const ChemistryLabPage: React.FC = () => {
       setBatchConds(initConds);
     }
   };
+
+  useEffect(() => {
+    if (initialMode) {
+      handleSelectChemistryBatchModel(initialMode);
+    }
+  }, [initialMode, launchKey]);
 
   const chemistryBatchChatContext: ModelChatContext | null = useMemo(() => {
     if (!activeChemistryBatchSpec) return null;
@@ -522,11 +532,12 @@ export const ChemistryLabPage: React.FC = () => {
     setEvaluatedResult(null);
     soundEngine.stopSource('chemistry-lab');
 
-    // 2. Prepare new ingredients list from the reactants
+    // 2. Prepare new ingredients list from the reactants (enforcing safety restrictions)
     const newIngredients: SelectedIngredient[] = [];
     const newInventoryUpdates: Record<string, number> = {};
 
-    reactantsToLoad.forEach((item, idx) => {
+    for (let idx = 0; idx < reactantsToLoad.length; idx++) {
+      const item = reactantsToLoad[idx];
       const lookup = findOrLookupCompound(item.id);
       const def =
         lookup.compound ||
@@ -534,6 +545,29 @@ export const ChemistryLabPage: React.FC = () => {
         REAGENTS.find((r) => r.id === item.id);
 
       if (def) {
+        if (def.isRestricted) {
+          soundEngine.playUiFeedback('validation_warning', `restricted_block::${def.id}`);
+          setHasRunReaction(true);
+          setEvaluatedResult({
+            isSupported: false,
+            status: 'unsupported',
+            structuredStatus: 'NO_REACTION_SUPPORTED_UNDER_SPECIFIED_CONDITIONS',
+            reaction: null,
+            message: `SAFETY RESTRICTION: ${def.name} (${def.formula}) is classified as ${
+              def.safetyClassification === 'radioactive_restricted'
+                ? 'Radioactive / Restricted'
+                : 'Hazardous / Restricted'
+            }. ${
+              def.restrictionReason ||
+              'Catalogued for curriculum reference only; interactive beaker mixing is disabled for safety.'
+            }`,
+            safetyWarnings: [
+              def.restrictionReason || 'Restricted hazardous or radioactive substance.',
+            ],
+          });
+          return;
+        }
+
         const amt = item.amount || def.pourAmount || 20;
         newIngredients.push({
           id: def.id,
@@ -560,7 +594,7 @@ export const ChemistryLabPage: React.FC = () => {
         const currentQty = inventory[def.id] ?? def.initialQuantity ?? 100;
         newInventoryUpdates[def.id] = Math.max(0, currentQty - amt);
       }
-    });
+    }
 
     setIngredients(newIngredients);
     setInventory((prev) => ({ ...prev, ...newInventoryUpdates }));
@@ -645,16 +679,26 @@ export const ChemistryLabPage: React.FC = () => {
   }, [chemMode]);
 
   // Run reaction simulation
-  const handleRunReaction = () => {
+  const handleRunReaction = (
+    overrideReactants?: Array<{ id: string; amount: number }>,
+    overrideCatalystId?: string | null
+  ) => {
     setIsRunningSim(true);
     setHasRunReaction(true);
 
+    const activeIngredientsToEval =
+      Array.isArray(overrideReactants) && overrideReactants.length > 0
+        ? overrideReactants
+        : ingredients;
+    const activeCatalystToEval =
+      overrideCatalystId !== undefined ? overrideCatalystId : selectedCatalystId;
+
     const result = evaluateReactionRecipe({
-      ingredients,
+      ingredients: activeIngredientsToEval,
       conditions: {
         temperature,
         concentration,
-        catalystId: selectedCatalystId,
+        catalystId: activeCatalystToEval,
       },
     });
 
@@ -1427,7 +1471,7 @@ export const ChemistryLabPage: React.FC = () => {
               {/* 3. PROMINENT "RUN REACTION IN 3D BEAKER" BUTTON */}
               <div className="pt-2">
                 <button
-                  onClick={handleRunReaction}
+                  onClick={() => handleRunReaction()}
                   disabled={ingredients.length === 0 || isRunningSim}
                   className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-950/20 ring-2 ring-emerald-400/40 transition-all transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1768,19 +1812,12 @@ export const ChemistryLabPage: React.FC = () => {
                   selectedIngredientIds={ingredients.map((i) => i.id)}
                 />
               </div>
-
-              {/* 7. DISCOVER A REACTION PANEL */}
-              <div className="pt-2 border-t border-slate-100">
-                <ReactionDiscoveryPanel
-                  onLoadReactionToExperiment={handleLoadReactionToExperiment}
-                />
-              </div>
             </div>
           </div>
 
           {/* =========================================================================
-              PHASE 4: DEDICATED REACTION-SPECIFIC AI CHATBOT (EDUCATIONAL Q&A)
-              Positioned underneath the main experiment workspace!
+              PHASE 4: UNIFIED AI CHEMISTRY & REACTION ASSISTANT
+              Consolidates Educational Q&A, Reaction Discovery, and Direct Beaker Loading
               ========================================================================= */}
           <ReactionAiChatbot
             selectedIngredients={ingredients}
@@ -1791,15 +1828,12 @@ export const ChemistryLabPage: React.FC = () => {
             }}
             activeReactionResult={evaluatedResult}
             onAddCompound={(reagentId) => handleAddCompound(reagentId)}
-            onLoadReactionToExperiment={(reaction) =>
-              handleLoadReactionToExperiment(
-                reaction.reactants.map((rid) => ({
-                  id: rid,
-                  amount: reaction.requiredAmounts?.[rid] || 20,
-                }))
-              )
+            onLoadReactionToExperiment={(reactants, catalystId) =>
+              handleLoadReactionToExperiment(reactants, catalystId)
             }
-            onRunReaction={handleRunReaction}
+            onRunReaction={(overrideReactants, overrideCatalystId) =>
+              handleRunReaction(overrideReactants, overrideCatalystId)
+            }
           />
 
           {/* Educational Explanation Box */}

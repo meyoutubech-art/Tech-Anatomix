@@ -26,9 +26,6 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         </div>
 
         <div className="flex items-center gap-6 text-xs font-medium text-slate-600 flex-wrap">
-          <button onClick={() => onNavigate('diagram-scan')} className="hover:text-slate-900 cursor-pointer text-sky-600 font-semibold">
-            Scan Diagram
-          </button>
           <button onClick={() => onNavigate('chemistry')} className="hover:text-slate-900 cursor-pointer">
             Chemistry Lab
           </button>
