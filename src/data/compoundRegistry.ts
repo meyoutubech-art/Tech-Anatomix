@@ -27,24 +27,26 @@ export const ADDITIONAL_VERIFIED_COMPOUNDS: ChemicalReagent[] = [
   },
   {
     id: 'water',
-    name: 'Distilled Water',
-    formula: 'H₂O (l)',
+    name: 'Water',
+    formula: 'H₂O',
     state: 'liquid',
     color: '#F8FAFC',
     isColorless: true,
     appearanceDescription: 'Clear, colourless pure liquid water',
-    concentration: 'Pure Solvent',
+    concentration: 'Pure Liquid Solvent',
+    role: 'Solvent',
     type: 'solvent',
-    category: 'solvent',
-    categoryLabel: 'Universal Solvent',
-    description: 'Pure amphiprotic polar solvent (clear, colourless liquid) forming aqueous solutions and participating in alkali metal hydration and hydrolysis.',
+    category: 'salt',
+    secondaryCategories: ['aqueous_solution', 'solvent'],
+    categoryLabel: 'Solvent · Salts & Solutions',
+    description: 'Water commonly acts as a solvent in aqueous solutions and may also participate directly in certain chemical reactions.',
     initialQuantity: 250,
     unit: 'mL',
-    pourAmount: 50,
-    hazard: 'Non-Hazardous',
-    safetyInfo: 'Safe universal laboratory solvent.',
+    pourAmount: 30,
+    hazard: 'Non-Hazardous Solvent',
+    safetyInfo: 'Safe universal laboratory solvent. Never add water directly to concentrated sulfuric acid (always add acid slowly to water).',
     isSimulationSupported: true,
-    simulationNote: 'Fully supported as solvent and reactant for violent alkali metal hydro-reactions.',
+    simulationNote: 'Supported as an aqueous solvent/diluent in solution experiments and as a direct reactant with alkali metals (e.g., 2K + 2H₂O → 2KOH + H₂↑).',
   },
   {
     id: 'phenolphthalein',
@@ -98,6 +100,29 @@ ADDITIONAL_VERIFIED_COMPOUNDS.forEach((add) => {
 });
 
 /**
+ * Normalizes chemical formulas and search strings by converting Unicode subscripts (₀–₉)
+ * to standard ASCII digits (0–9) and stripping phase suffixes like (aq), (s), (l), (g).
+ */
+export function normalizeChemicalSearchText(input: string): string {
+  const subscriptMap: Record<string, string> = {
+    '₀': '0',
+    '₁': '1',
+    '₂': '2',
+    '₃': '3',
+    '₄': '4',
+    '₅': '5',
+    '₆': '6',
+    '₇': '7',
+    '₈': '8',
+    '₉': '9',
+  };
+  return input
+    .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, (ch) => subscriptMap[ch] || ch)
+    .toLowerCase()
+    .trim();
+}
+
+/**
  * Get all current compounds in the canonical registry
  */
 export function getCanonicalRegistry(): ChemicalReagent[] {
@@ -119,29 +144,50 @@ export function findOrLookupCompound(query: string): {
     return { found: false, message: 'Please enter a compound name, chemical formula, or category.' };
   }
 
-  const q = query.toLowerCase().trim();
-  const qClean = q.replace(/[^a-z0-9]/g, '');
+  const q = normalizeChemicalSearchText(query);
+  const qClean = q.replace(/\((aq|s|l|g)\)/gi, '').replace(/[^a-z0-9]/g, '');
 
-  // 1. Exact or partial match in canonical registry
-  const matchInRegistry = canonicalRegistry.find((c) => {
-    const idMatch = c.id.toLowerCase() === q;
-    const nameMatch = c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase());
-    const formulaClean = c.formula.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const formulaMatch = formulaClean.length > 1 && (formulaClean === qClean || qClean.includes(formulaClean));
-    return idMatch || nameMatch || formulaMatch;
+  // 0. Safety Check for Hazardous or Prohibited Substances
+  if (
+    q.includes('uranium') ||
+    q.includes('plutonium') ||
+    q.includes('cyanide') ||
+    q.includes('mercury') ||
+    q.includes('radium') ||
+    q.includes('sarin')
+  ) {
+    return {
+      found: false,
+      message: `"${query}" is a hazardous, toxic, or radioactive substance not permitted in classroom virtual laboratories. Tech-Anatomix supports standard educational acids, bases, salts, metals, indicators, oxidizers, and catalysts.`,
+    };
+  }
+
+  // 1. Exact ID or exact formula match first (prevents short formulas like H2O from matching hydrated salts)
+  const exactMatch = canonicalRegistry.find((c) => {
+    const idNorm = normalizeChemicalSearchText(c.id);
+    const nameNorm = normalizeChemicalSearchText(c.name);
+    const formulaPrimary = normalizeChemicalSearchText(c.formula)
+      .replace(/\((aq|s|l|g)\)/gi, '')
+      .split('[')[0]
+      .replace(/[^a-z0-9]/g, '');
+    return idNorm === q || nameNorm === q || (formulaPrimary.length > 0 && formulaPrimary === qClean);
   });
 
-  if (matchInRegistry) {
+  if (exactMatch) {
     return {
       found: true,
-      compound: matchInRegistry,
+      compound: exactMatch,
       sourceConfidence: 'Verified Canonical Chemistry Registry (100% Match)',
       isNewEntry: false,
     };
   }
 
-  // 2. Common Educational Aliases Mapping
+  // 2. Check Common Educational Aliases Mapping before broad partial matching
   const aliasMap: Record<string, string> = {
+    'water': 'water',
+    'h2o': 'water',
+    'distilled water': 'water',
+    'deionized water': 'water',
     'baking soda': 'nahco3',
     'sodium bicarbonate': 'nahco3',
     'vinegar': 'ch3cooh',
@@ -152,6 +198,7 @@ export function findOrLookupCompound(query: string): {
     'calcium carbonate': 'caco3',
     'manganese dioxide': 'mno2',
     'manganese oxide': 'mno2',
+    'mno2': 'mno2',
     'table salt': 'nacl',
     'saline': 'nacl',
     'sodium chloride': 'nacl',
@@ -184,6 +231,36 @@ export function findOrLookupCompound(query: string): {
     'magnesium ribbon': 'mg',
     'zinc granules': 'zn',
     'iron powder': 'fe',
+    'haber catalyst': 'fe_haber_catalyst',
+    'promoted iron': 'fe_haber_catalyst',
+    'nickel': 'ni_catalyst',
+    'finely divided nickel': 'ni_catalyst',
+    'raney nickel': 'ni_catalyst',
+    'platinum': 'pt_wire',
+    'platinum wire': 'pt_wire',
+    'platinum gauze': 'pt_wire',
+    'palladium': 'pd_catalyst',
+    'lindlar catalyst': 'pd_catalyst',
+    'catalase': 'catalase_enzyme',
+    'vanadium pentoxide': 'v2o5',
+    'vanadium oxide': 'v2o5',
+    'v2o5': 'v2o5',
+    'platinum rhodium': 'pt_rh_catalyst',
+    'ostwald catalyst': 'pt_rh_catalyst',
+    'zeolite': 'zeolite_zsm5',
+    'zsm-5': 'zeolite_zsm5',
+    'zsm5': 'zeolite_zsm5',
+    'alumina': 'al2o3',
+    'aluminium oxide': 'al2o3',
+    'aluminum oxide': 'al2o3',
+    'al2o3': 'al2o3',
+    'copper oxide': 'cuo',
+    'copper catalyst': 'cu_catalyst',
+    'rhodium': 'rh_catalyst',
+    'ruthenium': 'ru_catalyst',
+    'cobalt catalyst': 'co_catalyst',
+    'fischer tropsch': 'co_catalyst',
+    'zinc oxide': 'zno',
     'copper turnings': 'cu',
     'potassium metal': 'k_metal',
     'potassium permanganate': 'kmn_o4_reagent',
@@ -201,7 +278,7 @@ export function findOrLookupCompound(query: string): {
   };
 
   for (const [alias, canonicalId] of Object.entries(aliasMap)) {
-    if (q.includes(alias) || alias.includes(q)) {
+    if (q === alias || (q.length >= 4 && (q.includes(alias) || alias.includes(q)))) {
       const canonical = canonicalRegistry.find((c) => c.id === canonicalId);
       if (canonical) {
         return {
@@ -212,6 +289,30 @@ export function findOrLookupCompound(query: string): {
         };
       }
     }
+  }
+
+  // 3. Partial name or multi-atom formula match in canonical registry
+  const matchInRegistry = canonicalRegistry.find((c) => {
+    const idMatch = normalizeChemicalSearchText(c.id) === q;
+    const nameNorm = normalizeChemicalSearchText(c.name);
+    const nameMatch = nameNorm.includes(q) || q.includes(nameNorm);
+    const formulaClean = normalizeChemicalSearchText(c.formula)
+      .replace(/\((aq|s|l|g)\)/gi, '')
+      .split('[')[0]
+      .replace(/[^a-z0-9]/g, '');
+    const formulaMatch =
+      formulaClean.length > 0 &&
+      (formulaClean === qClean || (formulaClean.length >= 4 && qClean.includes(formulaClean)));
+    return idMatch || nameMatch || formulaMatch;
+  });
+
+  if (matchInRegistry) {
+    return {
+      found: true,
+      compound: matchInRegistry,
+      sourceConfidence: 'Verified Canonical Chemistry Registry (100% Match)',
+      isNewEntry: false,
+    };
   }
 
   // 3. Safety Check for Hazardous or Prohibited Substances

@@ -29,6 +29,11 @@ export interface ChemicalReagent {
   category: ChemicalCategory;
   secondaryCategories?: ChemicalCategory[];
   categoryLabel?: string;
+  role?: string;
+  catalyticRole?: string;
+  exampleReactions?: string[];
+  reactionConditions?: string;
+  curriculumLevel?: 'School-Level (Classes 8–12)' | 'Industrial & Curriculum (Classes 10–12)' | 'Additional Reference Catalyst';
   description: string;
   initialQuantity: number; // e.g. 100
   unit: string; // 'mL' or 'g'

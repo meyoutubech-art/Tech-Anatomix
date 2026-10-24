@@ -15,7 +15,12 @@ import { EducationalExplanationBox, ExplanationData } from '../components/common
 import { ReactionAiChatbot } from '../components/chemistry/ReactionAiChatbot';
 import { AiCompoundAddPanel } from '../components/chemistry/AiCompoundAddPanel';
 import { ReactionDiscoveryPanel } from '../components/chemistry/ReactionDiscoveryPanel';
-import { findOrLookupCompound, getCanonicalRegistry, registerCanonicalCompound } from '../data/compoundRegistry';
+import {
+  findOrLookupCompound,
+  getCanonicalRegistry,
+  normalizeChemicalSearchText,
+  registerCanonicalCompound,
+} from '../data/compoundRegistry';
 import { PresentationExportModal } from '../components/common/PresentationExportModal';
 import { PresentationExportOptions } from '../utils/presentationGenerator';
 import {
@@ -363,8 +368,10 @@ export const ChemistryLabPage: React.FC = () => {
     if (ids.includes('h2o2')) {
       const mno2 = REAGENTS.find((r) => r.id === 'mno2');
       const ki = REAGENTS.find((r) => r.id === 'ki');
+      const catalase = REAGENTS.find((r) => r.id === 'catalase_enzyme');
       if (mno2) options.push(mno2);
       if (ki) options.push(ki);
+      if (catalase) options.push(catalase);
     }
     if (ids.includes('fe')) {
       const fe = REAGENTS.find((r) => r.id === 'fe');
@@ -386,24 +393,38 @@ export const ChemistryLabPage: React.FC = () => {
   }, []);
 
   const filteredReagents = useMemo(() => {
+    const qNorm = normalizeChemicalSearchText(searchQuery);
     return allLibraryReagents.filter((r) => {
       const matchesSearch =
-        searchQuery.trim() === '' ||
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.formula.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (r.appearanceDescription || '').toLowerCase().includes(searchQuery.toLowerCase());
+        qNorm === '' ||
+        normalizeChemicalSearchText(r.name).includes(qNorm) ||
+        normalizeChemicalSearchText(r.formula).includes(qNorm) ||
+        normalizeChemicalSearchText(r.type).includes(qNorm) ||
+        normalizeChemicalSearchText(r.role || '').includes(qNorm) ||
+        normalizeChemicalSearchText(r.categoryLabel || '').includes(qNorm) ||
+        normalizeChemicalSearchText(r.catalyticRole || '').includes(qNorm) ||
+        normalizeChemicalSearchText(r.description || '').includes(qNorm) ||
+        normalizeChemicalSearchText(r.appearanceDescription || '').includes(qNorm);
 
       const matchesCat =
         activeCategory === 'all' ||
         r.category === activeCategory ||
         (activeCategory === 'acid' && r.type === 'acid') ||
         (activeCategory === 'base' && r.type === 'base') ||
-        (activeCategory === 'salt' && (r.type === 'salt' || r.type === 'carbonate' || r.type === 'reagent' || r.type === 'reducing_agent')) ||
+        (activeCategory === 'salt' &&
+          (r.id === 'water' ||
+            r.category === 'salt' ||
+            r.type === 'salt' ||
+            r.type === 'carbonate' ||
+            r.type === 'reagent' ||
+            r.type === 'reducing_agent')) ||
         (activeCategory === 'metal' && (r.type === 'metal' || r.type === 'alkali_metal')) ||
         (activeCategory === 'oxidizer' && (r.type === 'oxidizer' || (r.category as string) === 'oxidizing_agent')) ||
         (activeCategory === 'indicator' && r.type === 'indicator') ||
-        (activeCategory === 'catalyst' && r.type === 'catalyst');
+        (activeCategory === 'catalyst' &&
+          (r.category === 'catalyst' ||
+            r.type === 'catalyst' ||
+            Boolean(r.secondaryCategories?.includes('catalyst'))));
 
       return matchesSearch && matchesCat;
     });
@@ -1547,13 +1568,24 @@ export const ChemistryLabPage: React.FC = () => {
                 </div>
 
                 {/* Reagent Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[220px] overflow-y-auto p-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[250px] overflow-y-auto p-1">
                   {filteredReagents.map((r) => {
                     const countInRecipe = ingredients.filter((i) => i.id === r.id).length;
+                    const isCatalystView =
+                      activeCategory === 'catalyst' ||
+                      r.category === 'catalyst' ||
+                      r.type === 'catalyst';
                     return (
                       <button
                         key={r.id}
                         onClick={() => handleAddCompound(r.id)}
+                        title={
+                          r.catalyticRole
+                            ? `${r.name} (${r.formula}) — ${r.catalyticRole}${
+                                r.exampleReactions?.length ? ` | Example: ${r.exampleReactions[0]}` : ''
+                              }`
+                            : `${r.name} (${r.formula}) — ${r.description}`
+                        }
                         className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                           countInRecipe > 0
                             ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500/30'
@@ -1561,19 +1593,39 @@ export const ChemistryLabPage: React.FC = () => {
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center justify-between mb-1 gap-1">
                             <span
                               className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
                               style={{ backgroundColor: r.color }}
                             />
-                            <span className="text-[9px] uppercase font-bold text-slate-400 font-mono">
-                              {r.type}
+                            <span className="text-[9px] uppercase font-bold text-slate-400 font-mono truncate">
+                              {r.role || r.type}
                             </span>
                           </div>
                           <div className="font-bold text-xs text-slate-900 leading-tight truncate">
                             {r.formula}
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate mt-0.5">{r.name}</div>
+                          <div className="text-[10px] text-slate-600 font-medium truncate mt-0.5">
+                            {r.name}
+                          </div>
+                          {(isCatalystView || r.id === 'water') && (
+                            <div className="mt-1 text-[9px] text-slate-500 line-clamp-2 leading-snug">
+                              {r.catalyticRole || r.description}
+                            </div>
+                          )}
+                          {isCatalystView && r.curriculumLevel && (
+                            <div
+                              className={`mt-1 text-[8px] font-bold px-1.5 py-0.5 rounded truncate ${
+                                r.isSimulationSupported
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : 'bg-sky-50 text-sky-700 border border-sky-200'
+                              }`}
+                            >
+                              {r.isSimulationSupported
+                                ? `Interactive · ${r.curriculumLevel}`
+                                : `Reference · ${r.curriculumLevel}`}
+                            </div>
+                          )}
                           {r.hazard && (
                             <div className="mt-1 text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
                               {r.hazard}

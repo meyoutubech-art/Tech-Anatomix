@@ -1106,18 +1106,47 @@ export const REACTIONS: ReactionDefinition[] = [
     },
     explanation: 'Thiosulfate ions (S₂O₃²⁻) quantitatively reduce amber-brown molecular iodine / triiodide (I₂ / I₃⁻) to colourless hydrated iodide anions (I⁻) while oxidizing to colourless tetrathionate (S₄O₆²⁻).',
   },
+
+  // 39. Biological Catalysis of Hydrogen Peroxide by Catalase Enzyme
+  {
+    id: 'catalase_peroxide_decomposition',
+    name: 'Biological Peroxide Decomposition (Catalase Enzyme)',
+    reactants: ['h2o2', 'catalase_enzyme'],
+    requiredAmounts: { h2o2: 20, catalase_enzyme: 5 },
+    products: ['2H₂O (l)', 'O₂ (g)↑ (Rapid Oxygen Effervescence)', 'Catalase Enzyme (Unconsumed Biocatalyst)'],
+    balancedEquation: '2H₂O₂(aq) —[Catalase Enzyme]→ 2H₂O(l) + O₂(g)↑',
+    reactionType: 'decomposition',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless H₂O₂(aq) + translucent aqueous Catalase enzyme extract',
+      finalAppearance: 'Clear aqueous solution with dense streams of colourless O₂(g) bubbles and white surface foam collar',
+      temperatureDelta: 18.0,
+      producesGas: true,
+      gasName: 'Oxygen Gas (O₂)',
+      gasColor: '#FFFFFF',
+      gasVigor: 5,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'foaming_fountain',
+      description: 'Biological enzyme catalysis: adding Catalase enzyme to colourless hydrogen peroxide triggers immediate, vigorous liquid-phase effervescence of colourless oxygen gas (O₂) bubbles and surface froth at physiological temperature without consuming the enzyme.',
+    },
+    explanation: 'Catalase is a tetrameric heme enzyme with a turnover number of ~4 × 10⁷ molecules of H₂O₂ per second per active center. Its iron(III)-porphyrin cofactor provides a low-energy pathway (Eₐ < 8 kJ/mol vs. ~75 kJ/mol uncatalyzed) to disproportionate H₂O₂ into H₂O and O₂(g).',
+  },
 ];
 
 /**
  * Compatible catalyst lookup map by primary reaction / reactant.
  */
 export const COMPATIBLE_CATALYSTS: Record<string, string[]> = {
-  h2o2: ['mno2', 'ki', 'fe'],
-  decomposition: ['mno2', 'ki'],
+  h2o2: ['mno2', 'ki', 'catalase_enzyme', 'fe'],
+  decomposition: ['mno2', 'ki', 'catalase_enzyme'],
   redox: ['fe'],
 };
 
 const EXTRA_REAGENT_LABELS: Record<string, { name: string; formula: string; type: string }> = {
+  water: { name: 'Water', formula: 'H₂O', type: 'solvent' },
   nahco3: { name: 'Sodium Bicarbonate (Baking Soda)', formula: 'NaHCO₃ (s)', type: 'salt' },
   c6h8o7: { name: 'Citric Acid Solution', formula: 'C₆H₈O₇ (aq)', type: 'acid' },
   koh: { name: 'Potassium Hydroxide', formula: 'KOH (aq)', type: 'base' },
@@ -1238,16 +1267,44 @@ export function evaluateReactionRecipe(params: {
 
   // 3. Single ingredient cases
   if (presentIds.length === 1) {
-    const info = getReagentDisplayInfo(presentIds[0]);
-    if (presentIds[0] === 'h2o2') {
+    const singleId = presentIds[0];
+    const info = getReagentDisplayInfo(singleId);
+    const fullReagent = REAGENTS.find((r) => r.id === singleId);
+
+    if (singleId === 'water') {
       return {
         isSupported: false,
         status: 'incomplete',
         structuredStatus: 'INSUFFICIENT_INFORMATION',
         reaction: null,
-        message: `Beaker contains only ${info.name}. Uncatalyzed hydrogen peroxide disproportionates imperceptibly slowly at room temperature. Add a catalyst (such as MnO₂ or KI) or a complementary reagent to initiate rapid decomposition.`,
+        message: `Beaker contains only Water (H₂O). Water commonly acts as a neutral polar solvent (pH 7.0) in aqueous solutions and does not undergo a spontaneous chemical reaction on its own. Add a solute or complementary reagent (such as an alkali metal, acid, base, or salt) to observe dissolution or reaction.`,
       };
     }
+
+    if (singleId === 'h2o2') {
+      return {
+        isSupported: false,
+        status: 'incomplete',
+        structuredStatus: 'INSUFFICIENT_INFORMATION',
+        reaction: null,
+        message: `Beaker contains only ${info.name}. Uncatalyzed hydrogen peroxide disproportionates imperceptibly slowly at room temperature. Add a catalyst (such as MnO₂, KI, or Catalase) or a complementary reagent to initiate rapid decomposition.`,
+      };
+    }
+
+    if (fullReagent && (fullReagent.category === 'catalyst' || fullReagent.type === 'catalyst')) {
+      const roleNote = fullReagent.catalyticRole || fullReagent.description;
+      const rxNote = fullReagent.exampleReactions?.length
+        ? ` Example catalyzed process: ${fullReagent.exampleReactions[0]}.`
+        : '';
+      return {
+        isSupported: false,
+        status: 'incomplete',
+        structuredStatus: 'INSUFFICIENT_INFORMATION',
+        reaction: null,
+        message: `Beaker contains only ${info.name} (${info.formula}). A catalyst increases reaction rate by providing an alternative lower-activation-energy pathway without being consumed stoichiometrically, and cannot react by itself. ${roleNote}${rxNote}`,
+      };
+    }
+
     return {
       isSupported: false,
       status: 'incomplete',
@@ -1260,6 +1317,24 @@ export function evaluateReactionRecipe(params: {
   // 4. Specific known non-reactive or unsupported combinations
   const names = presentIds.map((id) => getReagentDisplayInfo(id).name).join(' and ');
   const types = presentIds.map((id) => getReagentDisplayInfo(id).type);
+
+  // Reference or mismatched catalyst pairings
+  const catalystReagents = presentIds
+    .map((id) => REAGENTS.find((r) => r.id === id))
+    .filter((r): r is ChemicalReagent => Boolean(r && (r.category === 'catalyst' || r.type === 'catalyst')));
+
+  if (catalystReagents.length > 0) {
+    const cat = catalystReagents[0];
+    const exRx = cat.exampleReactions?.length ? ` Reference catalytic process: ${cat.exampleReactions[0]}.` : '';
+    const condNote = cat.reactionConditions ? ` Required conditions: ${cat.reactionConditions}.` : '';
+    return {
+      isSupported: false,
+      status: 'unsupported',
+      structuredStatus: 'NO_REACTION_SUPPORTED_UNDER_SPECIFIED_CONDITIONS',
+      reaction: null,
+      message: `No supported aqueous beaker reaction occurs between ${names}. Catalysts are reaction-specific and not universally interchangeable: ${cat.name} (${cat.formula}) is catalogued as ${cat.curriculumLevel || 'an educational reference catalyst'} (${cat.catalyticRole || cat.description}).${exRx}${condNote}`,
+    };
+  }
 
   // Non-reactive metal in non-oxidizing acid: e.g. Copper + HCl / H2SO4 / CH3COOH
   if (
@@ -1294,6 +1369,19 @@ export function evaluateReactionRecipe(params: {
       structuredStatus: 'NO_REACTION_SUPPORTED_UNDER_SPECIFIED_CONDITIONS',
       reaction: null,
       message: `Sodium chloride dissolves in water into hydrated spectator ions (Na⁺ and Cl⁻) forming a stable aqueous solution. No chemical bond cleavage, redox transfer, or precipitation occurs.`,
+    };
+  }
+
+  // Water acting as solvent / diluent with another single non-water-reactive substance
+  if (presentIds.length === 2 && presentIds.includes('water')) {
+    const otherId = presentIds.find((id) => id !== 'water')!;
+    const otherInfo = getReagentDisplayInfo(otherId);
+    return {
+      isSupported: false,
+      status: 'unsupported',
+      structuredStatus: 'NO_REACTION_SUPPORTED_UNDER_SPECIFIED_CONDITIONS',
+      reaction: null,
+      message: `Water (H₂O) acts as a polar solvent hydrating or diluting ${otherInfo.name} (${otherInfo.formula}) into aqueous spectator ions or dispersed phase. No new chemical products, gas evolution, or precipitate are formed by dilution alone.`,
     };
   }
 
@@ -1360,20 +1448,26 @@ function buildSuccessResult(
     warnings.push('Standard acid-base PPE: Wear splash goggles, nitrile gloves, and closed-toe lab shoes.');
   }
 
-  const compatibleCatalysts = r.reactants.includes('h2o2') ? ['mno2', 'ki', 'fe'] : [];
+  const compatibleCatalysts = r.reactants.includes('h2o2') ? ['mno2', 'ki', 'catalase_enzyme', 'fe'] : [];
 
   // Check if reaction is condition dependent (e.g. peroxide decomposition rate dependent on catalyst)
   let structuredStatus: StructuredReactionStatus = 'VALIDATED_SUPPORTED_REACTION';
   let message = `Verified reaction: ${r.name}`;
 
-  if (r.id === 'elephant_toothpaste' || r.id === 'ki_peroxide_catalysis') {
-    const hasCatalyst = conditions.catalystId === 'mno2' || conditions.catalystId === 'ki' || amountsMap['mno2'] > 0 || amountsMap['ki'] > 0;
+  if (r.id === 'elephant_toothpaste' || r.id === 'ki_peroxide_catalysis' || r.id === 'catalase_peroxide_decomposition') {
+    const hasCatalyst =
+      conditions.catalystId === 'mno2' ||
+      conditions.catalystId === 'ki' ||
+      conditions.catalystId === 'catalase_enzyme' ||
+      amountsMap['mno2'] > 0 ||
+      amountsMap['ki'] > 0 ||
+      amountsMap['catalase_enzyme'] > 0;
     if (hasCatalyst) {
       structuredStatus = 'VALIDATED_SUPPORTED_REACTION';
       message = `Verified catalytic reaction: ${r.name}`;
     } else {
       structuredStatus = 'CONDITION_DEPENDENT';
-      message = `Condition-dependent reaction: ${r.name}. Hydrogen peroxide disproportionation is accelerated dramatically by adding a catalyst (MnO₂ or KI).`;
+      message = `Condition-dependent reaction: ${r.name}. Hydrogen peroxide disproportionation is accelerated dramatically by adding a catalyst (MnO₂, KI, or Catalase).`;
     }
   }
 
