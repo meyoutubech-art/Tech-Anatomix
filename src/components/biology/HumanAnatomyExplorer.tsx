@@ -203,36 +203,39 @@ function createVascularDiffusionTexture(): THREE.CanvasTexture | null {
 
   for (let y = 0; y < canvas.height; y++) {
     const v = y / (canvas.height - 1);
-    // Organic multi-frequency capillary wave along incision length
+    // Wide organic multi-frequency capillary wave along incision length
     const wave =
-      0.72 +
-      0.14 * Math.sin(v * Math.PI * 14.0) +
-      0.09 * Math.cos(v * Math.PI * 31.0) +
-      0.05 * Math.sin(v * Math.PI * 53.0);
+      0.86 +
+      0.08 * Math.sin(v * Math.PI * 12.0) +
+      0.06 * Math.cos(v * Math.PI * 27.0) +
+      0.04 * Math.sin(v * Math.PI * 49.0);
 
     for (let x = 0; x < canvas.width; x++) {
       // u = 0 is inner incised dermal lip; u = 1 is outer spreading capillary margin on skin
       const u = x / (canvas.width - 1);
       const idx = (y * canvas.width + x) * 4;
 
-      const normU = u / Math.max(0.25, wave);
+      const normU = u / Math.max(0.45, wave);
       if (normU >= 1.0) {
-        data[idx] = 110;
-        data[idx + 1] = 8;
-        data[idx + 2] = 16;
+        data[idx] = 135;
+        data[idx + 1] = 10;
+        data[idx + 2] = 18;
         data[idx + 3] = 0;
       } else {
-        // Rich dark venous core at cut lip transitioning to wet arterial crimson and feathering to 0 alpha
-        const coreMix = Math.min(1, normU / 0.42);
-        const r = Math.round(78 + 118 * coreMix - 35 * Math.pow(normU, 2));
-        const g = Math.round(5 + 14 * (1 - normU));
-        const b = Math.round(12 + 18 * (1 - normU));
-        const alpha = Math.pow(1 - Math.pow(normU, 1.45), 1.85);
+        // Thick, lush venous-arterial crimson across 75% of the width, feathering smoothly at outer edge
+        const coreMix = Math.min(1, normU / 0.55);
+        const r = Math.round(135 + 82 * coreMix - 28 * Math.pow(normU, 2));
+        const g = Math.round(8 + 16 * (1 - normU));
+        const b = Math.round(14 + 20 * (1 - normU));
+        const edgeT = Math.max(0, (normU - 0.72) / 0.28);
+        const alpha = normU < 0.72
+          ? 1.0 - 0.08 * normU
+          : 0.94 * Math.pow(1 - edgeT, 1.65);
 
         data[idx] = Math.max(0, Math.min(255, r));
         data[idx + 1] = Math.max(0, Math.min(255, g));
         data[idx + 2] = Math.max(0, Math.min(255, b));
-        data[idx + 3] = Math.round(alpha * 248);
+        data[idx + 3] = Math.round(alpha * 255);
       }
     }
   }
@@ -620,74 +623,79 @@ function buildRefinedIncisionGeometries(
       }
     }
 
-    // Fix 2: Slow, organic vascular crimson seepage along incised skin margins
-    // Starts as a fine line (1.5mm) when first cut and slowly spreads outward up to ~16mm over ~2.8 seconds with gravity trickle
+    // Fix 2: Thick, wide, organic vascular crimson seepage along incised skin margins
+    // Starts with a substantial crimson band (~8.5mm per side) when cut and slowly spreads outward up to ~45mm per side (~90-110mm total width) with gravity trickle
     const organicLobes =
-      1.0 +
-      0.42 * Math.sin(absU * 38.0 + 0.7) +
-      0.28 * Math.cos(absU * 79.0) +
-      0.18 * Math.sin(absU * 135.0);
-    const leftLobeVar = 0.88 + 0.26 * Math.sin(absU * 52.0 + 1.4);
-    const rightLobeVar = 0.88 + 0.26 * Math.cos(absU * 61.0 + 0.5);
+      1.08 +
+      0.38 * Math.sin(absU * 34.0 + 0.7) +
+      0.26 * Math.cos(absU * 71.0) +
+      0.16 * Math.sin(absU * 119.0);
+    const leftLobeVar = 0.92 + 0.28 * Math.sin(absU * 46.0 + 1.4);
+    const rightLobeVar = 0.92 + 0.28 * Math.cos(absU * 57.0 + 0.5);
 
-    const baseSeepWidth = 0.0018 + (0.0115 * spreadEase) * (0.45 + 0.55 * Math.sin(u * Math.PI));
+    const baseSeepWidth = 0.0085 + (0.036 * spreadEase) * (0.65 + 0.35 * Math.sin(u * Math.PI));
     const hemoWidthLeft = baseSeepWidth * organicLobes * leftLobeVar;
     const hemoWidthRight = baseSeepWidth * organicLobes * rightLobeVar;
     // Slow downward gravity trickle on outer spreading edge
-    const gravityTrickleY = -0.0055 * spreadEase * spreadEase * Math.max(0.2, Math.sin(absU * 48.0 + 1.1));
+    const gravityTrickleY = -0.012 * spreadEase * spreadEase * Math.max(0.25, Math.sin(absU * 48.0 + 1.1));
 
     const hLeftOuter = leftOuter
       .clone()
       .sub(lateral.clone().multiplyScalar(hemoWidthLeft))
-      .add(new THREE.Vector3(0, gravityTrickleY, -0.0005));
-    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(0.0022));
-    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(0.0022));
+      .add(new THREE.Vector3(0, gravityTrickleY, -0.0004));
+    const hLeftInner = leftOuter.clone().add(lateral.clone().multiplyScalar(halfWidth * 0.68));
+    const hRightInner = rightOuter.clone().sub(lateral.clone().multiplyScalar(halfWidth * 0.68));
     const hRightOuter = rightOuter
       .clone()
       .add(lateral.clone().multiplyScalar(hemoWidthRight))
-      .add(new THREE.Vector3(0, gravityTrickleY, -0.0005));
+      .add(new THREE.Vector3(0, gravityTrickleY, -0.0004));
 
     const hRow = hemoPositions.length / 3;
-    hemoPositions.push(hLeftOuter.x, hLeftOuter.y, hLeftOuter.z + 0.0012);
-    hemoPositions.push(hLeftInner.x, hLeftInner.y, hLeftInner.z + 0.0016);
-    hemoPositions.push(hRightInner.x, hRightInner.y, hRightInner.z + 0.0016);
-    hemoPositions.push(hRightOuter.x, hRightOuter.y, hRightOuter.z + 0.0012);
+    hemoPositions.push(hLeftOuter.x, hLeftOuter.y, hLeftOuter.z + 0.0014);
+    hemoPositions.push(hLeftInner.x, hLeftInner.y, hLeftInner.z + 0.0018);
+    hemoPositions.push(hRightInner.x, hRightInner.y, hRightInner.z + 0.0018);
+    hemoPositions.push(hRightOuter.x, hRightOuter.y, hRightOuter.z + 0.0014);
 
     // UVs for soft feathered alpha diffusion texture (u=0 at inner cut lip, u=1 at outer skin margin)
     hemoUvs.push(
-      1.0, absU * 3.0,
-      0.0, absU * 3.0,
-      0.0, absU * 3.0,
-      1.0, absU * 3.0
+      1.0, absU * 2.5,
+      0.0, absU * 2.5,
+      0.0, absU * 2.5,
+      1.0, absU * 2.5
     );
 
     if (i > 0) {
       const prevH = hRow - 4;
-      // Left vascular seepage band
+      // Left wide vascular seepage band
       hemoIndices.push(prevH, hRow, prevH + 1);
       hemoIndices.push(prevH + 1, hRow, hRow + 1);
-      // Right vascular seepage band
+      // Central crimson pooling bridge across incision bed so the blood line is thick and continuous
+      hemoIndices.push(prevH + 1, hRow + 1, prevH + 2);
+      hemoIndices.push(prevH + 2, hRow + 1, hRow + 2);
+      // Right wide vascular seepage band
       hemoIndices.push(prevH + 2, hRow + 2, prevH + 3);
       hemoIndices.push(prevH + 3, hRow + 2, hRow + 3);
     }
 
     // Superior apex rim connection
     if (i === 0) {
-      const topBloodPt = p0.clone().add(new THREE.Vector3(0, wEntryApex * 0.9, 0.0055));
+      const topBloodPt = p0.clone().add(new THREE.Vector3(0, wEntryApex * 1.65, 0.0058));
       const topBloodIdx = hemoPositions.length / 3;
       hemoPositions.push(topBloodPt.x, topBloodPt.y, topBloodPt.z);
-      hemoUvs.push(0.5, 0.0);
+      hemoUvs.push(0.25, 0.0);
       hemoIndices.push(hRow, hRow + 1, topBloodIdx);
+      hemoIndices.push(hRow + 1, hRow + 2, topBloodIdx);
       hemoIndices.push(topBloodIdx, hRow + 2, hRow + 3);
     }
 
     // Active cutting tip vascular cap: connect lips around leading apex of scalpel
     if (i === segmentCount) {
-      const tipCapPt = pt.clone().add(tangent.clone().multiplyScalar(0.005)).add(new THREE.Vector3(0, 0, 0.0055));
+      const tipCapPt = pt.clone().add(tangent.clone().multiplyScalar(0.012)).add(new THREE.Vector3(0, 0, 0.0058));
       const tipCapIdx = hemoPositions.length / 3;
       hemoPositions.push(tipCapPt.x, tipCapPt.y, tipCapPt.z);
-      hemoUvs.push(0.5, absU * 3.0);
+      hemoUvs.push(0.25, absU * 2.5);
       hemoIndices.push(hRow, tipCapIdx, hRow + 1);
+      hemoIndices.push(hRow + 1, tipCapIdx, hRow + 2);
       hemoIndices.push(hRow + 2, tipCapIdx, hRow + 3);
     }
   }
@@ -926,14 +934,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           const wy = rz - center.y;
           const wz = -ry - center.z;
 
-          if (wz > 0.04 && Math.abs(wx) < 0.034 && wy <= topY + 0.006 && wy >= cutBottomY - 0.006) {
-            const xRatio = Math.min(1, Math.abs(wx) / 0.034);
+          if (wz > 0.04 && Math.abs(wx) < 0.046 && wy <= topY + 0.006 && wy >= cutBottomY - 0.006) {
+            const xRatio = Math.min(1, Math.abs(wx) / 0.046);
             const distFromEnds = Math.min(
               Math.max(0, topY + 0.006 - wy),
               Math.max(0, wy - (cutBottomY - 0.006))
             );
             const yFeather = Math.min(1, distFromEnds / 0.018);
-            const recess = 0.026 * Math.cos(xRatio * (Math.PI / 2)) * yFeather;
+            const recess = 0.028 * Math.cos(xRatio * (Math.PI / 2)) * yFeather;
             arr[idx] = rx;
             arr[idx + 1] = ry + recess; // +ry moves vertex deeper inward (-worldZ)
             arr[idx + 2] = rz;
@@ -1021,11 +1029,11 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
         const maxStation = Math.floor(progress * 64);
         for (let k = 0; k <= 64; k++) {
           if (k <= maxStation) {
-            if (segmentRetractRef.current[k] < 0.16) {
-              segmentRetractRef.current[k] = 0.16;
+            if (segmentRetractRef.current[k] < 0.22) {
+              segmentRetractRef.current[k] = 0.22;
             }
-            if (segmentSpreadRef.current[k] < 0.06) {
-              segmentSpreadRef.current[k] = 0.06;
+            if (segmentSpreadRef.current[k] < 0.18) {
+              segmentSpreadRef.current[k] = 0.18;
             }
           } else {
             segmentRetractRef.current[k] = 0;
@@ -1243,15 +1251,14 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     const vascularDiffusionTex = createVascularDiffusionTexture();
     const hemoGeo = new THREE.BufferGeometry();
     const hemoMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff, // tinted by rich crimson texture + vertex colors (0x881337 venous base)
+      color: 0xdc2626, // rich vibrant arterial crimson (0x881337 venous base)
       map: vascularDiffusionTex,
-      vertexColors: true,
       transparent: true,
       depthWrite: false,
-      emissive: 0x7f1d1d,
-      emissiveIntensity: 0.42,
-      roughness: 0.12, // glossy wet fluid sheen
-      metalness: 0.10,
+      emissive: 0x991b1b,
+      emissiveIntensity: 0.72,
+      roughness: 0.10, // glossy wet fluid sheen
+      metalness: 0.12,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -2,
@@ -1264,12 +1271,12 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     incisionHemoRef.current = hemoMesh;
 
     // D2. Slow-Swelling Vascular Meniscus Beads / Droplets along the incised skin edge
-    const beadGeo = new THREE.SphereGeometry(0.0038, 12, 10);
-    beadGeo.scale(0.85, 1.35, 0.65);
+    const beadGeo = new THREE.SphereGeometry(0.0068, 14, 12);
+    beadGeo.scale(1.15, 1.55, 0.75);
     const beadMat = new THREE.MeshStandardMaterial({
-      color: 0x991b1b,
-      emissive: 0x450a0a,
-      emissiveIntensity: 0.45,
+      color: 0xb91c1c,
+      emissive: 0x7f1d1d,
+      emissiveIntensity: 0.58,
       roughness: 0.08, // specular wet droplet highlight
       metalness: 0.14,
       polygonOffset: true,
@@ -1292,12 +1299,12 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     hemoBeadsRef.current = beadsList;
 
     // E. Active Cutting Tip Capillary Halo (Fix 2: surface-conforming localized vascular feedback)
-    const haloGeo = new THREE.RingGeometry(0.003, 0.009, 24);
+    const haloGeo = new THREE.RingGeometry(0.004, 0.018, 28);
     const haloMat = new THREE.MeshStandardMaterial({
       color: 0x881337,
       emissive: 0xdc2626,
-      emissiveIntensity: 0.85,
-      roughness: 0.20,
+      emissiveIntensity: 0.92,
+      roughness: 0.18,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -4,
@@ -1656,8 +1663,8 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
             needsGeoRebuild = true;
           }
           if (segmentSpreadRef.current[k] < 1.0) {
-            // Blood slowly spreads outward & seeps down over ~3.0 seconds after scalpel passes
-            const stationWave = 0.28 + 0.12 * Math.sin(k * 0.45);
+            // Blood slowly spreads outward to a wide, thick crimson band over ~2.2 seconds after scalpel passes
+            const stationWave = 0.38 + 0.14 * Math.sin(k * 0.45);
             segmentSpreadRef.current[k] = Math.min(1.0, segmentSpreadRef.current[k] + dt * stationWave);
             needsGeoRebuild = true;
           }
@@ -1679,7 +1686,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           if (oldH) oldH.dispose();
         }
 
-        // 2. Animate slow-forming glossy crimson meniscus droplets along the incised skin edge
+        // 2. Animate slow-forming glossy crimson meniscus droplets along the wide incised blood margin
         const wUpper = 0.026;
         const wLower = 0.018;
         hemoBeadsRef.current.forEach((bead, bIdx) => {
@@ -1691,16 +1698,16 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
               bead.mesh.visible = true;
               const pt = activeCurve.getPointAt(bead.uPos);
               const uNorm = bead.uPos;
-              const baseHalfW = (wUpper * (1 - uNorm) + wLower * uNorm) * (0.35 + 0.65 * localRetract);
-              const trickleY = Math.pow(localSpread, 1.5) * 0.008 * ((bIdx % 3) + 1) * 0.45;
-              const lateralOut = baseHalfW + localSpread * (0.004 + (bIdx % 4) * 0.0022);
+              const baseHalfW = (wUpper * (1 - uNorm) + wLower * uNorm) * (0.45 + 0.55 * localRetract);
+              const trickleY = Math.pow(localSpread, 1.5) * 0.012 * ((bIdx % 3) + 1) * 0.55;
+              const lateralOut = baseHalfW + localSpread * (0.012 + (bIdx % 4) * 0.0055);
               bead.mesh.position.set(
                 pt.x + bead.side * lateralOut,
                 pt.y - trickleY,
                 pt.z + 0.0038
               );
-              const beadScale = Math.min(1.0, localSpread * 1.15) * (0.75 + 0.25 * Math.sin(now * 0.002 * bead.speed + bIdx));
-              bead.mesh.scale.set(beadScale, beadScale * (1.0 + localSpread * 0.45), beadScale);
+              const beadScale = Math.min(1.35, localSpread * 1.35) * (0.85 + 0.25 * Math.sin(now * 0.002 * bead.speed + bIdx));
+              bead.mesh.scale.set(beadScale, beadScale * (1.1 + localSpread * 0.55), beadScale);
             } else {
               bead.mesh.visible = false;
             }
