@@ -35,12 +35,18 @@ export const INDICATORS_RAW_TUPLES: RawDocTuple[] = [
   [18, 'Acid-Base (pH) Indicators', 'm-Nitrophenol', 'C₆H₅NO₃', '3-O₂NC₆H₄OH (C₆H₅NO₃)', 'm_nitrophenol', undefined, 'conceptual_reference'],
   [18, 'Acid-Base (pH) Indicators', 'Chlorophenol red', 'C₁₉H₁₂Cl₂O₅S', 'C₁₉H₁₂Cl₂O₅S', 'chlorophenol_red', undefined, 'school_lab_supported'],
   [18, 'Acid-Base (pH) Indicators', 'Bromothymol purple (Bromophenol red)', 'C₁₉H₁₂Br₂O₅S', 'C₁₉H₁₂Br₂O₅S', 'bromophenol_red', undefined, 'conceptual_reference'],
+  [18, 'Acid-Base (pH) Indicators', 'Bromochlorophenol blue', 'C₁₉H₁₀Br₂Cl₂O₅S', 'C₁₉H₁₀Br₂Cl₂O₅S', 'bromochlorophenol_blue', undefined, 'conceptual_reference'],
+  [18, 'Acid-Base (pH) Indicators', 'p-Xylenol blue', 'C₂₃H₂₂O₅S', 'C₂₃H₂₂O₅S', 'p_xylenol_blue', undefined, 'conceptual_reference'],
+  [18, 'Acid-Base (pH) Indicators', 'Brilliant yellow', 'C₂₆H₁₈N₄Na₂O₈S₂', 'C₂₆H₁₈N₄Na₂O₈S₂', 'brilliant_yellow', undefined, 'conceptual_reference'],
   [19, 'Acid-Base (pH) Indicators', 'Cyanidin (Red cabbage anthocyanin)', 'C₁₅H₁₁O₆⁺', 'C₁₅H₁₁O₆⁺ (aq)', 'red_cabbage_indicator', undefined, 'school_lab_supported', undefined, ['Red cabbage indicator', 'Anthocyanin']],
   [19, 'Acid-Base (pH) Indicators', 'Tropaeolin OO (Orange IV)', 'C₁₈H₁₄N₃NaO₃S', 'C₁₈H₁₄N₃NaO₃S', 'tropaeolin_oo', undefined, 'conceptual_reference', undefined, ['Orange IV']],
+  [19, 'Acid-Base (pH) Indicators', 'Tropaeolin O (Resorcin yellow)', 'C₁₂H₉N₂NaO₅S', 'C₁₂H₉N₂NaO₅S', 'tropaeolin_o', undefined, 'conceptual_reference', undefined, ['Resorcin yellow']],
+  [19, 'Acid-Base (pH) Indicators', 'Universal indicator (Yamada’s mixture)', 'Multi-dye mixture', 'Multi-Dye Mixture (aq)', 'universal_indicator', undefined, 'school_lab_supported', undefined, ['Universal indicator solution']],
   [19, 'Acid-Base (pH) Indicators', 'Resazurin', 'C₁₂H₇NO₄', 'C₁₂H₇NO₄ (aq)', 'resazurin', undefined, 'school_lab_supported'],
 
-  // 2. Redox Indicators (Page 19, 15 entries)
+  // 2. Redox Indicators (Page 19, 18 entries)
   [19, 'Redox Indicators', 'Ferroin (tris(1,10-phenanthroline)iron(II) sulfate)', '[Fe(C₁₂H₈N₂)₃]SO₄', '[Fe(C₁₂H₈N₂)₃]SO₄ (aq)', 'ferroin', undefined, 'school_lab_supported'],
+  [19, 'Redox Indicators', 'Nitroferroin', '[Fe(C₁₂H₇N₃O₂)₃]SO₄', '[Fe(C₁₂H₇N₃O₂)₃]SO₄', 'nitroferroin', undefined, 'conceptual_reference'],
   [19, 'Redox Indicators', 'Methylene blue', 'C₁₆H₁₈ClN₃S', 'C₁₆H₁₈ClN₃S (aq)', 'methylene_blue', undefined, 'school_lab_supported'],
   [19, 'Redox Indicators', 'Diphenylamine', 'C₁₂H₁₁N', '(C₆H₅)₂NH', 'diphenylamine', 'Deduplicated with Bases section Diphenylamine.', 'school_lab_supported'],
   [19, 'Redox Indicators', 'Sodium diphenylaminesulfonate', 'C₁₂H₁₀NNaO₃S', 'C₁₂H₁₀NNaO₃S (aq)', 'sodium_diphenylaminesulfonate', undefined, 'school_lab_supported'],
@@ -51,12 +57,14 @@ export const INDICATORS_RAW_TUPLES: RawDocTuple[] = [
   [19, 'Redox Indicators', 'Safranin T (Safranin O)', 'C₂₀H₁₉ClN₄', 'C₂₀H₁₉ClN₄', 'safranin_t', undefined, 'conceptual_reference', undefined, ['Safranin O']],
   [19, 'Redox Indicators', 'Indigo carmine (redox role)', 'C₁₆H₈N₂Na₂O₈S₂', 'C₁₆H₈N₂Na₂O₈S₂ (aq)', 'indigo_carmine', 'Deduplicated with Acid-Base Indigo carmine.', 'school_lab_supported'],
   [19, 'Redox Indicators', 'Phenosafranin', 'C₁₈H₁₅ClN₄', 'C₁₈H₁₅ClN₄', 'phenosafranin', undefined, 'conceptual_reference'],
+  [19, 'Redox Indicators', 'Janus green B', 'C₃₀H₃₁ClN₆', 'C₃₀H₃₁ClN₆', 'janus_green_b', undefined, 'conceptual_reference'],
   [19, 'Redox Indicators', 'Nile blue A', 'C₂₀H₂₀ClN₃O', 'C₂₀H₂₀ClN₃O', 'nile_blue_a', undefined, 'conceptual_reference'],
   [19, 'Redox Indicators', 'Thionine (Lauth’s violet)', 'C₁₂H₁₀ClN₃S', 'C₁₂H₁₀ClN₃S', 'thionine', undefined, 'conceptual_reference'],
   [19, 'Redox Indicators', 'Variamine blue B', 'C₁₃H₁₄ClN₃O', 'C₁₃H₁₄ClN₃O', 'variamine_blue_b', undefined, 'conceptual_reference'],
+  [19, 'Redox Indicators', 'Methyl viologen (Paraquat)', 'C₁₂H₁₄Cl₂N₂', 'C₁₂H₁₄Cl₂N₂', 'methyl_viologen', undefined, 'hazardous_restricted', 'Acutely toxic bipyridinium herbicide and low-potential redox indicator; restricted to reference.'],
   [19, 'Redox Indicators', 'Potassium permanganate (self-indicator)', 'KMnO₄', 'KMnO₄ (aq)', 'kmn_o4_reagent', 'Deduplicated with canonical Potassium Permanganate (self-indicator in redox titrations).', 'school_lab_supported'],
 
-  // 3. Complexometric (Metal Ion) Indicators (Page 19, 18 entries)
+  // 3. Complexometric (Metal Ion) Indicators (Page 19, 21 entries)
   [19, 'Complexometric (Metal Ion) Indicators', 'Eriochrome Black T (EBT)', 'C₂₀H₁₂N₃NaO₇S', 'C₂₀H₁₂N₃NaO₇S (aq)', 'ebt_indicator', undefined, 'school_lab_supported', undefined, ['EBT', 'Solochrome Black T']],
   [19, 'Complexometric (Metal Ion) Indicators', 'Murexide (Ammonium purpurate)', 'C₈₈H₈N₆O₆', 'C₈H₈N₆O₆ (NH₄C₈H₄N₅O₆)', 'murexide', 'Corrected source typo "C₈₈H₈N₆O₆" to verified ammonium purpurate formula C₈H₈N₆O₆.', 'school_lab_supported', undefined, ['Ammonium purpurate']],
   [19, 'Complexometric (Metal Ion) Indicators', 'Calmagite', 'C₁₇H₁₄N₂O₅S', 'C₁₇H₁₄N₂O₅S', 'calmagite', undefined, 'school_lab_supported'],
@@ -68,9 +76,12 @@ export const INDICATORS_RAW_TUPLES: RawDocTuple[] = [
   [19, 'Complexometric (Metal Ion) Indicators', 'Pyrocatechol violet', 'C₁₉H₁₄O₇S', 'C₁₉H₁₄O₇S', 'pyrocatechol_violet', undefined, 'conceptual_reference'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Arsenazo III', 'C₂₂H₁₈As₂N₄O₁₄S₂', 'C₂₂H₁₈As₂N₄O₁₄S₂', 'arsenazo_iii', undefined, 'hazardous_restricted', 'Organoarsenic complexometric dye; restricted due to arsenic content.'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Dithizone', 'C₁₃H₁₂N₄S', 'C₁₃H₁₂N₄S', 'dithizone', undefined, 'conceptual_reference'],
+  [19, 'Complexometric (Metal Ion) Indicators', 'Diphenylcarbazone', 'C₁₃H₁₂N₄O', 'C₁₃H₁₂N₄O', 'diphenylcarbazone', undefined, 'conceptual_reference'],
+  [19, 'Complexometric (Metal Ion) Indicators', 'Diphenylcarbazide', 'C₁₃H₁₄N₄O', 'C₁₃H₁₄N₄O', 'diphenylcarbazide', undefined, 'conceptual_reference'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Zincon', 'C₂₀H₁₅N₄NaO₆S', 'C₂₀H₁₅N₄NaO₆S', 'zincon', undefined, 'conceptual_reference'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Thorin', 'C₁₆H₁₁AsN₂Na₂O₁₀S₂', 'C₁₆H₁₁AsN₂Na₂O₁₀S₂', 'thorin_indicator', undefined, 'hazardous_restricted', 'Organoarsenic indicator reagent; restricted due to arsenic toxicity.'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Fast Sulphon Black F', 'C₃₀H₁₇N₄Na₃O₁₁S₃', 'C₃₀H₁₇N₄Na₃O₁₁S₃', 'fast_sulphon_black_f', undefined, 'conceptual_reference'],
+  [19, 'Complexometric (Metal Ion) Indicators', 'Chrome azurol S', 'C₂₃H₁₃Cl₂Na₃O₉S', 'C₂₃H₁₃Cl₂Na₃O₉S', 'chrome_azurol_s', undefined, 'conceptual_reference'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Methylthymol blue', 'C₃₇H₄₄N₂O₁₃S', 'C₃₇H₄₄N₂O₁₃S', 'methylthymol_blue', undefined, 'conceptual_reference'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Sulfosalicylic acid (for Fe³⁺)', 'C₇H₆O₆S', 'C₇H₆O₆S (aq)', 'sulfosalicylic_acid', undefined, 'school_lab_supported'],
   [19, 'Complexometric (Metal Ion) Indicators', 'Salicylic acid (for Fe³⁺)', 'C₇H₆O₃', '2-HOC₆H₄COOH', 'salicylic_acid', 'Deduplicated with Acids section Salicylic acid (forms violet complex with Fe³⁺).', 'school_lab_supported'],
@@ -84,17 +95,19 @@ export const INDICATORS_RAW_TUPLES: RawDocTuple[] = [
   [19, 'Precipitation / Adsorption Indicators', 'Potassium chromate (Mohr’s method)', 'K₂CrO₄', 'K₂CrO₄ (aq)', 'k2cro4', 'Deduplicated with Salts/Oxidizers Potassium chromate (forms brick-red Ag₂CrO₄ endpoint in Mohr’s titration).', 'school_lab_supported'],
   [19, 'Precipitation / Adsorption Indicators', 'Ferric ammonium sulfate (Volhard’s method)', 'NH₄Fe(SO₄)₂·12H₂O', 'NH₄Fe(SO₄)₂·12H₂O (aq)', 'ferric_alum', undefined, 'school_lab_supported', undefined, ['Ferric alum', 'Volhard’s indicator']],
 
-  // 5. Fluorescent Indicators (Page 20, 6 entries)
+  // 5. Fluorescent Indicators (Page 20, 8 entries)
   [20, 'Fluorescent Indicators', 'Fluorescein', 'C₂₀H₁₂O₅', 'C₂₀H₁₂O₅ (aq)', 'fluorescein', 'Deduplicated with Precipitation Indicators Fluorescein.', 'school_lab_supported'],
   [20, 'Fluorescent Indicators', 'Eosin Y', 'C₂₀H₆Br₄Na₂O₅', 'C₂₀H₆Br₄Na₂O₅ (aq)', 'eosin_y', 'Deduplicated with Precipitation Indicators Eosin Y.', 'school_lab_supported'],
   [20, 'Fluorescent Indicators', 'Quinine sulfate', '(C₂₀H₂₄N₂O₂)₂·H₂SO₄', '(C₂₀H₂₄N₂O₂)₂·H₂SO₄', 'quinine_sulfate', undefined, 'conceptual_reference'],
   [20, 'Fluorescent Indicators', 'Umbelliferone (7-hydroxycoumarin)', 'C₉H₆O₃', 'C₉H₆O₃', 'umbelliferone', undefined, 'conceptual_reference'],
+  [20, 'Fluorescent Indicators', '4-Methylumbelliferone', 'C₁₀H₈O₃', 'C₁₀H₈O₃', 'methylumbelliferone_4', undefined, 'conceptual_reference'],
   [20, 'Fluorescent Indicators', 'Acridine', 'C₁₃H₉N', 'C₁₃H₉N', 'acridine', undefined, 'conceptual_reference'],
+  [20, 'Fluorescent Indicators', 'Acridine orange', 'C₁₇H₁₉N₃', 'C₁₇H₁₉N₃', 'acridine_orange', undefined, 'conceptual_reference'],
   [20, 'Fluorescent Indicators', '2-Naphthol', 'C₁₀H₈O', '2-C₁₀H₇OH (C₁₀H₈O)', 'naphthol_2', undefined, 'school_lab_supported', undefined, ['Beta-naphthol']],
 ];
 
 export const CATALYSTS_RAW_TUPLES: RawDocTuple[] = [
-  // 1. Heterogeneous (metals and oxides) (Page 20, 24 entries)
+  // 1. Heterogeneous (metals and oxides) (Page 20, 33 entries)
   [20, 'Heterogeneous (metals and oxides)', 'Iron (Haber process)', 'Fe', 'Fe (s)', 'fe', 'Deduplicated with canonical Iron / Haber catalyst.', 'school_lab_supported'],
   [20, 'Heterogeneous (metals and oxides)', 'Nickel / Raney Nickel (hydrogenation)', 'Ni', 'Ni (s)', 'ni_catalyst', 'Deduplicated with canonical Finely Divided Nickel.', 'school_lab_supported'],
   [20, 'Heterogeneous (metals and oxides)', 'Platinum (Adams’ catalyst: PtO₂; Pt/C)', 'Pt / PtO₂', 'Pt (s)', 'pt_wire', 'Deduplicated with canonical Platinum Catalyst.', 'school_lab_supported', undefined, ['Adams catalyst', 'PtO2']],
@@ -128,13 +141,16 @@ export const CATALYSTS_RAW_TUPLES: RawDocTuple[] = [
   [20, 'Heterogeneous (metals and oxides)', 'Molybdenum disulfide (hydrodesulfurization)', 'MoS₂', 'MoS₂ (s)', 'mos2_catalyst', undefined, 'conceptual_reference'],
   [20, 'Heterogeneous (metals and oxides)', 'Tungsten carbide', 'WC', 'WC (s)', 'wc_catalyst', undefined, 'conceptual_reference'],
 
-  // 2. Homogeneous (metal complexes) (Pages 20-21, 22 entries)
+  // 2. Homogeneous (metal complexes) (Pages 20-21, 26 entries)
   [20, 'Homogeneous (metal complexes)', 'Wilkinson’s catalyst', '[RhCl(PPh₃)₃] (C₅₄H₄₅ClP₃Rh)', '[RhCl(PPh₃)₃]', 'wilkinsons_catalyst', undefined, 'conceptual_reference'],
   [20, 'Homogeneous (metal complexes)', 'Crabtree’s catalyst', '[Ir(cod)(PCy₃)(py)]PF₆', '[Ir(cod)(PCy₃)(py)]PF₆', 'crabtrees_catalyst', undefined, 'conceptual_reference'],
   [20, 'Homogeneous (metal complexes)', 'Vaska’s complex', 'trans-[IrCl(CO)(PPh₃)₂]', 'trans-[IrCl(CO)(PPh₃)₂]', 'vaskas_complex', undefined, 'conceptual_reference'],
+  [20, 'Homogeneous (metal complexes)', 'Zeise’s salt', 'K[PtCl₃(C₂H₄)]·H₂O', 'K[PtCl₃(C₂H₄)]·H₂O', 'zeises_salt', undefined, 'conceptual_reference'],
   [20, 'Homogeneous (metal complexes)', 'Grubbs’ catalyst (1st gen.)', 'RuCl₂(=CHPh)(PCy₃)₂', 'RuCl₂(=CHPh)(PCy₃)₂', 'grubbs_catalyst_1', undefined, 'conceptual_reference'],
+  [20, 'Homogeneous (metal complexes)', 'Hoveyda–Grubbs catalyst', 'C₂₈H₃₈Cl₂ORu', 'RuCl₂(=CH-o-iPrO-C₆H₄)(IMes)', 'hoveyda_grubbs_catalyst', undefined, 'conceptual_reference'],
   [20, 'Homogeneous (metal complexes)', 'Schrock catalyst', 'Mo(=CHCMe₂Ph)(=NAr)(OR)₂', 'Mo(=CHCMe₂Ph)(=NAr)(OR)₂', 'schrock_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Ziegler–Natta catalyst', 'TiCl₄ + Al(C₂H₅)₃ (or TiCl₃ + AlEt₂Cl)', 'TiCl₄ + Al(C₂H₅)₃', 'ziegler_natta', undefined, 'school_lab_supported'],
+  [21, 'Homogeneous (metal complexes)', 'Kaminsky catalyst (metallocene)', 'Cp₂ZrCl₂ + MAO', '(C₅H₅)₂ZrCl₂ + (CH₃AlO)ₙ', 'kaminsky_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Tetrakis(triphenylphosphine)palladium(0)', 'Pd(PPh₃)₄ (C₇₂H₆₀P₄Pd)', 'Pd(PPh₃)₄', 'pd_pph3_4', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Palladium(II) acetate', 'Pd(OAc)₂ / Pd(CH₃COO)₂', 'Pd(CH₃COO)₂', 'pd_oac_2', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Palladium(II) chloride (Wacker process)', 'PdCl₂ (with CuCl₂)', 'PdCl₂ / CuCl₂', 'pdcl2_wacker', undefined, 'conceptual_reference'],
@@ -146,13 +162,14 @@ export const CATALYSTS_RAW_TUPLES: RawDocTuple[] = [
   [21, 'Homogeneous (metal complexes)', 'Karstedt’s catalyst', 'Pt₂(dvs)₃', 'Pt₂(dvs)₃', 'karstedts_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Jacobsen’s catalyst', 'Mn(salen)Cl', 'Mn(salen)Cl', 'jacobsens_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Sharpless epoxidation catalyst', 'Ti(OⁱPr)₄', 'Ti[OCH(CH₃)₂]₄', 'sharpless_ti_catalyst', undefined, 'conceptual_reference'],
+  [21, 'Homogeneous (metal complexes)', 'Noyori asymmetric hydrogenation catalyst', 'RuCl₂(BINAP)(diamine)', 'RuCl₂(BINAP)(diamine)', 'noyori_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Osmium tetroxide (dihydroxylation)', 'OsO₄', 'OsO₄ (s)', 'oso4', 'Deduplicated with Oxidizers section Osmium tetroxide.', 'hazardous_restricted'],
   [21, 'Homogeneous (metal complexes)', 'Fenton’s reagent', 'FeSO₄ + H₂O₂', 'FeSO₄ + H₂O₂ (aq)', 'fentons_reagent', undefined, 'school_lab_supported'],
   [21, 'Homogeneous (metal complexes)', 'Copper(I) iodide', 'CuI', 'CuI (s)', 'cui_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Copper(I) bromide', 'CuBr', 'CuBr (s)', 'cubr_catalyst', undefined, 'conceptual_reference'],
   [21, 'Homogeneous (metal complexes)', 'Mercury(II) sulfate (alkyne hydration)', 'HgSO₄', 'HgSO₄ (s)', 'hgso4_catalyst', undefined, 'hazardous_restricted', 'Toxic mercury(II) salt (Kucherov alkyne hydration catalyst); restricted to curriculum reference.'],
 
-  // 3. Acid and base catalysts (Page 21, 21 entries)
+  // 3. Acid and base catalysts (Page 21, 23 entries)
   [21, 'Acid and base catalysts', 'Sulfuric acid', 'H₂SO₄', 'H₂SO₄ (aq)', 'h2so4', 'Deduplicated with canonical Sulfuric Acid.', 'school_lab_supported'],
   [21, 'Acid and base catalysts', 'Phosphoric acid', 'H₃PO₄', 'H₃PO₄ (aq)', 'h3po4', 'Deduplicated with canonical Phosphoric Acid.', 'school_lab_supported'],
   [21, 'Acid and base catalysts', 'Hydrochloric acid', 'HCl', 'HCl (aq)', 'hcl', 'Deduplicated with canonical Hydrochloric Acid.', 'school_lab_supported'],
@@ -160,6 +177,8 @@ export const CATALYSTS_RAW_TUPLES: RawDocTuple[] = [
   [21, 'Acid and base catalysts', 'p-Toluenesulfonic acid (PTSA)', 'CH₃C₆H₄SO₃H', '4-CH₃C₆H₄SO₃H', 'p_toluenesulfonic_acid', 'Deduplicated with Acids section p-Toluenesulfonic acid.', 'conceptual_reference'],
   [21, 'Acid and base catalysts', 'Trifluoroacetic acid (TFA)', 'CF₃COOH', 'CF₃COOH', 'tfa_acid', 'Deduplicated with Acids section Trifluoroacetic acid.', 'conceptual_reference'],
   [21, 'Acid and base catalysts', 'Trifluoromethanesulfonic acid (triflic acid)', 'CF₃SO₃H', 'CF₃SO₃H', 'cf3so3h', 'Deduplicated with Superacids section Triflic acid.', 'hazardous_restricted'],
+  [21, 'Acid and base catalysts', 'Amberlyst-15 (solid acid resin)', 'Sulfonated polystyrene', 'Sulfonated polystyrene-divinylbenzene resin', 'amberlyst_15', undefined, 'conceptual_reference'],
+  [21, 'Acid and base catalysts', 'Nafion (superacid polymer catalyst)', 'Perfluorosulfonic acid polymer', 'Sulfonated tetrafluoroethylene fluoropolymer', 'nafion_catalyst', undefined, 'conceptual_reference'],
   [21, 'Acid and base catalysts', 'Aluminium chloride (Friedel–Crafts)', 'AlCl₃', 'AlCl₃ (aq)', 'alcl3', 'Deduplicated with Salts section Aluminium chloride.', 'school_lab_supported'],
   [21, 'Acid and base catalysts', 'Iron(III) chloride', 'FeCl₃', 'FeCl₃ (aq)', 'fecl3', 'Deduplicated with canonical Iron(III) Chloride.', 'school_lab_supported'],
   [21, 'Acid and base catalysts', 'Iron(III) bromide', 'FeBr₃', 'FeBr₃ (s)', 'febr3_catalyst', undefined, 'school_lab_supported'],
@@ -175,20 +194,25 @@ export const CATALYSTS_RAW_TUPLES: RawDocTuple[] = [
   [21, 'Acid and base catalysts', 'Sodium hydride', 'NaH', 'NaH (s)', 'nah', 'Deduplicated with Bases section Sodium hydride.', 'hazardous_restricted'],
   [21, 'Acid and base catalysts', 'Potassium iodide (H₂O₂ decomposition)', 'KI', 'KI (aq)', 'ki', 'Deduplicated with canonical Potassium Iodide.', 'school_lab_supported'],
 
-  // 4. Organocatalysts (Page 21, 6 entries)
+  // 4. Organocatalysts (Page 21, 9 entries)
   [21, 'Organocatalysts', '4-Dimethylaminopyridine (DMAP)', 'C₇H₁₀N₂', '(CH₃)₂NC₅H₄N', 'dmap', 'Deduplicated with Bases section DMAP.', 'conceptual_reference'],
   [21, 'Organocatalysts', 'L-Proline', 'C₅H₉NO₂', 'C₅H₉NO₂', 'proline', 'Deduplicated with Amino acids section Proline.', 'conceptual_reference'],
   [21, 'Organocatalysts', 'DBU (1,8-diazabicyclo[5.4.0]undec-7-ene)', 'C₉H₁₆N₂', 'C₉H₁₆N₂', 'dbu_base', 'Deduplicated with Bases section DBU.', 'conceptual_reference'],
   [21, 'Organocatalysts', 'DABCO', 'C₆H₁₂N₂', 'C₆H₁₂N₂', 'dabco', 'Deduplicated with Bases section DABCO.', 'conceptual_reference'],
   [21, 'Organocatalysts', 'Triethylamine', '(C₂H₅)₃N', '(C₂H₅)₃N', 'triethylamine', 'Deduplicated with Bases section Triethylamine.', 'conceptual_reference'],
   [21, 'Organocatalysts', 'Pyridine', 'C₅H₅N', 'C₅H₅N', 'pyridine', 'Deduplicated with Bases section Pyridine.', 'conceptual_reference'],
+  [21, 'Organocatalysts', 'IMes (N-heterocyclic carbene)', 'C₂₁H₂₄N₂', 'C₂₁H₂₄N₂', 'imes_nhc', undefined, 'conceptual_reference', undefined, ['IMes']],
+  [21, 'Organocatalysts', 'MacMillan imidazolidinone catalyst', 'C₁₁H₁₄N₂O', 'C₁₁H₁₄N₂O', 'macmillan_catalyst', undefined, 'conceptual_reference'],
+  [21, 'Organocatalysts', 'Jørgensen–Hayashi catalyst', 'C₂₁H₂₅F₆OSiN', 'C₂₁H₂₅F₆OSiN', 'jorgensen_hayashi_catalyst', undefined, 'conceptual_reference'],
 
-  // 5. Phase-transfer and others (Pages 21-22, 3 entries)
+  // 5. Phase-transfer and others (Pages 21-22, 5 entries)
   [21, 'Phase-transfer and others', 'Tetrabutylammonium bromide (TBAB)', '(C₄H₉)₄NBr', '(C₄H₉)₄NBr', 'tbab_catalyst', undefined, 'conceptual_reference', undefined, ['TBAB']],
+  [21, 'Phase-transfer and others', 'Benzyltriethylammonium chloride (TEBAC)', '[C₆H₅CH₂N(C₂H₅)₃]Cl', '[C₆H₅CH₂N(C₂H₅)₃]Cl', 'tebac_catalyst', undefined, 'conceptual_reference', undefined, ['TEBAC']],
+  [21, 'Phase-transfer and others', '18-Crown-6 (phase-transfer catalyst)', 'C₁₂H₂₄O₆', 'C₁₂H₂₄O₆', 'crown_18_6', undefined, 'conceptual_reference'],
   [21, 'Phase-transfer and others', 'Zeolite ZSM-5', 'Na[AlSi₉₆₋O₁₉₂]·16H₂O', 'Naₙ[AlₙSi₉₆₋ₙO₁₉₂]·16H₂O (s)', 'zeolite_zsm5', 'Corrected missing stoichiometric subscript "n" in source formula "Na[AlSi₉₆₋O₁₉₂]·16H₂O" to Naₙ[AlₙSi₉₆₋ₙO₁₉₂]·16H₂O.', 'school_lab_supported'],
   [22, 'Phase-transfer and others', 'Azobisisobutyronitrile (AIBN, radical initiator)', 'C₈H₁₂N₄', '[(CH₃)₂C(CN)]₂N₂ (C₈H₁₂N₄)', 'aibn_initiator', undefined, 'conceptual_reference', undefined, ['AIBN']],
 
-  // 6. Biological (enzymes) and industrial named catalysts (Page 22, 11 entries)
+  // 6. Biological (enzymes) and industrial named catalysts (Page 22, 16 entries)
   [22, 'Biological (enzymes) and industrial named catalysts', 'Catalase (decomposes H₂O₂)', 'Enzyme (Fe-heme protein)', 'Biocatalyst (Tetrameric Heme Enzyme)', 'catalase_enzyme', 'Deduplicated with canonical Catalase Enzyme Extract.', 'school_lab_supported'],
   [22, 'Biological (enzymes) and industrial named catalysts', 'Amylase (starch hydrolysis)', 'Enzyme (protein)', 'Biocatalyst (α-Amylase glycoside hydrolase)', 'amylase_enzyme', undefined, 'school_lab_supported'],
   [22, 'Biological (enzymes) and industrial named catalysts', 'Urease (urea hydrolysis)', 'Enzyme (Ni-containing protein)', 'Biocatalyst (Ni-metalloenzyme)', 'urease_enzyme', undefined, 'school_lab_supported'],
@@ -200,4 +224,10 @@ export const CATALYSTS_RAW_TUPLES: RawDocTuple[] = [
   [22, 'Biological (enzymes) and industrial named catalysts', 'Carbonic anhydrase (CO₂ hydration)', 'Enzyme (Zn-metalloenzyme)', 'Biocatalyst (Zn²⁺ metalloenzyme)', 'carbonic_anhydrase', undefined, 'school_lab_supported'],
   [22, 'Biological (enzymes) and industrial named catalysts', 'Nitrogenase (N₂ fixation)', 'Enzyme (Fe–Mo protein)', 'Biocatalyst (FeMo-cofactor enzyme)', 'nitrogenase_enzyme', undefined, 'conceptual_reference'],
   [22, 'Biological (enzymes) and industrial named catalysts', 'Cytochrome c oxidase (respiration)', 'Enzyme (Fe–Cu heme protein)', 'Biocatalyst (Heme-copper oxidase)', 'cytochrome_c_oxidase', undefined, 'conceptual_reference'],
+  [22, 'Biological (enzymes) and industrial named catalysts', 'Three-way automotive catalyst (Pt–Pd–Rh on CeO₂/Al₂O₃)', 'Pt–Pd–Rh / CeO₂–Al₂O₃', 'Pt–Pd–Rh / CeO₂–Al₂O₃ (s)', 'three_way_auto_catalyst', undefined, 'conceptual_reference'],
+  [22, 'Biological (enzymes) and industrial named catalysts', 'Fischer–Tropsch catalyst (Fe / Co supported)', 'Fe or Co on Al₂O₃/SiO₂', 'Co (s)', 'co_catalyst', 'Deduplicated with canonical Cobalt Fischer–Tropsch Catalyst.', 'conceptual_reference'],
+  [22, 'Biological (enzymes) and industrial named catalysts', 'Hydrodesulfurization catalyst (Co–Mo / Ni–Mo on Al₂O₃)', 'Co–MoS₂ / Al₂O₃', 'Co–MoS₂ / Al₂O₃ (s)', 'hds_como_catalyst', undefined, 'conceptual_reference'],
+  [22, 'Biological (enzymes) and industrial named catalysts', 'Methanol synthesis catalyst (Cu / ZnO / Al₂O₃)', 'Cu / ZnO / Al₂O₃', 'Cu / ZnO–Al₂O₃ (s)', 'cu_catalyst', 'Deduplicated with canonical Supported Copper Catalyst.', 'school_lab_supported'],
+  [22, 'Biological (enzymes) and industrial named catalysts', 'Steam reforming catalyst (Ni / Al₂O₃)', 'Ni / Al₂O₃', 'Ni / Al₂O₃ (s)', 'steam_reforming_ni_catalyst', undefined, 'conceptual_reference'],
 ];
+

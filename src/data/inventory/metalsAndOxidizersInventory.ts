@@ -141,6 +141,7 @@ export const OXIDIZERS_RAW_TUPLES: RawDocTuple[] = [
   [15, 'Peroxides and peroxy compounds', 'tert-Butyl hydroperoxide (TBHP)', '(CH₃)₃COOH', '(CH₃)₃COOH (t-BuOOH)', 'tbhp', 'Clarified hydroperoxide connectivity (CH₃)₃C–OOH to distinguish from pivalic acid.', 'conceptual_reference', undefined, ['TBHP']],
   [15, 'Peroxides and peroxy compounds', 'Cumene hydroperoxide', 'C₆H₅C(CH₃)₂OOH', 'C₆H₅C(CH₃)₂OOH', 'cumene_hydroperoxide', undefined, 'conceptual_reference'],
   [15, 'Peroxides and peroxy compounds', 'Di-tert-butyl peroxide', '[(CH₃)₃CO]₂', '[(CH₃)₃CO]₂', 'dtbp', undefined, 'conceptual_reference'],
+  [15, 'Peroxides and peroxy compounds', 'Dimethyldioxirane (DMDO)', 'C₃H₆O₂', 'C₃H₆O₂ (DMDO)', 'dmdo_oxidant', undefined, 'conceptual_reference', undefined, ['DMDO']],
   [15, 'Peroxides and peroxy compounds', 'Acetone peroxide (TATP)', '(C₃H₆O₂)₃', '(C₃H₆O₂)₃', 'tatp', undefined, 'hazardous_restricted', 'Extremely Friction/Impact-Sensitive Primary High Explosive (TATP); strictly prohibited.'],
 
   // 3. Chlorine oxy-compounds (Page 15, 16 entries)
@@ -174,13 +175,14 @@ export const OXIDIZERS_RAW_TUPLES: RawDocTuple[] = [
   [16, 'Bromine and iodine oxy-compounds', 'Potassium periodate', 'KIO₄', 'KIO₄ (aq)', 'kio4', undefined, 'conceptual_reference'],
   [16, 'Bromine and iodine oxy-compounds', 'Iodine pentoxide', 'I₂O₅', 'I₂O₅ (s)', 'i2o5', undefined, 'conceptual_reference'],
 
-  // 5. Organic halogen-based oxidants (Page 16, 9 entries)
+  // 5. Organic halogen-based oxidants (Page 16, 10 entries)
   [16, 'Organic halogen-based oxidants', 'N-Chlorosuccinimide (NCS)', 'C₄H₄ClNO₂', 'C₄H₄ClNO₂', 'ncs_oxidant', undefined, 'conceptual_reference', undefined, ['NCS']],
   [16, 'Organic halogen-based oxidants', 'N-Bromosuccinimide (NBS)', 'C₄H₄BrNO₂', 'C₄H₄BrNO₂', 'nbs_oxidant', undefined, 'conceptual_reference', undefined, ['NBS']],
   [16, 'Organic halogen-based oxidants', 'N-Iodosuccinimide (NIS)', 'C₄H₄INO₂', 'C₄H₄INO₂', 'nis_oxidant', undefined, 'conceptual_reference', undefined, ['NIS']],
   [16, 'Organic halogen-based oxidants', 'Trichloroisocyanuric acid (TCCA)', 'C₃Cl₃N₃O₃', 'C₃Cl₃N₃O₃', 'tcca_oxidant', undefined, 'conceptual_reference', undefined, ['TCCA']],
   [16, 'Organic halogen-based oxidants', 'Sodium dichloroisocyanurate', 'C₃Cl₂N₃NaO₃', 'C₃Cl₂N₃NaO₃', 'nadcc_oxidant', undefined, 'conceptual_reference'],
   [16, 'Organic halogen-based oxidants', 'Chloramine-T', 'CH₃C₆H₄SO₂NClNa', '4-CH₃C₆H₄SO₂NClNa', 'chloramine_t', undefined, 'conceptual_reference'],
+  [16, 'Organic halogen-based oxidants', 'Selectfluor', 'C₇H₁₄BF₈ClN₂', 'C₇H₁₄BF₈ClN₂', 'selectfluor', undefined, 'conceptual_reference'],
   [16, 'Organic halogen-based oxidants', 'Dess–Martin periodinane (DMP)', 'C₁₃H₁₃IO₈', 'C₁₃H₁₃IO₈', 'dmp_oxidant', undefined, 'conceptual_reference', undefined, ['DMP']],
   [16, 'Organic halogen-based oxidants', '2-Iodoxybenzoic acid (IBX)', 'C₇H₅IO₄', 'C₇H₅IO₄', 'ibx_oxidant', undefined, 'conceptual_reference', undefined, ['IBX']],
   [16, 'Organic halogen-based oxidants', '(Diacetoxyiodo)benzene (PIDA)', 'C₆H₅I(OAc)₂', 'C₆H₅I(OCOCH₃)₂', 'pida_oxidant', undefined, 'conceptual_reference', undefined, ['PIDA']],
@@ -255,19 +257,28 @@ export const OXIDIZERS_RAW_TUPLES: RawDocTuple[] = [
   [17, 'Sulfur, selenium, and other nonmetal oxidizers', 'Arsenic acid', 'H₃AsO₄', 'H₃AsO₄', 'h3aso4', 'Deduplicated with Acids section Arsenic acid.', 'hazardous_restricted'],
   [17, 'Sulfur, selenium, and other nonmetal oxidizers', 'Dimethyl sulfoxide (DMSO, in Swern oxidation)', '(CH₃)₂SO', '(CH₃)₂SO (l)', 'dmso', undefined, 'conceptual_reference', undefined, ['DMSO']],
 
-  // 11. Fluorine-based oxidizers (Page 17, 8 entries)
+  // 11. Fluorine-based oxidizers (Page 17, 15 entries)
   [17, 'Fluorine-based oxidizers', 'Oxygen difluoride', 'OF₂', 'OF₂ (g)', 'of2_gas', undefined, 'hazardous_restricted', 'Acutely toxic and violently reactive fluorine-oxygen gas.'],
+  [17, 'Fluorine-based oxidizers', 'Dioxygen difluoride', 'O₂F₂', 'O₂F₂ (g/l)', 'o2f2_gas', undefined, 'hazardous_restricted', 'Cryogenic hyper-oxidizer ("FOOF") that reacts explosively with nearly all substances at -160°C.'],
   [17, 'Fluorine-based oxidizers', 'Chlorine trifluoride', 'ClF₃', 'ClF₃ (g)', 'clf3_gas', undefined, 'hazardous_restricted', 'Hypergolic interhalogen fluorinating agent that ignites glass, sand, and asbestos.'],
   [17, 'Fluorine-based oxidizers', 'Bromine trifluoride', 'BrF₃', 'BrF₃ (l)', 'brf3', undefined, 'hazardous_restricted', 'Violently reactive interhalogen fluorinating liquid.'],
+  [17, 'Fluorine-based oxidizers', 'Iodine pentafluoride', 'IF₅', 'IF₅ (l)', 'if5', undefined, 'hazardous_restricted', 'Corrosive interhalogen fluorinating liquid.'],
   [17, 'Fluorine-based oxidizers', 'Iodine heptafluoride', 'IF₇', 'IF₇ (g)', 'if7', undefined, 'hazardous_restricted', 'Corrosive interhalogen fluorinating gas.'],
   [17, 'Fluorine-based oxidizers', 'Xenon difluoride', 'XeF₂', 'XeF₂ (s)', 'xef2', undefined, 'conceptual_reference'],
   [17, 'Fluorine-based oxidizers', 'Xenon tetrafluoride', 'XeF₄', 'XeF₄ (s)', 'xef4', undefined, 'conceptual_reference'],
   [17, 'Fluorine-based oxidizers', 'Xenon hexafluoride', 'XeF₆', 'XeF₆ (s)', 'xef6', undefined, 'hazardous_restricted', 'Hydrolyzes rapidly to shock-sensitive explosive xenon trioxide (XeO₃).'],
   [17, 'Fluorine-based oxidizers', 'Xenon trioxide', 'XeO₃', 'XeO₃ (s)', 'xeo3', undefined, 'hazardous_restricted', 'Shock-sensitive primary explosive noble-gas oxide.'],
+  [17, 'Fluorine-based oxidizers', 'Antimony pentafluoride', 'SbF₅', 'SbF₅ (l)', 'sbf5', undefined, 'hazardous_restricted', 'Extreme Lewis acid and oxidizing fluorinating agent.'],
+  [17, 'Fluorine-based oxidizers', 'Silver(II) fluoride', 'AgF₂', 'AgF₂ (s)', 'agf2', undefined, 'conceptual_reference'],
+  [17, 'Fluorine-based oxidizers', 'Cobalt(III) fluoride', 'CoF₃', 'CoF₃ (s)', 'cof3', undefined, 'conceptual_reference'],
+  [17, 'Fluorine-based oxidizers', 'Lead(IV) fluoride', 'PbF₄', 'PbF₄ (s)', 'pbf4', undefined, 'conceptual_reference'],
+  [17, 'Fluorine-based oxidizers', 'Bismuth(V) fluoride', 'BiF₅', 'BiF₅ (s)', 'bif5', undefined, 'hazardous_restricted', 'Powerful moisture-reactive main-group fluorinating agent.'],
 
-  // 12. Organic quinone and radical oxidants (Pages 17-18, 4 entries)
-  [17, 'Organic quinone and radical oxidants', '1,4-Benzoquinone', 'C₆H₄O₂', 'C₆H₄O₂', 'benzoquinone', undefined, 'conceptual_reference'],
+  // 12. Organic quinone and radical oxidants (Pages 17-18, 5 entries)
+  [17, 'Organic quinone and radical oxidants', '1,4-Benzoquinone', 'C₆H₄O₂', 'C₆H₄O₂', 'benzoquinone', undefined, 'conceptual_reference', undefined, ['p-Benzoquinone']],
   [17, 'Organic quinone and radical oxidants', 'Chloranil (tetrachloro-1,4-benzoquinone)', 'C₆Cl₄O₂', 'C₆Cl₄O₂', 'chloranil', undefined, 'conceptual_reference'],
   [18, 'Organic quinone and radical oxidants', 'DDQ (2,3-dichloro-5,6-dicyano-1,4-benzoquinone)', 'C₈Cl₂N₂O₂', 'C₈Cl₂N₂O₂', 'ddq_oxidant', undefined, 'conceptual_reference', undefined, ['DDQ']],
   [18, 'Organic quinone and radical oxidants', 'TEMPO (2,2,6,6-tetramethylpiperidine-1-oxyl)', 'C₉H₁₈NO', 'C₉H₁₈NO•', 'tempo_oxidant', undefined, 'conceptual_reference', undefined, ['TEMPO']],
+  [18, 'Organic quinone and radical oxidants', 'Fremy’s salt (potassium nitrosodisulfonate)', 'K₂[ON(SO₃)₂]', 'K₂[ON(SO₃)₂]', 'fremys_salt', undefined, 'conceptual_reference', undefined, ['Fremys salt']],
 ];
+

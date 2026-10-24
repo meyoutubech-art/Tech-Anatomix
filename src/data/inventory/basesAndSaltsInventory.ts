@@ -146,15 +146,19 @@ export const BASES_RAW_TUPLES: RawDocTuple[] = [
   [9, 'Nucleobases', 'Thymine', 'C₅H₆N₂O₂', 'C₅H₆N₂O₂', 'thymine', undefined, 'conceptual_reference'],
   [9, 'Nucleobases', 'Uracil', 'C₄H₄N₂O₂', 'C₄H₄N₂O₂', 'uracil', undefined, 'conceptual_reference'],
 
-  // 11. Amidines, guanidines and organic superbases (Page 9, 8 entries)
+  // 11. Amidines, guanidines and organic superbases (Page 9, 12 entries)
   [9, 'Amidines, guanidines and organic superbases', 'Guanidine', 'CH₅N₃', 'HNC(NH₂)₂ (CH₅N₃)', 'guanidine', undefined, 'conceptual_reference'],
   [9, 'Amidines, guanidines and organic superbases', 'Urea (weak base)', 'CO(NH₂)₂', 'CO(NH₂)₂ (aq)', 'urea', undefined, 'school_lab_supported'],
+  [9, 'Amidines, guanidines and organic superbases', 'TMG (1,1,3,3-tetramethylguanidine)', 'C₅H₁₃N₃', '(CH₃)₂NC(=NH)N(CH₃)₂', 'tmg_base', undefined, 'conceptual_reference', undefined, ['TMG']],
   [9, 'Amidines, guanidines and organic superbases', 'DBU (1,8-diazabicyclo[5.4.0]undec-7-ene)', 'C₉H₁₆N₂', 'C₉H₁₆N₂', 'dbu_base', undefined, 'conceptual_reference', undefined, ['DBU']],
   [9, 'Amidines, guanidines and organic superbases', 'DBN (1,5-diazabicyclo[4.3.0]non-5-ene)', 'C₇H₁₂N₂', 'C₇H₁₂N₂', 'dbn_base', undefined, 'conceptual_reference', undefined, ['DBN']],
+  [9, 'Amidines, guanidines and organic superbases', 'TBD (1,5,7-triazabicyclo[4.4.0]dec-5-ene)', 'C₇H₁₃N₃', 'C₇H₁₃N₃', 'tbd_base', undefined, 'conceptual_reference', undefined, ['TBD']],
   [9, 'Amidines, guanidines and organic superbases', 'DABCO (1,4-diazabicyclo[2.2.2]octane)', 'C₆H₁₂N₂', 'C₆H₁₂N₂', 'dabco', undefined, 'conceptual_reference', undefined, ['DABCO']],
   [9, 'Amidines, guanidines and organic superbases', 'DMAP (4-dimethylaminopyridine)', '(CH₃)₂NC₅H₄N', '(CH₃)₂NC₅H₄N', 'dmap', undefined, 'conceptual_reference', undefined, ['DMAP']],
   [9, 'Amidines, guanidines and organic superbases', 'DIPEA (Hünig’s base, N,N-diisopropylethylamine)', '[(CH₃)₂CH]₂NC₂H₅', '[(CH₃)₂CH]₂NC₂H₅', 'dipea', undefined, 'conceptual_reference', undefined, ['DIPEA', 'Hunigs base']],
   [9, 'Amidines, guanidines and organic superbases', 'Proton Sponge (1,8-bis(dimethylamino)naphthalene)', 'C₁₄H₁₈N₂', 'C₁₄H₁₈N₂', 'proton_sponge', undefined, 'conceptual_reference'],
+  [9, 'Amidines, guanidines and organic superbases', 'Phosphazene base P₁-t-Bu', 'C₁₃H₃₆N₄P', '[(CH₃)₂N]₃P=NC(CH₃)₃', 'phosphazene_p1_tbu', undefined, 'conceptual_reference', undefined, ['Phosphazene base']],
+  [9, 'Amidines, guanidines and organic superbases', 'Verkade’s base', 'C₆H₁₅N₄P', 'P(CH₃NCH₂CH₂)₃N', 'verkades_base', undefined, 'conceptual_reference'],
 
   // 12. Alkaloids (naturally occurring bases) (Pages 9-10, 10 entries)
   [9, 'Alkaloids (naturally occurring bases)', 'Caffeine', 'C₈H₁₀N₄O₂', 'C₈H₁₀N₄O₂', 'caffeine', undefined, 'conceptual_reference'],
@@ -177,8 +181,8 @@ export const BASES_RAW_TUPLES: RawDocTuple[] = [
 ];
 
 export const SALTS_RAW_TUPLES: RawDocTuple[] = [
-  // 1. Chlorides (Page 10, 11 entries)
-  [10, 'Chlorides', 'Sodium chloride (common salt / table salt)', 'NaCl', 'NaCl (aq)', 'nacl', undefined, 'school_lab_supported', undefined, ['Common salt', 'Table salt', 'Brine']],
+  // 1. Chlorides (Page 10, 12 entries)
+  [10, 'Chlorides', 'Sodium chloride (common salt / table salt)', 'NaCl', 'NaCl (aq)', 'nacl', undefined, 'school_lab_supported', undefined, ['Common salt', 'Table salt', 'Brine', 'Saltwater']],
   [10, 'Chlorides', 'Potassium chloride', 'KCl', 'KCl (aq)', 'kcl', undefined, 'school_lab_supported'],
   [10, 'Chlorides', 'Calcium chloride', 'CaCl₂', 'CaCl₂ (aq)', 'cacl2', undefined, 'school_lab_supported'],
   [10, 'Chlorides', 'Magnesium chloride', 'MgCl₂', 'MgCl₂ (aq)', 'mgcl2', undefined, 'school_lab_supported'],
@@ -191,7 +195,7 @@ export const SALTS_RAW_TUPLES: RawDocTuple[] = [
   [10, 'Chlorides', 'Aluminium chloride', 'AlCl₃', 'AlCl₃ (aq)', 'alcl3', undefined, 'school_lab_supported', undefined, ['Aluminum chloride']],
   [10, 'Chlorides', 'Silver chloride', 'AgCl', 'AgCl (s)', 'agcl_solid', undefined, 'school_lab_supported'],
 
-  // 2. Sulfates (Page 10, 10 entries)
+  // 2. Sulfates (Page 10, 13 entries)
   [10, 'Sulfates', 'Sodium sulfate (Glauber’s salt)', 'Na₂SO₄', 'Na₂SO₄ (aq)', 'na2so4', undefined, 'school_lab_supported', undefined, ['Glauber’s salt', 'Glaubers salt']],
   [10, 'Sulfates', 'Potassium sulfate', 'K₂SO₄', 'K₂SO₄ (aq)', 'k2so4', undefined, 'school_lab_supported'],
   [10, 'Sulfates', 'Magnesium sulfate (Epsom salt)', 'MgSO₄·7H₂O', 'MgSO₄ (aq)', 'mgso4', undefined, 'school_lab_supported', undefined, ['Epsom salt', 'MgSO4.7H2O']],
@@ -268,9 +272,13 @@ export const SALTS_RAW_TUPLES: RawDocTuple[] = [
   [12, 'Common base solutions', 'Lime water (saturated calcium hydroxide solution)', 'Ca(OH)₂(aq)', 'Ca(OH)₂ (aq)', 'ca_oh2', 'Deduplicated aqueous solution entry with canonical Calcium Hydroxide.', 'school_lab_supported'],
   [12, 'Common base solutions', 'Sodium carbonate solution', 'Na₂CO₃(aq)', 'Na₂CO₃ (aq)', 'na2co3', 'Deduplicated aqueous solution entry with canonical Sodium Carbonate.', 'school_lab_supported'],
 
-  // 9. Other common solutions (Page 12, 8 entries)
+  // 9. Other common solutions (Page 12, 21 entries)
+  [12, 'Other common solutions', 'Water (universal aqueous solvent)', 'H₂O', 'H₂O', 'water', undefined, 'school_lab_supported', undefined, ['Distilled water', 'Deionized water', 'Pure water']],
   [12, 'Other common solutions', 'Brine (saturated sodium chloride solution)', 'NaCl(aq)', 'NaCl (aq)', 'nacl', 'Deduplicated Brine with canonical Sodium Chloride Solution.', 'school_lab_supported'],
   [12, 'Other common solutions', 'Saline solution (0.9% NaCl in water)', 'NaCl(aq)', 'NaCl (aq, 0.9% w/v)', 'saline_solution', undefined, 'school_lab_supported'],
+  [12, 'Other common solutions', 'Sugar solution (aqueous sucrose)', 'C₁₂H₂₂O₁₁(aq)', 'C₁₂H₂₂O₁₁ (aq)', 'sucrose_solution', undefined, 'school_lab_supported', undefined, ['Sucrose solution', 'Aqueous sucrose']],
+  [12, 'Other common solutions', 'Glucose solution (dextrose in water)', 'C₆H₁₂O₆(aq)', 'C₆H₁₂O₆ (aq)', 'glucose_solution', undefined, 'school_lab_supported', undefined, ['Dextrose solution', 'Aqueous glucose']],
+  [12, 'Other common solutions', 'Urea solution', 'CO(NH₂)₂(aq)', 'CO(NH₂)₂ (aq)', 'urea', 'Deduplicated with Bases section Urea.', 'school_lab_supported'],
   [12, 'Other common solutions', 'Copper(II) sulfate solution', 'CuSO₄(aq)', 'CuSO₄ (aq)', 'cuso4', 'Deduplicated with canonical Copper(II) Sulfate.', 'school_lab_supported'],
   [12, 'Other common solutions', 'Silver nitrate solution', 'AgNO₃(aq)', 'AgNO₃ (aq)', 'agno3', 'Deduplicated with canonical Silver Nitrate.', 'school_lab_supported'],
   [12, 'Other common solutions', 'Potassium permanganate solution', 'KMnO₄(aq)', 'KMnO₄ (aq)', 'kmn_o4_reagent', 'Deduplicated with canonical Potassium Permanganate.', 'school_lab_supported'],
@@ -287,3 +295,4 @@ export const SALTS_RAW_TUPLES: RawDocTuple[] = [
   [12, 'Other common solutions', 'Ringer’s lactate solution (NaCl + KCl + CaCl₂ + sodium lactate in water)', 'NaCl + KCl + CaCl₂ + C₃H₅NaO₃(aq)', 'Ringer’s Lactate (aq)', 'ringers_lactate', undefined, 'conceptual_reference'],
   [12, 'Other common solutions', 'Formalin (37–40% formaldehyde in water)', 'HCHO(aq)', 'HCHO (aq, 37%)', 'formalin', undefined, 'hazardous_restricted', 'Carcinogenic and sensitizing formaldehyde fixative solution; restricted from interactive mixing.'],
 ];
+

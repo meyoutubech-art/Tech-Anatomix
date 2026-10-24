@@ -3,6 +3,7 @@ import {
   ChemicalReagent,
   ReagentCategory,
   SafetyClassification,
+  VisualLabStatus,
 } from '../types/chemistry';
 import { ACIDS_RAW_TUPLES, RawDocTuple } from './inventory/acidsInventory';
 import { BASES_RAW_TUPLES, SALTS_RAW_TUPLES } from './inventory/basesAndSaltsInventory';
@@ -26,14 +27,35 @@ export interface DocumentDuplicateRecord {
   subsections: string[];
 }
 
+export interface DocumentSourceManifestEntry {
+  sourceEntryId: string;
+  page: number;
+  sourceCategory: ReagentCategory;
+  sourceSubsection: string;
+  originalName: string;
+  sourceFormula: string;
+  canonicalRegistryId: string;
+  canonicalName: string;
+  verifiedFormula: string;
+  importStatus: 'imported' | 'corrected_and_imported' | 'merged_duplicate' | 'restricted_reference';
+  deduplicationStatus: 'primary_canonical' | 'cross_category_merged' | 'same_category_merged';
+  visualLabStatus: VisualLabStatus;
+  safetyClassification: SafetyClassification;
+  correctionNote?: string;
+  restrictionReason?: string;
+}
+
 export interface DocumentInventoryAudit {
   totalRawEntries: number;
+  manifestCount: number;
   byCategoryRawCounts: Record<ReagentCategory, number>;
+  byPageRawCounts: Record<number, number>;
   uniqueCanonicalCount: number;
   crossCategoryMergedCount: number;
   corrections: DocumentCorrectionRecord[];
   duplicates: DocumentDuplicateRecord[];
   safetyBreakdown: Record<SafetyClassification, number>;
+  visualLabBreakdown: Record<VisualLabStatus, number>;
 }
 
 const INDICATOR_TRANSITIONS: Record<
@@ -260,6 +282,17 @@ function inferColor(id: string, category: ReagentCategory, state: 'liquid' | 'so
   return '#E2E8F0';
 }
 
+function determineVisualLabStatus(
+  safetyClassification: SafetyClassification,
+  category: ReagentCategory,
+  isRestricted: boolean
+): VisualLabStatus {
+  if (isRestricted) return 'Restricted';
+  if (safetyClassification === 'school_lab_supported') return 'Reaction-supported';
+  if (category === 'indicator') return 'Visualized';
+  return 'Selectable';
+}
+
 const CATEGORIZED_TUPLES: Array<{ category: ReagentCategory; tuples: RawDocTuple[] }> = [
   { category: 'acid', tuples: ACIDS_RAW_TUPLES },
   { category: 'base', tuples: BASES_RAW_TUPLES },
@@ -273,6 +306,7 @@ const CATEGORIZED_TUPLES: Array<{ category: ReagentCategory; tuples: RawDocTuple
 function buildAuditAndDeduplicatedMap(): {
   audit: DocumentInventoryAudit;
   byId: Map<string, ChemicalReagent>;
+  manifest: DocumentSourceManifestEntry[];
 } {
   const byCategoryRawCounts: Record<ReagentCategory, number> = {
     acid: ACIDS_RAW_TUPLES.length,
@@ -284,15 +318,19 @@ function buildAuditAndDeduplicatedMap(): {
     catalyst: CATALYSTS_RAW_TUPLES.length,
   };
 
+  const byPageRawCounts: Record<number, number> = {};
   let totalRawEntries = 0;
   const byId = new Map<string, ChemicalReagent>();
   const corrections: DocumentCorrectionRecord[] = [];
   const seenCorrectionIds = new Set<string>();
+  const manifest: DocumentSourceManifestEntry[] = [];
 
   for (const { category, tuples } of CATEGORIZED_TUPLES) {
     totalRawEntries += tuples.length;
 
+    let categorySeq = 0;
     for (const tuple of tuples) {
+      categorySeq++;
       const [
         page,
         subsection,
@@ -305,6 +343,8 @@ function buildAuditAndDeduplicatedMap(): {
         restrictionReason,
         aliasesOpt,
       ] = tuple;
+
+      byPageRawCounts[page] = (byPageRawCounts[page] || 0) + 1;
 
       const id = canonicalIdOpt || slugifyId(name);
       const formula = verifiedFormulaOpt || sourceFormula;
@@ -334,11 +374,20 @@ function buildAuditAndDeduplicatedMap(): {
       }
 
       const existing = byId.get(id);
-      if (!existing) {
-        const isRestricted =
-          safetyClassification === 'hazardous_restricted' ||
-          safetyClassification === 'radioactive_restricted';
+      const isRestricted =
+        safetyClassification === 'hazardous_restricted' ||
+        safetyClassification === 'radioactive_restricted';
+      const visualLabStatus = determineVisualLabStatus(
+        safetyClassification,
+        category,
+        isRestricted
+      );
 
+      const sourceEntryId = `DOC-P${String(page).padStart(2, '0')}-${category.toUpperCase()}-${String(
+        categorySeq
+      ).padStart(3, '0')}`;
+
+      if (!existing) {
         const mappedState = inferState(formula, category);
         const colorHex = inferColor(id, category, mappedState);
         const isSimulationSupported =
@@ -366,14 +415,17 @@ function buildAuditAndDeduplicatedMap(): {
           ? 'Oxidizing Agent · Keep Away from Combustibles'
           : 'Standard Laboratory Precaution';
 
-        const descriptionStr = `${name} (${formula}) — ${subsection} (Document Page ${page}). ${
-          correctionNote ? `Note: ${correctionNote}` : ''
-        }`.trim();
+        const descriptionStr =
+          category === 'catalyst'
+            ? `${subsection} catalyst used to accelerate target chemical transformations.`
+            : `${name} (${formula}) — ${subsection}.${
+                correctionNote ? ` Note: ${correctionNote}` : ''
+              }`.trim();
 
         const safetyInfoStr = isRestricted
           ? restrictionReason ||
             'Restricted hazardous or radioactive substance. Catalogued for reference only; interactive mixing is disabled.'
-          : `Handle according to standard chemistry laboratory safety protocols (${hazardStr}).`;
+          : `Standard laboratory PPE required (${hazardStr}).`;
 
         const simulationNoteStr = isRestricted
           ? `Restricted (${
@@ -381,7 +433,7 @@ function buildAuditAndDeduplicatedMap(): {
             }): ${restrictionReason || 'Blocked from interactive beaker mixing for safety.'}`
           : isSimulationSupported
           ? `Supported in virtual chemistry laboratory (${subsection}).`
-          : `Conceptual & curriculum reference entry (${subsection}).`;
+          : `Selectable in visual lab; reaction evaluation supported via AI Chemistry Assistant (${subsection}).`;
 
         const reagent: ChemicalReagent = {
           id,
@@ -404,7 +456,7 @@ function buildAuditAndDeduplicatedMap(): {
           role: category === 'catalyst' ? 'Catalyst' : undefined,
           catalyticRole:
             category === 'catalyst'
-              ? `${subsection} catalyst (${name}, ${formula}).`
+              ? `${subsection} catalyst.`
               : undefined,
           curriculumLevel:
             category === 'catalyst'
@@ -422,15 +474,38 @@ function buildAuditAndDeduplicatedMap(): {
           simulationNote: simulationNoteStr,
           aliases,
           safetyClassification,
+          visualLabStatus,
           isRestricted,
           restrictionReason,
           formulaCorrectionNote: correctionNote,
           indicatorTransition: INDICATOR_TRANSITIONS[id],
         };
         byId.set(id, reagent);
+
+        manifest.push({
+          sourceEntryId,
+          page,
+          sourceCategory: category,
+          sourceSubsection: subsection,
+          originalName: name,
+          sourceFormula,
+          canonicalRegistryId: id,
+          canonicalName: reagent.name,
+          verifiedFormula: formula,
+          importStatus: isRestricted
+            ? 'restricted_reference'
+            : correctionNote
+            ? 'corrected_and_imported'
+            : 'imported',
+          deduplicationStatus: 'primary_canonical',
+          visualLabStatus,
+          safetyClassification,
+          correctionNote,
+          restrictionReason,
+        });
       } else {
-        // Merge cross-category or duplicate entry into the canonical record
-        if (!existing.sourceCategories?.includes(category)) {
+        const isCrossCategory = !existing.sourceCategories?.includes(category);
+        if (isCrossCategory) {
           existing.sourceCategories = [...(existing.sourceCategories || []), category];
         }
         if (
@@ -459,7 +534,7 @@ function buildAuditAndDeduplicatedMap(): {
         if (category === 'catalyst') {
           existing.role = existing.role || 'Catalyst';
           existing.catalyticRole =
-            existing.catalyticRole || `${subsection} catalyst (${name}, ${formula}).`;
+            existing.catalyticRole || `${subsection} catalyst.`;
         }
         if (
           (safetyClassification === 'hazardous_restricted' ||
@@ -469,8 +544,16 @@ function buildAuditAndDeduplicatedMap(): {
           existing.safetyClassification = safetyClassification;
           existing.isRestricted = true;
           existing.isSimulationSupported = false;
+          existing.visualLabStatus = 'Restricted';
           existing.restrictionReason =
             restrictionReason || existing.restrictionReason;
+        } else if (
+          safetyClassification === 'school_lab_supported' &&
+          !existing.isRestricted
+        ) {
+          existing.safetyClassification = 'school_lab_supported';
+          existing.isSimulationSupported = true;
+          existing.visualLabStatus = 'Reaction-supported';
         }
         if (correctionNote && !existing.formulaCorrectionNote) {
           existing.formulaCorrectionNote = correctionNote;
@@ -478,6 +561,26 @@ function buildAuditAndDeduplicatedMap(): {
         if (INDICATOR_TRANSITIONS[id] && !existing.indicatorTransition) {
           existing.indicatorTransition = INDICATOR_TRANSITIONS[id];
         }
+
+        manifest.push({
+          sourceEntryId,
+          page,
+          sourceCategory: category,
+          sourceSubsection: subsection,
+          originalName: name,
+          sourceFormula,
+          canonicalRegistryId: id,
+          canonicalName: existing.name,
+          verifiedFormula: existing.formula,
+          importStatus: 'merged_duplicate',
+          deduplicationStatus: isCrossCategory
+            ? 'cross_category_merged'
+            : 'same_category_merged',
+          visualLabStatus: existing.visualLabStatus || visualLabStatus,
+          safetyClassification: existing.safetyClassification || safetyClassification,
+          correctionNote,
+          restrictionReason: existing.restrictionReason || restrictionReason,
+        });
       }
     }
   }
@@ -489,10 +592,20 @@ function buildAuditAndDeduplicatedMap(): {
     hazardous_restricted: 0,
     radioactive_restricted: 0,
   };
+  const visualLabBreakdown: Record<VisualLabStatus, number> = {
+    'Reaction-supported': 0,
+    Selectable: 0,
+    Visualized: 0,
+    Available: 0,
+    Restricted: 0,
+    'Needs review': 0,
+  };
 
   for (const reagent of byId.values()) {
     const sc = reagent.safetyClassification || 'conceptual_reference';
     safetyBreakdown[sc] = (safetyBreakdown[sc] || 0) + 1;
+    const vls = reagent.visualLabStatus || 'Selectable';
+    visualLabBreakdown[vls] = (visualLabBreakdown[vls] || 0) + 1;
 
     if (
       (reagent.sourceCategories && reagent.sourceCategories.length > 1) ||
@@ -510,20 +623,28 @@ function buildAuditAndDeduplicatedMap(): {
 
   const audit: DocumentInventoryAudit = {
     totalRawEntries,
+    manifestCount: manifest.length,
     byCategoryRawCounts,
+    byPageRawCounts,
     uniqueCanonicalCount: byId.size,
     crossCategoryMergedCount: duplicates.length,
     corrections,
     duplicates,
     safetyBreakdown,
+    visualLabBreakdown,
   };
 
-  return { audit, byId };
+  return { audit, byId, manifest };
 }
 
-const { audit: BUILT_AUDIT, byId: DEDUPED_DOC_REAGENTS } = buildAuditAndDeduplicatedMap();
+const {
+  audit: BUILT_AUDIT,
+  byId: DEDUPED_DOC_REAGENTS,
+  manifest: BUILT_MANIFEST,
+} = buildAuditAndDeduplicatedMap();
 
 export const DOCUMENT_INVENTORY_AUDIT: DocumentInventoryAudit = BUILT_AUDIT;
+export const DOCUMENT_SOURCE_MANIFEST: DocumentSourceManifestEntry[] = BUILT_MANIFEST;
 
 /**
  * Merges the base preset REAGENTS with the full validated 22-page document inventory,
@@ -549,6 +670,15 @@ export function buildMergedCanonicalReagents(baseReagents: ChemicalReagent[]): C
         new Set([...(base.aliases || []), ...(docEntry.aliases || []), docEntry.name])
       ).filter((a) => a !== base.name);
 
+      const isRestricted = docEntry.isRestricted ?? base.isRestricted ?? false;
+      const safetyClassification =
+        docEntry.safetyClassification || base.safetyClassification || 'school_lab_supported';
+      const visualLabStatus: VisualLabStatus = isRestricted
+        ? 'Restricted'
+        : base.isSimulationSupported || safetyClassification === 'school_lab_supported'
+        ? 'Reaction-supported'
+        : docEntry.visualLabStatus || 'Selectable';
+
       mergedMap.set(base.id, {
         ...base,
         subcategory: base.subcategory || docEntry.subcategory,
@@ -559,9 +689,9 @@ export function buildMergedCanonicalReagents(baseReagents: ChemicalReagent[]): C
         sourceSubsections:
           docEntry.sourceSubsections || (base.subcategory ? [base.subcategory] : []),
         aliases: combinedAliases,
-        safetyClassification:
-          docEntry.safetyClassification || base.safetyClassification || 'school_lab_supported',
-        isRestricted: docEntry.isRestricted ?? base.isRestricted ?? false,
+        safetyClassification,
+        visualLabStatus,
+        isRestricted,
         restrictionReason: docEntry.restrictionReason || base.restrictionReason,
         formulaCorrectionNote: docEntry.formulaCorrectionNote || base.formulaCorrectionNote,
         indicatorTransition: base.indicatorTransition || docEntry.indicatorTransition,
@@ -569,10 +699,16 @@ export function buildMergedCanonicalReagents(baseReagents: ChemicalReagent[]): C
         catalyticRole: base.catalyticRole || docEntry.catalyticRole,
       });
     } else {
+      const isRestricted = base.isRestricted ?? false;
       mergedMap.set(base.id, {
         ...base,
         safetyClassification: base.safetyClassification || 'school_lab_supported',
-        isRestricted: base.isRestricted ?? false,
+        visualLabStatus: isRestricted
+          ? 'Restricted'
+          : base.isSimulationSupported
+          ? 'Reaction-supported'
+          : 'Selectable',
+        isRestricted,
       });
     }
   }
@@ -586,3 +722,4 @@ export function buildMergedCanonicalReagents(baseReagents: ChemicalReagent[]): C
 
   return Array.from(mergedMap.values());
 }
+

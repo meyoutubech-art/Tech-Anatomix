@@ -31,6 +31,14 @@ export type SafetyClassification =
   | 'hazardous_restricted'
   | 'radioactive_restricted';
 
+export type VisualLabStatus =
+  | 'Reaction-supported'
+  | 'Selectable'
+  | 'Visualized'
+  | 'Available'
+  | 'Restricted'
+  | 'Needs review';
+
 export interface ChemicalReagent {
   id: string;
   name: string;
@@ -64,6 +72,7 @@ export interface ChemicalReagent {
   sourceCategories?: string[];
   sourceSubsections?: string[];
   safetyClassification?: SafetyClassification;
+  visualLabStatus?: VisualLabStatus;
   isRestricted?: boolean;
   restrictionReason?: string;
   formulaCorrectionNote?: string;

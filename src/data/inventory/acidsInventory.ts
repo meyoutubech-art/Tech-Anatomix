@@ -96,7 +96,11 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [2, 'Mineral (inorganic) acids', 'Tellurous acid', 'H₂TeO₃', 'H₂TeO₃', 'h2teo3', undefined, 'conceptual_reference'],
   [2, 'Mineral (inorganic) acids', 'Arsenic acid', 'H₃AsO₄', 'H₃AsO₄', 'h3aso4', undefined, 'hazardous_restricted', 'Acutely toxic and carcinogenic arsenic(V) oxyacid.'],
   [2, 'Mineral (inorganic) acids', 'Arsenous acid', 'H₃AsO₃', 'H₃AsO₃', 'h3aso3', undefined, 'hazardous_restricted', 'Highly toxic arsenic(III) oxyacid.'],
-  [2, 'Mineral (inorganic) acids', 'Fluorosilicic acid', 'H₂SiF₆', 'H₂SiF₆ (aq)', 'h2sif6', undefined, 'hazardous_restricted', 'Corrosive氟-silicate acid releasing HF fumes on decomposition.'],
+  [2, 'Mineral (inorganic) acids', 'Fluorosilicic acid', 'H₂SiF₆', 'H₂SiF₆ (aq)', 'h2sif6', undefined, 'hazardous_restricted', 'Corrosive fluorosilicic acid releasing HF fumes on decomposition.'],
+  [2, 'Mineral (inorganic) acids', 'Xenic acid', 'H₂XeO₄', 'H₂XeO₄ (aq)', 'h2xeo4', undefined, 'hazardous_restricted', 'Unstable oxidizing noble-gas oxyacid of xenon(VI).'],
+  [2, 'Mineral (inorganic) acids', 'Antimonic acid', 'HSb(OH)₆', 'HSb(OH)₆', 'hsb_oh6', undefined, 'conceptual_reference'],
+  [2, 'Mineral (inorganic) acids', 'Tetrafluoroboric acid', 'HBF₄', 'HBF₄ (aq)', 'hbf4', undefined, 'hazardous_restricted', 'Corrosive fluoroboric acid that hydrolyzes to release HF.'],
+  [2, 'Mineral (inorganic) acids', 'Hexafluorophosphoric acid', 'HPF₆', 'HPF₆ (aq)', 'hpf6', undefined, 'hazardous_restricted', 'Strong corrosive fluoroacid that hydrolyzes to HF.'],
 
   // 2. Superacids (Page 2, 5 entries)
   [2, 'Superacids', 'Fluorosulfuric acid', 'HSO₃F', 'HSO₃F', 'hso3f', undefined, 'hazardous_restricted', 'Superacid (H₀ = -15.1); reacts violently with water.'],
@@ -119,13 +123,14 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [2, 'Simple carboxylic acids', 'Caprylic acid (octanoic acid)', 'CH₃(CH₂)₆COOH', 'CH₃(CH₂)₆COOH', 'caprylic_acid', undefined, 'conceptual_reference', undefined, ['Octanoic acid']],
   [2, 'Simple carboxylic acids', 'Pelargonic acid (nonanoic acid)', 'CH₃(CH₂)₇COOH', 'CH₃(CH₂)₇COOH', 'pelargonic_acid', undefined, 'conceptual_reference', undefined, ['Nonanoic acid']],
 
-  // 4. Halogenated acetic acids (Page 2, 6 entries)
+  // 4. Halogenated acetic acids (Page 2, 7 entries)
   [2, 'Halogenated acetic acids', 'Fluoroacetic acid', 'CH₂FCOOH', 'CH₂FCOOH', 'fluoroacetic_acid', undefined, 'hazardous_restricted', 'Acutely toxic metabolic poison (inhibits aconitase in the citric acid cycle).'],
   [2, 'Halogenated acetic acids', 'Chloroacetic acid', 'CH₂ClCOOH', 'CH₂ClCOOH', 'chloroacetic_acid', undefined, 'conceptual_reference'],
   [2, 'Halogenated acetic acids', 'Dichloroacetic acid', 'CHCl₂COOH', 'CHCl₂COOH', 'dichloroacetic_acid', undefined, 'conceptual_reference'],
   [2, 'Halogenated acetic acids', 'Trichloroacetic acid', 'CCl₃COOH', 'CCl₃COOH', 'trichloroacetic_acid', undefined, 'conceptual_reference', undefined, ['TCA']],
   [2, 'Halogenated acetic acids', 'Trifluoroacetic acid', 'CF₃COOH', 'CF₃COOH', 'tfa_acid', undefined, 'conceptual_reference', undefined, ['TFA']],
   [2, 'Halogenated acetic acids', 'Bromoacetic acid', 'CH₂BrCOOH', 'CH₂BrCOOH', 'bromoacetic_acid', undefined, 'conceptual_reference'],
+  [2, 'Halogenated acetic acids', 'Iodoacetic acid', 'CH₂ICOOH', 'CH₂ICOOH', 'iodoacetic_acid', undefined, 'conceptual_reference'],
 
   // 5. Dicarboxylic acids (Pages 2-3, 14 entries)
   [2, 'Dicarboxylic acids', 'Oxalic acid (ethanedioic acid)', 'HOOC-COOH (H₂C₂O₄)', 'H₂C₂O₄·2H₂O (s)', 'oxalic_acid', undefined, 'school_lab_supported', undefined, ['Ethanedioic acid', 'Oxalic acid']],
@@ -166,7 +171,7 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [3, 'Hydroxy and keto acids', 'β-Hydroxybutyric acid', 'CH₃CH(OH)CH₂COOH', 'CH₃CH(OH)CH₂COOH', 'beta_hydroxybutyric_acid', undefined, 'conceptual_reference'],
   [3, 'Hydroxy and keto acids', 'Mevalonic acid', 'C₆H₁₂O₄', 'C₆H₁₂O₄', 'mevalonic_acid', undefined, 'conceptual_reference'],
 
-  // 7. Aromatic acids (Pages 3-4, 20 entries)
+  // 7. Aromatic acids (Pages 3-4, 21 entries)
   [3, 'Aromatic acids', 'Benzoic acid', 'C₆H₅COOH', 'C₆H₅COOH (s)', 'benzoic_acid', undefined, 'school_lab_supported'],
   [3, 'Aromatic acids', 'Phenylacetic acid', 'C₆H₅CH₂COOH', 'C₆H₅CH₂COOH', 'phenylacetic_acid', undefined, 'conceptual_reference'],
   [3, 'Aromatic acids', 'Cinnamic acid', 'C₆H₅CH=CHCOOH', 'C₆H₅CH=CHCOOH', 'cinnamic_acid', undefined, 'conceptual_reference'],
@@ -186,9 +191,10 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [4, 'Aromatic acids', 'Anisic acid (p-methoxybenzoic acid)', 'CH₃OC₆H₄COOH', '4-CH₃OC₆H₄COOH', 'anisic_acid', undefined, 'conceptual_reference'],
   [4, 'Aromatic acids', '1-Naphthoic acid', 'C₁₀H₇COOH', '1-C₁₀H₇COOH', 'naphthoic_acid_1', undefined, 'conceptual_reference'],
   [4, 'Aromatic acids', '2-Naphthoic acid', 'C₁₀H₇COOH', '2-C₁₀H₇COOH', 'naphthoic_acid_2', undefined, 'conceptual_reference'],
+  [4, 'Aromatic acids', 'Carbolic acid (phenol)', 'C₆H₅OH', 'C₆H₅OH', 'phenol_carbolic_acid', undefined, 'school_lab_supported', undefined, ['Phenol', 'Carbolic acid']],
   [4, 'Aromatic acids', 'Picric acid (2,4,6-trinitrophenol)', '(O₂N)₃C₆H₂OH', '(O₂N)₃C₆H₂OH', 'picric_acid', undefined, 'hazardous_restricted', '2,4,6-Trinitrophenol; shock-sensitive high explosive when dry and forms explosive metal picrates.'],
 
-  // 8. Saturated fatty acids (Page 4, 8 entries)
+  // 8. Saturated fatty acids (Page 4, 10 entries)
   [4, 'Saturated fatty acids', 'Capric acid (decanoic acid)', 'CH₃(CH₂)₈COOH', 'CH₃(CH₂)₈COOH', 'capric_acid', undefined, 'conceptual_reference'],
   [4, 'Saturated fatty acids', 'Lauric acid (dodecanoic acid)', 'CH₃(CH₂)₁₀COOH', 'CH₃(CH₂)₁₀COOH', 'lauric_acid', undefined, 'conceptual_reference'],
   [4, 'Saturated fatty acids', 'Myristic acid (tetradecanoic acid)', 'CH₃(CH₂)₁₂COOH', 'CH₃(CH₂)₁₂COOH', 'myristic_acid', undefined, 'conceptual_reference'],
@@ -197,7 +203,6 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [4, 'Saturated fatty acids', 'Stearic acid (octadecanoic acid)', 'CH₃(CH₂)₁₆COOH', 'CH₃(CH₂)₁₆COOH', 'stearic_acid', undefined, 'school_lab_supported', undefined, ['Octadecanoic acid']],
   [4, 'Saturated fatty acids', 'Arachidic acid (eicosanoic acid)', 'CH₃(CH₂)₁₈COOH', 'CH₃(CH₂)₁₈COOH', 'arachidic_acid', undefined, 'conceptual_reference'],
   [4, 'Saturated fatty acids', 'Behenic acid (docosanoic acid)', 'CH₃(CH₂)₂₀COOH', 'CH₃(CH₂)₂₀COOH', 'behenic_acid', undefined, 'conceptual_reference'],
-  // Wait: let's check page 4 saturated fatty acids: there are 10 entries in Saturated fatty acids! Let's include Lignoceric and Cerotic!
   [4, 'Saturated fatty acids', 'Lignoceric acid (tetracosanoic acid)', 'CH₃(CH₂)₂₂COOH', 'CH₃(CH₂)₂₂COOH', 'lignoceric_acid', undefined, 'conceptual_reference'],
   [4, 'Saturated fatty acids', 'Cerotic acid (hexacosanoic acid)', 'CH₃(CH₂)₂₄COOH', 'CH₃(CH₂)₂₄COOH', 'cerotic_acid', undefined, 'conceptual_reference'],
 
@@ -240,19 +245,21 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [5, 'Amino acids (standard 20)', 'Arginine', 'C₆H₁₄N₄O₂', 'C₆H₁₄N₄O₂', 'arginine', undefined, 'conceptual_reference'],
   [5, 'Amino acids (standard 20)', 'Histidine', 'C₆H₉N₃O₂', 'C₆H₉N₃O₂', 'histidine', undefined, 'conceptual_reference'],
 
-  // 11. Other amino acids (Page 5, 7 entries)
+  // 11. Other amino acids (Page 5, 8 entries)
   [5, 'Other amino acids', 'Taurine (2-aminoethanesulfonic acid)', 'C₂H₇NO₃S', 'H₂NCH₂CH₂SO₃H (C₂H₇NO₃S)', 'taurine', undefined, 'conceptual_reference'],
   [5, 'Other amino acids', 'GABA (γ-aminobutyric acid)', 'C₄H₉NO₂', 'H₂N(CH₂)₃COOH (C₄H₉NO₂)', 'gaba_acid', undefined, 'conceptual_reference', undefined, ['Gamma-aminobutyric acid']],
+  [5, 'Other amino acids', 'β-Alanine (3-aminopropanoic acid)', 'C₃H₇NO₂', 'H₂NCH₂CH₂COOH (C₃H₇NO₂)', 'beta_alanine', undefined, 'conceptual_reference', undefined, ['Beta-alanine']],
   [5, 'Other amino acids', 'Ornithine', 'C₅H₁₂N₂O₂', 'C₅H₁₂N₂O₂', 'ornithine', undefined, 'conceptual_reference'],
   [5, 'Other amino acids', 'Citrulline', 'C₆H₁₃N₃O₃', 'C₆H₁₃N₃O₃', 'citrulline', undefined, 'conceptual_reference'],
   [5, 'Other amino acids', 'Creatine', 'C₄H₉N₃O₂', 'C₄H₉N₃O₂', 'creatine', undefined, 'conceptual_reference'],
   [5, 'Other amino acids', 'Pyroglutamic acid', 'C₅H₇NO₃', 'C₅H₇NO₃', 'pyroglutamic_acid', undefined, 'conceptual_reference'],
   [5, 'Other amino acids', 'Sarcosine (N-methylglycine)', 'C₃H₇NO₂', 'CH₃NHCH₂COOH (C₃H₇NO₂)', 'sarcosine', undefined, 'conceptual_reference'],
 
-  // 12. Nucleic acids (Page 5, 3 entries)
+  // 12. Nucleic acids (Page 5, 4 entries)
   [5, 'Nucleic acids', 'Deoxyribonucleic acid (DNA)', '(C₁₅H₃₁N₃O₁₃P₂)', '(C₁₅H₃₁N₃O₁₃P₂)ₙ', 'dna_polymer', 'Restored missing polymer degree subscript "n" to repeating nucleotide unit formula.', 'conceptual_reference', undefined, ['DNA']],
   [5, 'Nucleic acids', 'Ribonucleic acid (RNA)', '(C₁₀H₁₂N₅O₇P)', '(C₁₀H₁₂N₅O₇P)ₙ', 'rna_polymer', 'Restored missing polymer degree subscript "n" to repeating ribonucleotide unit formula.', 'conceptual_reference', undefined, ['RNA']],
   [5, 'Nucleic acids', 'Peptide nucleic acid (PNA)', 'synthetic polymer', 'Synthetic pseudopeptide nucleic acid oligomer', 'pna_polymer', undefined, 'conceptual_reference', undefined, ['PNA']],
+  [5, 'Nucleic acids', 'Adenosine triphosphate (ATP)', 'C₁₀H₁₆N₅O₁₃P₃', 'C₁₀H₁₆N₅O₁₃P₃', 'atp_acid', undefined, 'conceptual_reference', undefined, ['ATP']],
 
   // 13. Sulfonic and organic sulfur acids (Page 5, 7 entries)
   [5, 'Sulfonic and organic sulfur acids', 'Methanesulfonic acid', 'CH₃SO₃H', 'CH₃SO₃H', 'methanesulfonic_acid', undefined, 'conceptual_reference', undefined, ['MsOH']],
@@ -263,7 +270,7 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [5, 'Sulfonic and organic sulfur acids', 'Sulfanilic acid (4-aminobenzenesulfonic acid)', 'H₂NC₆H₄SO₃H', '4-H₂NC₆H₄SO₃H', 'sulfanilic_acid', undefined, 'conceptual_reference'],
   [5, 'Sulfonic and organic sulfur acids', 'Thioacetic acid', 'CH₃COSH', 'CH₃COSH', 'thioacetic_acid', undefined, 'conceptual_reference'],
 
-  // 14. Vitamins and biological acids (Pages 5-6, 16 entries)
+  // 14. Vitamins and biological acids (Pages 5-6, 20 entries)
   [5, 'Vitamins and biological acids', 'Ascorbic acid (Vitamin C)', 'C₆H₈O₆', 'C₆H₈O₆ (s)', 'ascorbic_acid', undefined, 'school_lab_supported', undefined, ['Vitamin C']],
   [5, 'Vitamins and biological acids', 'Folic acid (Vitamin B₉)', 'C₁₉H₁₉N₇O₆', 'C₁₉H₁₉N₇O₆', 'folic_acid', undefined, 'conceptual_reference', undefined, ['Vitamin B9']],
   [5, 'Vitamins and biological acids', 'Nicotinic acid (Niacin / Vitamin B₃)', 'C₅H₄NCOOH (C₆H₅NO₂)', 'C₅H₄NCOOH (C₆H₅NO₂)', 'nicotinic_acid', undefined, 'conceptual_reference', undefined, ['Niacin', 'Vitamin B3']],
@@ -272,6 +279,10 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [5, 'Vitamins and biological acids', 'Lipoic acid (α-lipoic acid)', 'C₈H₁₄O₂S₂', 'C₈H₁₄O₂S₂', 'lipoic_acid', undefined, 'conceptual_reference'],
   [5, 'Vitamins and biological acids', 'Orotic acid', 'C₅H₄N₂O₄', 'C₅H₄N₂O₄', 'orotic_acid', undefined, 'conceptual_reference'],
   [5, 'Vitamins and biological acids', 'Uric acid', 'C₅H₄N₄O₃', 'C₅H₄N₄O₃', 'uric_acid', undefined, 'conceptual_reference'],
+  [5, 'Vitamins and biological acids', 'Indole-3-acetic acid (auxin)', 'C₁₀H₉NO₂', 'C₁₀H₉NO₂', 'indole_3_acetic_acid', undefined, 'conceptual_reference', undefined, ['IAA', 'Auxin']],
+  [5, 'Vitamins and biological acids', 'Jasmonic acid', 'C₁₂H₁₈O₃', 'C₁₂H₁₈O₃', 'jasmonic_acid', undefined, 'conceptual_reference'],
+  [5, 'Vitamins and biological acids', 'Gibberellic acid', 'C₁₉H₂₂O₆', 'C₁₉H₂₂O₆', 'gibberellic_acid', undefined, 'conceptual_reference', undefined, ['GA3']],
+  [5, 'Vitamins and biological acids', 'Abscisic acid', 'C₁₅H₂₀O₄', 'C₁₅H₂₀O₄', 'abscisic_acid', undefined, 'conceptual_reference', undefined, ['ABA']],
   [6, 'Vitamins and biological acids', 'Cholic acid (bile acid)', 'C₂₄H₄₀O₅', 'C₂₄H₄₀O₅', 'cholic_acid', undefined, 'conceptual_reference'],
   [6, 'Vitamins and biological acids', 'Deoxycholic acid', 'C₂₄H₄₀O₄', 'C₂₄H₄₀O₄', 'deoxycholic_acid', undefined, 'conceptual_reference'],
   [6, 'Vitamins and biological acids', 'Chenodeoxycholic acid', 'C₂₄H₄₀O₄', 'C₂₄H₄₀O₄ (chenodeoxycholic)', 'chenodeoxycholic_acid', undefined, 'conceptual_reference'],
@@ -281,7 +292,7 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [6, 'Vitamins and biological acids', 'Neuraminic acid (sialic acid)', 'C₉H₁₇NO₈', 'C₉H₁₇NO₈', 'neuraminic_acid', undefined, 'conceptual_reference'],
   [6, 'Vitamins and biological acids', 'Shikimic acid', 'C₇H₁₀O₅', 'C₇H₁₀O₅', 'shikimic_acid', undefined, 'conceptual_reference'],
 
-  // 15. Other notable organic acids (Page 6, 26 entries)
+  // 15. Other notable organic acids (Page 6, 39 entries)
   [6, 'Other notable organic acids', 'oxalic acid', 'C₂H₂O₄', 'H₂C₂O₄·2H₂O (s)', 'oxalic_acid', 'Deduplicated lowercase duplicate of Oxalic acid in section 15.', 'school_lab_supported'],
   [6, 'Other notable organic acids', 'Abietic acid (rosin acid)', 'C₂₀H₃₀O₂', 'C₂₀H₃₀O₂', 'abietic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Tannic acid', 'C₇₆H₅₂O₄₆', 'C₇₆H₅₂O₄₆', 'tannic_acid', undefined, 'conceptual_reference'],
@@ -291,6 +302,7 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [6, 'Other notable organic acids', 'DTPA (diethylenetriaminepentaacetic acid)', 'C₁₄H₂₃N₃O₁₀', 'C₁₄H₂₃N₃O₁₀', 'dtpa_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Nitriloacetic acid (NTA)', 'N(CH₂COOH)₃', 'N(CH₂COOH)₃', 'nta_acid', undefined, 'conceptual_reference', undefined, ['Nitrilotriacetic acid', 'NTA']],
   [6, 'Other notable organic acids', 'Barbituric acid', 'C₄H₄N₂O₃', 'C₄H₄N₂O₃', 'barbituric_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Cyanuric acid (isocyanuric acid)', 'C₃H₃N₃O₃', 'C₃H₃N₃O₃', 'cyanuric_acid', undefined, 'conceptual_reference', undefined, ['Isocyanuric acid']],
   [6, 'Other notable organic acids', 'Meldrum’s acid', 'C₆H₈O₄', 'C₆H₈O₄', 'meldrums_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Squaric acid', 'C₄H₂O₄', 'C₄H₂O₄', 'squaric_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Croconic acid', 'C₅H₂O₅', 'C₅H₂O₅', 'croconic_acid', undefined, 'conceptual_reference'],
@@ -298,14 +310,26 @@ export const ACIDS_RAW_TUPLES: RawDocTuple[] = [
   [6, 'Other notable organic acids', 'Peracetic acid (peroxyacetic acid)', 'CH₃COOOH', 'CH₃COOOH', 'peracetic_acid', undefined, 'conceptual_reference', undefined, ['Peroxyacetic acid']],
   [6, 'Other notable organic acids', 'm-Chloroperoxybenzoic acid (mCPBA)', 'ClC₆H₄COOOH', '3-ClC₆H₄COOOH', 'mcpba', undefined, 'conceptual_reference', undefined, ['mCPBA']],
   [6, 'Other notable organic acids', 'Performic acid', 'HCO₃H', 'HCOOOH (CH₂O₃)', 'performic_acid', 'Clarified condensed peroxy formula HCO₃H to structural peroxyformic acid HCOOOH.', 'conceptual_reference', undefined, ['Peroxyformic acid']],
+  [6, 'Other notable organic acids', 'Boronic acid (general)', 'RB(OH)₂', 'RB(OH)₂', 'boronic_acid_general', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Phenylboronic acid', 'C₆H₅B(OH)₂', 'C₆H₅B(OH)₂', 'phenylboronic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Methylphosphonic acid', 'CH₃PO(OH)₂', 'CH₃PO(OH)₂', 'methylphosphonic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Glyphosate (N-(phosphonomethyl)glycine)', 'C₃H₈NO₅P', 'C₃H₈NO₅P', 'glyphosate', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Etidronic acid (HEDP)', 'C₂H₈O₇P₂', 'C₂H₈O₇P₂', 'etidronic_acid', undefined, 'conceptual_reference', undefined, ['HEDP']],
   [6, 'Other notable organic acids', 'Phytic acid (inositol hexaphosphoric acid)', 'C₆H₁₈O₂₄P₆', 'C₆H₁₈O₂₄P₆', 'phytic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Cacodylic acid (dimethylarsinic acid)', '(CH₃)₂AsO₂H', '(CH₃)₂AsO₂H', 'cacodylic_acid', undefined, 'hazardous_restricted', 'Toxic organoarsenic compound (dimethylarsinic acid).'],
   [6, 'Other notable organic acids', 'Ascorbic acid 2-phosphate', 'C₆H₉O₉P', 'C₆H₉O₉P', 'ascorbic_acid_2_phosphate', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Kojic acid', 'C₆H₆O₄', 'C₆H₆O₄', 'kojic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Usnic acid', 'C₁₈H₁₆O₇', 'C₁₈H₁₆O₇', 'usnic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Domoic acid', 'C₁₅H₂₁NO₆', 'C₁₅H₂₁NO₆', 'domoic_acid', undefined, 'hazardous_restricted', 'Marine biotoxin (amnesic shellfish poisoning neurotoxin); reference only.'],
+  [6, 'Other notable organic acids', 'Kainic acid', 'C₁₀H₁₅NO₄', 'C₁₀H₁₅NO₄', 'kainic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Carminic acid', 'C₂₂H₂₀O₁₃', 'C₂₂H₂₀O₁₃', 'carminic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Glycyrrhizic acid', 'C₄₂H₆₂O₁₆', 'C₄₂H₆₂O₁₆', 'glycyrrhizic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Valproic acid', 'C₈H₁₆O₂', 'C₈H₁₆O₂', 'valproic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Ibuprofen', 'C₁₃H₁₈O₂', 'C₁₃H₁₈O₂', 'ibuprofen_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Mefenamic acid', 'C₁₅H₁₅NO₂', 'C₁₅H₁₅NO₂', 'mefenamic_acid', undefined, 'conceptual_reference'],
+  [6, 'Other notable organic acids', 'Tranexamic acid', 'C₈H₁₅NO₂', 'C₈H₁₅NO₂', 'tranexamic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Chlorogenic acid', 'C₁₆H₁₈O₉', 'C₁₆H₁₈O₉', 'chlorogenic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Rosmarinic acid', 'C₁₈H₁₆O₈', 'C₁₈H₁₆O₈', 'rosmarinic_acid', undefined, 'conceptual_reference'],
   [6, 'Other notable organic acids', 'Ellagic acid', 'C₁₄H₆O₈', 'C₁₄H₆O₈', 'ellagic_acid', undefined, 'conceptual_reference'],
 ];
+

@@ -1693,26 +1693,18 @@ export const ChemistryLabPage: React.FC = () => {
                             {r.name}
                           </div>
                           {(isCatalystView || r.id === 'water') && (
-                            <div className="mt-1 text-[9px] text-slate-500 line-clamp-2 leading-snug">
+                            <div className="mt-1 text-[9px] text-slate-500 line-clamp-1 leading-snug">
                               {r.catalyticRole || r.description}
+                            </div>
+                          )}
+                          {isCatalystView && r.exampleReactions?.[0] && (
+                            <div className="mt-0.5 text-[8px] font-mono text-slate-600 bg-slate-100 px-1 py-0.5 rounded truncate">
+                              {r.exampleReactions[0]}
                             </div>
                           )}
                           {r.indicatorTransition && (
                             <div className="mt-1 text-[8px] font-medium text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.5 rounded truncate">
                               {r.indicatorTransition.transitionRange}: {r.indicatorTransition.acidColor} → {r.indicatorTransition.baseColor}
-                            </div>
-                          )}
-                          {isCatalystView && r.curriculumLevel && !r.isRestricted && (
-                            <div
-                              className={`mt-1 text-[8px] font-bold px-1.5 py-0.5 rounded truncate ${
-                                r.isSimulationSupported
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-sky-50 text-sky-700 border border-sky-200'
-                              }`}
-                            >
-                              {r.isSimulationSupported
-                                ? `Interactive · ${r.curriculumLevel}`
-                                : `Reference · ${r.curriculumLevel}`}
                             </div>
                           )}
                           {r.isRestricted ? (
@@ -1722,11 +1714,26 @@ export const ChemistryLabPage: React.FC = () => {
                                 : '⚠ Restricted · Reference Only'}
                             </div>
                           ) : (
-                            r.hazard && (
-                              <div className="mt-1 text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
-                                {r.hazard}
-                              </div>
-                            )
+                            <div className="mt-1 flex items-center gap-1 flex-wrap">
+                              {r.visualLabStatus && (
+                                <span
+                                  className={`text-[8px] font-bold px-1 py-0.2 rounded truncate ${
+                                    r.visualLabStatus === 'Reaction-supported'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : r.visualLabStatus === 'Visualized'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                      : 'bg-sky-50 text-sky-700 border border-sky-200'
+                                  }`}
+                                >
+                                  {r.visualLabStatus}
+                                </span>
+                              )}
+                              {r.hazard && (
+                                <span className="text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
+                                  {r.hazard}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
 
@@ -1783,6 +1790,16 @@ export const ChemistryLabPage: React.FC = () => {
               catalystId: selectedCatalystId,
             }}
             activeReactionResult={evaluatedResult}
+            onAddCompound={(reagentId) => handleAddCompound(reagentId)}
+            onLoadReactionToExperiment={(reaction) =>
+              handleLoadReactionToExperiment(
+                reaction.reactants.map((rid) => ({
+                  id: rid,
+                  amount: reaction.requiredAmounts?.[rid] || 20,
+                }))
+              )
+            }
+            onRunReaction={handleRunReaction}
           />
 
           {/* Educational Explanation Box */}
