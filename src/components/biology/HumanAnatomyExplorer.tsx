@@ -32,6 +32,7 @@ import {
   HUMAN_ORGAN_LIST,
   HumanOrganInfo,
 } from '../../data/humanAnatomyData';
+import { soundEngine } from '../../utils/soundEngine';
 
 // Dissection State Machine
 export type DissectionState =
@@ -95,83 +96,22 @@ class HumanViewerErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
   }
 }
 
-// Procedural Web Audio Sound Generator (Zero external audio file dependencies)
+// Unified State-Driven Dissection Audio Bridge
 class DissectionAudioFX {
-  private ctx: AudioContext | null = null;
   public enabled: boolean = true;
 
-  private initCtx() {
-    if (typeof window === 'undefined') return;
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
-  }
-
-  playIncisionTick(progress: number) {
+  playIncisionTick(progress: number, velocity = 1.0) {
     if (!this.enabled) return;
-    try {
-      this.initCtx();
-      if (!this.ctx) return;
-
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
-
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(500 + progress * 600, this.ctx.currentTime);
-      filter.Q.setValueAtTime(3.0, this.ctx.currentTime);
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220 + progress * 260, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(380 + progress * 200, this.ctx.currentTime + 0.035);
-
-      gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.035);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.04);
-    } catch {
-      // Audio autoplay restrictions or context error
-    }
+    soundEngine.playSurgicalIncision({
+      sourceId: 'human-anatomy-dissection',
+      progress,
+      velocity,
+    });
   }
 
   playDissectionComplete() {
     if (!this.enabled) return;
-    try {
-      this.initCtx();
-      if (!this.ctx) return;
-
-      const now = this.ctx.currentTime;
-      const freqs = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 major chord
-      freqs.forEach((freq, idx) => {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-
-        gain.gain.setValueAtTime(0.09, now + idx * 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.6);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(now + idx * 0.08);
-        osc.stop(now + idx * 0.08 + 0.65);
-      });
-    } catch {
-      // Audio autoplay restrictions or context error
-    }
+    soundEngine.playUiFeedback('dissection_complete', `human_dissection_complete_${Date.now()}`);
   }
 }
 

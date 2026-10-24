@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, Camera } from 'lucide-react';
 import { PWAInstallButton } from '../common/PWAInstallButton';
+import { GlobalAudioControl } from '../common/GlobalAudioControl';
 
 export type PageRoute = 'home' | 'diagram-scan' | 'physics' | 'chemistry' | 'biology' | 'anatomy' | 'ai-generator' | 'ai-lab' | 'about';
 
@@ -65,6 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
 
         {/* Zone 3: Primary Actions & PWA Controls */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          <GlobalAudioControl />
           <PWAInstallButton compact />
           <button
             onClick={() => onNavigate('diagram-scan')}

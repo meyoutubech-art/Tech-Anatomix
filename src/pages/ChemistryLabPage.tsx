@@ -23,6 +23,7 @@ import {
 } from '../data/compoundRegistry';
 import { PresentationExportModal } from '../components/common/PresentationExportModal';
 import { PresentationExportOptions } from '../utils/presentationGenerator';
+import { soundEngine } from '../utils/soundEngine';
 import {
   FlaskConical,
   Atom,
@@ -400,15 +401,23 @@ export const ChemistryLabPage: React.FC = () => {
         normalizeChemicalSearchText(r.name).includes(qNorm) ||
         normalizeChemicalSearchText(r.formula).includes(qNorm) ||
         normalizeChemicalSearchText(r.type).includes(qNorm) ||
+        normalizeChemicalSearchText(r.subcategory || '').includes(qNorm) ||
         normalizeChemicalSearchText(r.role || '').includes(qNorm) ||
         normalizeChemicalSearchText(r.categoryLabel || '').includes(qNorm) ||
         normalizeChemicalSearchText(r.catalyticRole || '').includes(qNorm) ||
         normalizeChemicalSearchText(r.description || '').includes(qNorm) ||
-        normalizeChemicalSearchText(r.appearanceDescription || '').includes(qNorm);
+        normalizeChemicalSearchText(r.appearanceDescription || '').includes(qNorm) ||
+        (r.aliases || []).some((a) => normalizeChemicalSearchText(a).includes(qNorm));
+
+      const hasSecondary = Boolean(
+        r.secondaryCategories?.includes(activeCategory as any) ||
+          r.sourceCategories?.includes(activeCategory)
+      );
 
       const matchesCat =
         activeCategory === 'all' ||
         r.category === activeCategory ||
+        hasSecondary ||
         (activeCategory === 'acid' && r.type === 'acid') ||
         (activeCategory === 'base' && r.type === 'base') ||
         (activeCategory === 'salt' &&
@@ -419,7 +428,8 @@ export const ChemistryLabPage: React.FC = () => {
             r.type === 'reagent' ||
             r.type === 'reducing_agent')) ||
         (activeCategory === 'metal' && (r.type === 'metal' || r.type === 'alkali_metal')) ||
-        (activeCategory === 'oxidizer' && (r.type === 'oxidizer' || (r.category as string) === 'oxidizing_agent')) ||
+        (activeCategory === 'oxidizer' &&
+          (r.type === 'oxidizer' || (r.category as string) === 'oxidizing_agent')) ||
         (activeCategory === 'indicator' && r.type === 'indicator') ||
         (activeCategory === 'catalyst' &&
           (r.category === 'catalyst' ||
@@ -442,6 +452,30 @@ export const ChemistryLabPage: React.FC = () => {
     }
     if (!def) return;
 
+    // Enforce safety restriction: hazardous/radioactive compounds are reference-only
+    if (def.isRestricted) {
+      soundEngine.playUiFeedback('validation_warning', `restricted_block::${def.id}`);
+      setHasRunReaction(true);
+      setEvaluatedResult({
+        isSupported: false,
+        status: 'unsupported',
+        structuredStatus: 'NO_REACTION_SUPPORTED_UNDER_SPECIFIED_CONDITIONS',
+        reaction: null,
+        message: `SAFETY RESTRICTION: ${def.name} (${def.formula}) is classified as ${
+          def.safetyClassification === 'radioactive_restricted'
+            ? 'Radioactive / Restricted'
+            : 'Hazardous / Restricted'
+        }. ${
+          def.restrictionReason ||
+          'Catalogued for curriculum reference only; interactive beaker mixing is disabled for safety.'
+        }`,
+        safetyWarnings: [
+          def.restrictionReason || 'Restricted hazardous or radioactive substance.',
+        ],
+      });
+      return;
+    }
+
     const amountToAdd = customAmount ?? def.pourAmount ?? 20;
     setIngredients((prev) => [
       ...prev,
@@ -456,6 +490,16 @@ export const ChemistryLabPage: React.FC = () => {
         hazard: def.hazard,
       },
     ]);
+
+    // State-driven reagent addition audio (liquid pour vs solid granular addition)
+    soundEngine.playReagentAddition({
+      reagentId: def.id,
+      name: def.name,
+      state: def.state || 'liquid',
+      amount: amountToAdd,
+      unit: def.unit || 'mL',
+      dedupeKey: `add_compound::${def.id}::${amountToAdd}`,
+    });
 
     // Deduct from inventory
     setInventory((prev) => ({
@@ -476,12 +520,13 @@ export const ChemistryLabPage: React.FC = () => {
     // 1. Reset reaction execution (do not automatically run reaction; adding reactants is separate from running)
     setHasRunReaction(false);
     setEvaluatedResult(null);
+    soundEngine.stopSource('chemistry-lab');
 
     // 2. Prepare new ingredients list from the reactants
     const newIngredients: SelectedIngredient[] = [];
     const newInventoryUpdates: Record<string, number> = {};
 
-    reactantsToLoad.forEach((item) => {
+    reactantsToLoad.forEach((item, idx) => {
       const lookup = findOrLookupCompound(item.id);
       const def =
         lookup.compound ||
@@ -489,19 +534,31 @@ export const ChemistryLabPage: React.FC = () => {
         REAGENTS.find((r) => r.id === item.id);
 
       if (def) {
+        const amt = item.amount || def.pourAmount || 20;
         newIngredients.push({
           id: def.id,
           name: def.name,
           formula: def.formula,
-          amount: item.amount || def.pourAmount || 20,
+          amount: amt,
           unit: def.unit || 'mL',
           category: def.category || def.type,
           color: def.color || '#38BDF8',
           hazard: def.hazard,
         });
 
+        if (idx === 0) {
+          soundEngine.playReagentAddition({
+            reagentId: def.id,
+            name: def.name,
+            state: def.state || 'liquid',
+            amount: amt,
+            unit: def.unit || 'mL',
+            dedupeKey: `load_recipe::${def.id}::${amt}`,
+          });
+        }
+
         const currentQty = inventory[def.id] ?? def.initialQuantity ?? 100;
-        newInventoryUpdates[def.id] = Math.max(0, currentQty - (item.amount || def.pourAmount || 20));
+        newInventoryUpdates[def.id] = Math.max(0, currentQty - amt);
       }
     });
 
@@ -561,6 +618,7 @@ export const ChemistryLabPage: React.FC = () => {
 
   // Reset beaker completely to empty state
   const handleResetBeaker = () => {
+    soundEngine.stopSource('chemistry-lab');
     setIngredients([]);
     setSelectedCatalystId(null);
     setTemperature(25);
@@ -575,6 +633,16 @@ export const ChemistryLabPage: React.FC = () => {
     });
     setInventory(restored);
   };
+
+  // Clean up chemistry lab loops when leaving reaction bench or unmounting
+  useEffect(() => {
+    if (chemMode !== 'reaction_bench') {
+      soundEngine.stopSource('chemistry-lab');
+    }
+    return () => {
+      soundEngine.stopSource('chemistry-lab');
+    };
+  }, [chemMode]);
 
   // Run reaction simulation
   const handleRunReaction = () => {
@@ -596,6 +664,18 @@ export const ChemistryLabPage: React.FC = () => {
     if (result.isSupported && result.reaction) {
       const delta = result.observableEffects?.temperatureDelta || 0;
       setTemperature((prev) => Math.max(-273.15, Number((prev + delta).toFixed(1))));
+
+      // Homogeneous silent reactions (no gas, no violent burst) play only a restrained UI completion chime, never fabricated bubbling
+      if (
+        !result.reaction.observableEffects?.producesGas &&
+        !result.reaction.observableEffects?.isViolent
+      ) {
+        soundEngine.playUiFeedback('reaction_complete', `rxn_silent::${result.reaction.id}`);
+      }
+    } else {
+      // Unsupported combination or missing prerequisite: play restrained UI warning, never a physical reaction sound
+      soundEngine.stopSource('chemistry-lab');
+      soundEngine.playUiFeedback('validation_warning', `rxn_unsupported::${Date.now()}`);
     }
 
     setTimeout(() => {
@@ -1580,14 +1660,18 @@ export const ChemistryLabPage: React.FC = () => {
                         key={r.id}
                         onClick={() => handleAddCompound(r.id)}
                         title={
-                          r.catalyticRole
+                          r.isRestricted
+                            ? `RESTRICTED (${r.name}): ${r.restrictionReason || r.description}`
+                            : r.catalyticRole
                             ? `${r.name} (${r.formula}) — ${r.catalyticRole}${
                                 r.exampleReactions?.length ? ` | Example: ${r.exampleReactions[0]}` : ''
                               }`
                             : `${r.name} (${r.formula}) — ${r.description}`
                         }
                         className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                          countInRecipe > 0
+                          r.isRestricted
+                            ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
+                            : countInRecipe > 0
                             ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500/30'
                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                         }`}
@@ -1599,7 +1683,7 @@ export const ChemistryLabPage: React.FC = () => {
                               style={{ backgroundColor: r.color }}
                             />
                             <span className="text-[9px] uppercase font-bold text-slate-400 font-mono truncate">
-                              {r.role || r.type}
+                              {r.subcategory || r.role || r.type}
                             </span>
                           </div>
                           <div className="font-bold text-xs text-slate-900 leading-tight truncate">
@@ -1613,7 +1697,12 @@ export const ChemistryLabPage: React.FC = () => {
                               {r.catalyticRole || r.description}
                             </div>
                           )}
-                          {isCatalystView && r.curriculumLevel && (
+                          {r.indicatorTransition && (
+                            <div className="mt-1 text-[8px] font-medium text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.5 rounded truncate">
+                              {r.indicatorTransition.transitionRange}: {r.indicatorTransition.acidColor} → {r.indicatorTransition.baseColor}
+                            </div>
+                          )}
+                          {isCatalystView && r.curriculumLevel && !r.isRestricted && (
                             <div
                               className={`mt-1 text-[8px] font-bold px-1.5 py-0.5 rounded truncate ${
                                 r.isSimulationSupported
@@ -1626,16 +1715,38 @@ export const ChemistryLabPage: React.FC = () => {
                                 : `Reference · ${r.curriculumLevel}`}
                             </div>
                           )}
-                          {r.hazard && (
-                            <div className="mt-1 text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
-                              {r.hazard}
+                          {r.isRestricted ? (
+                            <div className="mt-1 text-[8px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded truncate">
+                              {r.safetyClassification === 'radioactive_restricted'
+                                ? '☢ Radioactive · Reference Only'
+                                : '⚠ Restricted · Reference Only'}
                             </div>
+                          ) : (
+                            r.hazard && (
+                              <div className="mt-1 text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
+                                {r.hazard}
+                              </div>
+                            )
                           )}
                         </div>
 
-                        <div className="mt-2 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold text-emerald-700">
-                          <span>{countInRecipe > 0 ? `In Beaker (${countInRecipe})` : '+ Add'}</span>
-                          <Plus className="w-3 h-3" />
+                        <div
+                          className={`mt-2 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold ${
+                            r.isRestricted ? 'text-amber-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          <span>
+                            {r.isRestricted
+                              ? 'Safety Info'
+                              : countInRecipe > 0
+                              ? `In Beaker (${countInRecipe})`
+                              : '+ Add'}
+                          </span>
+                          {r.isRestricted ? (
+                            <Info className="w-3 h-3" />
+                          ) : (
+                            <Plus className="w-3 h-3" />
+                          )}
                         </div>
                       </button>
                     );

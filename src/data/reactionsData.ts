@@ -1134,15 +1134,356 @@ export const REACTIONS: ReactionDefinition[] = [
     },
     explanation: 'Catalase is a tetrameric heme enzyme with a turnover number of ~4 × 10⁷ molecules of H₂O₂ per second per active center. Its iron(III)-porphyrin cofactor provides a low-energy pathway (Eₐ < 8 kJ/mol vs. ~75 kJ/mol uncatalyzed) to disproportionate H₂O₂ into H₂O and O₂(g).',
   },
+
+  // 40. Nitric Acid + Sodium Hydroxide Neutralization
+  {
+    id: 'hno3_naoh_neutralization',
+    name: 'Nitric Acid + Sodium Hydroxide Neutralization',
+    reactants: ['hno3', 'naoh'],
+    requiredAmounts: { hno3: 15, naoh: 15 },
+    products: ['NaNO₃ (aq) (Colourless)', 'H₂O (l)'],
+    balancedEquation: 'HNO₃(aq) + NaOH(aq) → NaNO₃(aq) + H₂O(l)',
+    reactionType: 'neutralization',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless HNO₃(aq) + clear, colourless NaOH(aq)',
+      finalAppearance: 'Clear, colourless NaNO₃(aq) neutral solution with +13.6°C exothermic temperature rise',
+      temperatureDelta: 13.6,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Strong acid–strong base neutralization between nitric acid and sodium hydroxide producing colourless aqueous sodium nitrate and water with a +13.6°C exothermic rise.',
+    },
+    explanation: 'Complete dissociation of HNO₃ and NaOH means the net ionic reaction is H⁺(aq) + OH⁻(aq) → H₂O(l) (ΔH° = -57.3 kJ/mol), leaving Na⁺ and NO₃⁻ as colourless spectator ions.',
+  },
+
+  // 41. Phosphoric Acid + Sodium Hydroxide Triprotic Neutralization
+  {
+    id: 'h3po4_naoh_neutralization',
+    name: 'Phosphoric Acid + Sodium Hydroxide Neutralization',
+    reactants: ['h3po4', 'naoh'],
+    requiredAmounts: { h3po4: 15, naoh: 15 },
+    products: ['Na₃PO₄ (aq) (Colourless)', '3H₂O (l)'],
+    balancedEquation: 'H₃PO₄(aq) + 3NaOH(aq) → Na₃PO₄(aq) + 3H₂O(l)',
+    reactionType: 'neutralization',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless H₃PO₄(aq) + clear, colourless NaOH(aq)',
+      finalAppearance: 'Clear, colourless trisodium phosphate Na₃PO₄(aq) solution with exothermic warming',
+      temperatureDelta: 14.2,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Stepwise neutralization of triprotic phosphoric acid by sodium hydroxide yielding a clear, colourless phosphate buffer/salt solution and noticeable exothermic heat.',
+    },
+    explanation: 'Triprotic phosphoric acid (pKa₁ = 2.15, pKa₂ = 7.20, pKa₃ = 12.35) transfers protons across three buffer stages to hydroxide ions to form aqueous sodium phosphate and water.',
+  },
+
+  // 42. Oxalic Acid + Sodium Hydroxide Neutralization
+  {
+    id: 'h2c2o4_naoh_neutralization',
+    name: 'Oxalic Acid + Sodium Hydroxide Diprotic Neutralization',
+    reactants: ['oxalic_acid', 'naoh'],
+    requiredAmounts: { oxalic_acid: 15, naoh: 15 },
+    products: ['Na₂C₂O₄ (aq) (Colourless)', '2H₂O (l)'],
+    balancedEquation: 'H₂C₂O₄(aq) + 2NaOH(aq) → Na₂C₂O₄(aq) + 2H₂O(l)',
+    reactionType: 'neutralization',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless H₂C₂O₄(aq) + clear, colourless NaOH(aq)',
+      finalAppearance: 'Clear, colourless sodium oxalate Na₂C₂O₄(aq) solution',
+      temperatureDelta: 11.8,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Standard primary-standard acidimetric titration reaction: diprotic oxalic acid reacts with sodium hydroxide to form colourless aqueous sodium oxalate and water.',
+    },
+    explanation: 'Oxalic acid (HOOC–COOH, pKa₁ = 1.25, pKa₂ = 4.14) serves as a primary standard in Class 11/12 volumetric analysis to standardize NaOH solutions.',
+  },
+
+  // 43. Citric Acid + Sodium Bicarbonate Endothermic Effervescence
+  {
+    id: 'citric_acid_nahco3_gas',
+    name: 'Citric Acid + Baking Soda Endothermic CO₂ Effervescence',
+    reactants: ['c6h8o7', 'nahco3'],
+    requiredAmounts: { c6h8o7: 15, nahco3: 10 },
+    products: ['Na₃C₆H₅O₇ (aq) (Sodium Citrate)', '3H₂O (l)', '3CO₂ (g)↑'],
+    balancedEquation: 'C₆H₈O₇(aq) + 3NaHCO₃(s) → Na₃C₆H₅O₇(aq) + 3H₂O(l) + 3CO₂(g)↑',
+    reactionType: 'gas_evolution',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless citric acid solution + white NaHCO₃(s) powder',
+      finalAppearance: 'Clear, colourless sodium citrate solution with vigorous streams of CO₂(g) bubbles and distinct endothermic cooling (-5.2°C)',
+      temperatureDelta: -5.2,
+      producesGas: true,
+      gasName: 'Carbon Dioxide (CO₂)',
+      gasColor: '#FFFFFF',
+      gasVigor: 5,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'foaming_fountain',
+      description: 'Classic endothermic fizzing reaction: triprotic citric acid reacts with sodium bicarbonate to release vigorous streams of carbon dioxide bubbles while cooling the solution by 5.2°C.',
+    },
+    explanation: 'Proton transfer from citric acid to HCO₃⁻ forms unstable H₂CO₃, which decomposes into CO₂(g) and H₂O(l). Because the entropy increase (ΔS > 0) of gas release drives the reaction, it proceeds spontaneously despite absorbing heat from the solution (ΔH > 0).',
+  },
+
+  // 44. Hydrochloric Acid + Sodium Carbonate CO2 Effervescence
+  {
+    id: 'hcl_na2co3_gas',
+    name: 'Hydrochloric Acid + Sodium Carbonate CO₂ Effervescence',
+    reactants: ['hcl', 'na2co3'],
+    requiredAmounts: { hcl: 15, na2co3: 15 },
+    products: ['2NaCl (aq) (Colourless)', 'H₂O (l)', 'CO₂ (g)↑'],
+    balancedEquation: '2HCl(aq) + Na₂CO₃(aq) → 2NaCl(aq) + H₂O(l) + CO₂(g)↑',
+    reactionType: 'gas_evolution',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless HCl(aq) + clear, colourless Na₂CO₃(aq)',
+      finalAppearance: 'Clear, colourless NaCl(aq) solution with brisk effervescence of colourless CO₂(g) bubbles',
+      temperatureDelta: 4.5,
+      producesGas: true,
+      gasName: 'Carbon Dioxide (CO₂)',
+      gasColor: '#FFFFFF',
+      gasVigor: 5,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Brisk effervescence of colourless, odourless carbon dioxide (CO₂) gas bubbles as hydrochloric acid protonates carbonate ions in two steps via bicarbonate.',
+    },
+    explanation: 'Carbonate ions (CO₃²⁻) accept two protons from HCl to form carbonic acid (H₂CO₃), which rapidly dehydrates into rising CO₂(g) bubbles and water.',
+  },
+
+  // 45. Sulfuric Acid + Barium Hydroxide Conductometric Precipitation Neutralization
+  {
+    id: 'h2so4_ba_oh2_ppt',
+    name: 'Sulfuric Acid + Barium Hydroxide Simultaneous Neutralization & Precipitation',
+    reactants: ['h2so4', 'ba_oh2'],
+    requiredAmounts: { h2so4: 15, ba_oh2: 15 },
+    products: ['BaSO₄ (s)↓ (Dense White Precipitate)', '2H₂O (l)'],
+    balancedEquation: 'H₂SO₄(aq) + Ba(OH)₂(aq) → BaSO₄(s)↓ + 2H₂O(l)',
+    reactionType: 'precipitation',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless H₂SO₄(aq) + clear, colourless Ba(OH)₂(aq)',
+      finalAppearance: 'Dense chalky-white BaSO₄(s) precipitate settling beneath pure liquid water',
+      temperatureDelta: 15.0,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: true,
+      precipitateColor: '#F8FAFC',
+      precipitateName: 'Barium Sulfate — BaSO₄(s)',
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Simultaneous acid–base neutralization and sulfate precipitation: mixing clear H₂SO₄ and Ba(OH)₂ immediately forms a dense white precipitate of insoluble BaSO₄(s) and pure water.',
+    },
+    explanation: 'At the stoichiometric equivalence point, both H⁺/OH⁻ combine to form H₂O and Ba²⁺/SO₄²⁻ precipitate as insoluble BaSO₄(s) (Ksp = 1.1 × 10⁻¹⁰), causing solution electrical conductivity to drop nearly to zero.',
+  },
+
+  // 46. Silver Nitrate + Potassium Chromate (Mohr's Brick-Red Precipitation)
+  {
+    id: 'agno3_k2cro4_mohr',
+    name: "Silver Nitrate + Potassium Chromate Brick-Red Precipitation (Mohr's Method)",
+    reactants: ['agno3', 'k2cro4'],
+    requiredAmounts: { agno3: 15, k2cro4: 10 },
+    products: ['Ag₂CrO₄ (s)↓ (Brick-Red Precipitate)', '2KNO₃ (aq) (Colourless)'],
+    balancedEquation: '2AgNO₃(aq) + K₂CrO₄(aq) → Ag₂CrO₄(s)↓ + 2KNO₃(aq)',
+    reactionType: 'precipitation',
+    observableEffects: {
+      colorChangeTo: '#FEF08A',
+      isFinalSolutionColorless: false,
+      initialAppearance: 'Clear, colourless AgNO₃(aq) + bright lemon-yellow K₂CrO₄(aq)',
+      finalAppearance: 'Distinctive brick-red Ag₂CrO₄(s) precipitate settled at the bottom of the beaker',
+      temperatureDelta: 3.5,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: true,
+      precipitateColor: '#B91C1C',
+      precipitateName: 'Silver Chromate — Ag₂CrO₄(s)',
+      isViolent: false,
+      hazardType: 'none',
+      description: "Mohr's argentometric indicator reaction: silver cations combine with yellow chromate anions to form an unmistakable brick-red precipitate of Silver Chromate Ag₂CrO₄(s).",
+    },
+    explanation: 'In Mohr’s titration for chloride determination, yellow K₂CrO₄ acts as a precipitation indicator: once AgCl (Ksp = 1.8 × 10⁻¹⁰) finishes precipitating, excess Ag⁺ reacts with CrO₄²⁻ to precipitate brick-red Ag₂CrO₄ (Ksp = 1.1 × 10⁻¹²).',
+  },
+
+  // 47. Potassium Dichromate + Iron(II) Sulfate Redox Titration
+  {
+    id: 'k2cr2o7_feso4_redox',
+    name: 'Potassium Dichromate + Iron(II) Sulfate Redox Reaction (Orange to Emerald Green)',
+    reactants: ['k2cr2o7', 'fe_so4'],
+    requiredAmounts: { k2cr2o7: 15, fe_so4: 15 },
+    products: ['2Cr³⁺ (aq) (Deep Emerald Green)', '6Fe³⁺ (aq)', '7H₂O (l)'],
+    balancedEquation: 'Cr₂O₇²⁻(aq) [orange] + 6Fe²⁺(aq) + 14H⁺(aq) → 2Cr³⁺(aq) [emerald green] + 6Fe³⁺(aq) + 7H₂O(l)',
+    reactionType: 'redox',
+    observableEffects: {
+      colorChangeTo: '#059669',
+      isFinalSolutionColorless: false,
+      initialAppearance: 'Vivid orange K₂Cr₂O₇(aq) + pale sea-green FeSO₄(aq)',
+      finalAppearance: 'Deep emerald-green Cr³⁺(aq) solution as hexavalent dichromate is reduced',
+      temperatureDelta: 11.0,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'The bright orange dichromate solution transforms into a rich emerald-green chromium(III) solution as Cr(VI) oxidizes Fe(II) to Fe(III).',
+    },
+    explanation: 'Dichromate ion (Cr₂O₇²⁻, E° = +1.33 V) is a classic primary-standard oxidizing agent in acidic medium, accepting 6 electrons per formula unit from Fe²⁺ to form green hydrated [Cr(H₂O)₆]³⁺ ions.',
+  },
+
+  // 48. Potassium Permanganate + Oxalic Acid Redox Decolorization & CO2 Evolution
+  {
+    id: 'kmno4_oxalic_acid_redox',
+    name: 'Potassium Permanganate + Oxalic Acid Autocatalytic Redox Titration',
+    reactants: ['kmn_o4_reagent', 'oxalic_acid'],
+    requiredAmounts: { kmn_o4_reagent: 15, oxalic_acid: 15 },
+    products: ['2Mn²⁺ (aq) (Colourless Autocatalyst)', '10CO₂ (g)↑', '8H₂O (l)'],
+    balancedEquation: '2MnO₄⁻(aq) [purple] + 5H₂C₂O₄(aq) + 6H⁺(aq) → 2Mn²⁺(aq) [colourless] + 10CO₂(g)↑ + 8H₂O(l)',
+    reactionType: 'redox',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Deep purple-violet KMnO₄(aq) + clear, colourless H₂C₂O₄(aq)',
+      finalAppearance: 'Crystal-clear, colourless Mn²⁺(aq) solution with fine streams of colourless CO₂(g) bubbles',
+      temperatureDelta: 12.0,
+      producesGas: true,
+      gasName: 'Carbon Dioxide (CO₂)',
+      gasColor: '#FFFFFF',
+      gasVigor: 3,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Textbook Class 12 autocatalytic redox reaction: deep purple permanganate oxidizes oxalic acid into colourless carbon dioxide bubbles while decolorizing to Mn²⁺(aq), which itself autocatalyzes subsequent reduction.',
+    },
+    explanation: 'Permanganate oxidizes oxalate (C₂O₄²⁻, carbon in +3 state) to CO₂ (+4 state). Once trace Mn²⁺ ions form, they complex with oxalate to lower the activation barrier—a classic demonstration of autocatalysis.',
+  },
+
+  // 49. Aqueous Iodine + Starch Solution (Blue-Black Complexation)
+  {
+    id: 'iodine_starch_complex',
+    name: 'Iodine–Starch Deep Blue-Black Clathrate Complex Test',
+    reactants: ['iodine_solution', 'starch_solution'],
+    requiredAmounts: { iodine_solution: 10, starch_solution: 10 },
+    products: ['Starch–I₃⁻ / I₅⁻ Helical Clathrate Complex (Deep Blue-Black)'],
+    balancedEquation: 'I₃⁻(aq) [amber] + Amylose Helix (Starch) → [Amylose–Polyiodide] Complex (aq) [deep blue-black]',
+    reactionType: 'redox',
+    observableEffects: {
+      colorChangeTo: '#1E1B4B',
+      isFinalSolutionColorless: false,
+      initialAppearance: 'Amber-brown I₂/KI(aq) solution + translucent colourless starch solution',
+      finalAppearance: 'Intense, opaque indigo-blue-black starch–iodine charge-transfer complex solution',
+      temperatureDelta: 1.0,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Adding aqueous iodine to starch solution immediately produces an unmistakable, intense blue-black colour as linear polyiodide chains slip inside the helical amylose coils of starch.',
+    },
+    explanation: 'Linear triiodide/pentaiodide anions (I₃⁻ / I₅⁻) insert into the hydrophobic interior of the α(1→4)-linked amylose helix, forming a charge-transfer inclusion complex with intense absorption across the visible spectrum.',
+  },
+
+  // 50. Sodium Hypochlorite + Potassium Iodide Oxidation
+  {
+    id: 'naocl_ki_redox',
+    name: 'Sodium Hypochlorite (Bleach) + Potassium Iodide Redox Oxidation',
+    reactants: ['naocl', 'ki'],
+    requiredAmounts: { naocl: 15, ki: 15 },
+    products: ['I₂ / I₃⁻ (aq) (Amber-Brown Solution)', 'NaCl (aq)', '2KOH (aq)'],
+    balancedEquation: 'NaOCl(aq) + 2KI(aq) + H₂O(l) → I₂(aq) + NaCl(aq) + 2KOH(aq)',
+    reactionType: 'redox',
+    observableEffects: {
+      colorChangeTo: '#B45309',
+      isFinalSolutionColorless: false,
+      initialAppearance: 'Pale greenish-yellow NaOCl(aq) + clear, colourless KI(aq)',
+      finalAppearance: 'Rich amber-brown aqueous iodine (I₂/I₃⁻) solution',
+      temperatureDelta: 6.5,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Hypochlorite rapidly oxidizes colourless iodide ions into amber-brown molecular iodine (I₂ / I₃⁻) in solution.',
+    },
+    explanation: 'Hypochlorite (OCl⁻, Cl in +1 oxidation state, E° = +0.89 V) is a strong two-electron oxidizing agent that oxidizes I⁻ (E° = +0.54 V) to I₂ while being reduced to chloride (Cl⁻).',
+  },
+
+  // 51. Salicylic Acid + Iron(III) Chloride Phenolic Complexation Test
+  {
+    id: 'salicylic_acid_fecl3_complex',
+    name: 'Salicylic Acid + Ferric Chloride Violet Phenolic Complex Test',
+    reactants: ['salicylic_acid', 'fecl3'],
+    requiredAmounts: { salicylic_acid: 10, fecl3: 10 },
+    products: ['[Fe(Salicylate)]⁺ (aq) (Deep Royal Violet Charge-Transfer Complex)', '2HCl (aq)'],
+    balancedEquation: 'C₆H₄(OH)COOH(s/aq) + FeCl₃(aq) → [Fe(OC₆H₄COO)]⁺(aq) [deep violet] + 2H⁺(aq) + 3Cl⁻(aq)',
+    reactionType: 'redox',
+    observableEffects: {
+      colorChangeTo: '#6D28D9',
+      isFinalSolutionColorless: false,
+      initialAppearance: 'White crystalline salicylic acid + yellow-amber FeCl₃(aq)',
+      finalAppearance: 'Intense deep purple-violet iron(III)–salicylate chelate solution',
+      temperatureDelta: 2.0,
+      producesGas: false,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'none',
+      description: 'Qualitative organic functional-group test for phenols: ferric chloride chelates the ortho-hydroxybenzoate group of salicylic acid to form an intense royal-violet complex.',
+    },
+    explanation: 'Phenolic –OH groups coordinate to high-spin Fe³⁺ ions; salicylic acid forms a particularly stable six-membered bidentate chelate ring exhibiting a strong ligand-to-metal charge transfer (LMCT) band at ~530 nm.',
+  },
+
+  // 52. Aluminium + Sodium Hydroxide Amphoteric Hydrogen Evolution
+  {
+    id: 'naoh_al_gas',
+    name: 'Amphoteric Aluminium + Sodium Hydroxide Hydrogen Evolution',
+    reactants: ['naoh', 'al_metal'],
+    requiredAmounts: { naoh: 20, al_metal: 5 },
+    products: ['2Na[Al(OH)₄] (aq) (Colourless Sodium Tetrahydroxoaluminate)', '3H₂ (g)↑'],
+    balancedEquation: '2Al(s) + 2NaOH(aq) + 6H₂O(l) → 2Na[Al(OH)₄](aq) + 3H₂(g)↑',
+    reactionType: 'single_displacement',
+    observableEffects: {
+      colorChangeTo: '#F8FAFC',
+      isFinalSolutionColorless: true,
+      initialAppearance: 'Clear, colourless NaOH(aq) + silvery metallic Al(s) foil/granules',
+      finalAppearance: 'Clear, colourless sodium aluminate solution with vigorous streams of colourless H₂(g) bubbles',
+      temperatureDelta: 29.0,
+      producesGas: true,
+      gasName: 'Hydrogen Gas (H₂)',
+      gasColor: '#FFFFFF',
+      gasVigor: 5,
+      producesFumesAboveLiquid: false,
+      producesPrecipitate: false,
+      isViolent: false,
+      hazardType: 'gas_eruption',
+      description: 'Demonstration of amphoteric metal behavior: strong aqueous alkali dissolves the protective oxide film on aluminium and oxidizes the metal to soluble [Al(OH)₄]⁻ with vigorous evolution of H₂(g) bubbles.',
+    },
+    explanation: 'Unlike most metals, aluminium is amphoteric—it reacts with both strong acids (forming Al³⁺) and strong bases (forming soluble tetrahydroxoaluminate [Al(OH)₄]⁻) while reducing water/protons to hydrogen gas.',
+  },
 ];
 
 /**
  * Compatible catalyst lookup map by primary reaction / reactant.
  */
 export const COMPATIBLE_CATALYSTS: Record<string, string[]> = {
-  h2o2: ['mno2', 'ki', 'catalase_enzyme', 'fe'],
-  decomposition: ['mno2', 'ki', 'catalase_enzyme'],
-  redox: ['fe'],
+  h2o2: ['mno2', 'ki', 'catalase_enzyme', 'fe', 'fecl3', 'cuo'],
+  decomposition: ['mno2', 'ki', 'catalase_enzyme', 'fecl3', 'cuo'],
+  redox: ['fe', 'mnso4'],
 };
 
 const EXTRA_REAGENT_LABELS: Record<string, { name: string; formula: string; type: string }> = {
@@ -1204,6 +1545,32 @@ export function evaluateReactionRecipe(params: {
 
   const presentIds = Object.keys(amountsMap).filter((id) => amountsMap[id] > 0);
 
+  // 0. Safety Gate: Block restricted hazardous or radioactive compounds from interactive execution
+  const restrictedReagent = presentIds
+    .map((id) => REAGENTS.find((r) => r.id === id))
+    .find((r) => r?.isRestricted);
+
+  if (restrictedReagent) {
+    return {
+      isSupported: false,
+      status: 'unsupported',
+      structuredStatus: 'NO_REACTION_SUPPORTED_UNDER_SPECIFIED_CONDITIONS',
+      reaction: null,
+      message: `SAFETY RESTRICTION: ${restrictedReagent.name} (${restrictedReagent.formula}) is classified as ${
+        restrictedReagent.safetyClassification === 'radioactive_restricted'
+          ? 'Radioactive / Restricted'
+          : 'Hazardous / Restricted'
+      }. ${
+        restrictedReagent.restrictionReason ||
+        'This substance is catalogued for curriculum reference only and is blocked from interactive mixing in the virtual laboratory.'
+      }`,
+      safetyWarnings: [
+        restrictedReagent.restrictionReason ||
+          'Restricted hazardous or radioactive substance. Interactive mixing disabled.',
+      ],
+    };
+  }
+
   // If a catalyst was explicitly selected as a condition, consider it present
   if (conditions.catalystId) {
     amountsMap[conditions.catalystId] = (amountsMap[conditions.catalystId] || 0) + 10;
@@ -1263,6 +1630,100 @@ export function evaluateReactionRecipe(params: {
     }
 
     return buildSuccessResult(r, amountsMap, conditions);
+  }
+
+  // 2C. Dynamic Indicator + Acid / Base Halochromic Transition Support
+  const presentReagents = presentIds
+    .map((id) => REAGENTS.find((r) => r.id === id))
+    .filter((r): r is ChemicalReagent => Boolean(r));
+
+  const indicatorReagent = presentReagents.find(
+    (r) =>
+      (r.category === 'indicator' || r.secondaryCategories?.includes('indicator')) &&
+      r.indicatorTransition
+  );
+  const acidReagent = presentReagents.find(
+    (r) =>
+      r.id !== indicatorReagent?.id &&
+      (r.category === 'acid' || r.secondaryCategories?.includes('acid')) &&
+      !r.isRestricted
+  );
+  const baseReagent = presentReagents.find(
+    (r) =>
+      r.id !== indicatorReagent?.id &&
+      (r.category === 'base' || r.secondaryCategories?.includes('base')) &&
+      !r.isRestricted
+  );
+
+  if (indicatorReagent && indicatorReagent.indicatorTransition && (acidReagent || baseReagent)) {
+    const partner = baseReagent || acidReagent!;
+    const isBase = Boolean(baseReagent && !acidReagent);
+    const trans = indicatorReagent.indicatorTransition;
+    const targetColorLabel = isBase ? trans.baseColor : trans.acidColor;
+    const colorHexMap: Record<string, string> = {
+      colorless: '#F8FAFC',
+      'pink / magenta': '#EC4899',
+      'red / coral': '#EF4444',
+      red: '#DC2626',
+      yellow: '#EAB308',
+      'deep blue': '#2563EB',
+      blue: '#2563EB',
+      'bright pink-red': '#E11D48',
+      purple: '#9333ea',
+      'orange-red / lilac': '#DC2626',
+      'blue-violet': '#3730A3',
+      'reddish-purple': '#BE185D',
+      'bluish-red': '#BE123C',
+      'amber-yellow': '#D97706',
+      'red / orange / yellow': '#EF4444',
+      'blue / indigo / violet': '#7C3AED',
+      'bright red / pink': '#E11D48',
+      'bluish-green / yellow': '#10B981',
+      'bright yellow': '#EAB308',
+      'reddish-brown': '#B91C1C',
+      'deep crimson-purple': '#9F1239',
+      'brownish-yellow': '#CA8A04',
+      'deep magenta-red': '#E11D48',
+      'dark greenish-blue': '#0F766E',
+    };
+    const resolvedHex =
+      colorHexMap[targetColorLabel.toLowerCase()] ||
+      (isBase ? '#3B82F6' : '#EF4444');
+    const isColorless = resolvedHex === '#F8FAFC';
+
+    const dynamicIndicatorRx: ReactionDefinition = {
+      id: `indicator_${indicatorReagent.id}_${partner.id}`,
+      name: `${indicatorReagent.name} Response in ${partner.name}`,
+      reactants: [indicatorReagent.id, partner.id],
+      requiredAmounts: { [indicatorReagent.id]: 2, [partner.id]: 10 },
+      products: [
+        `${indicatorReagent.name} (${isBase ? 'Deprotonated Basic Form' : 'Protonated Acidic Form'}: ${targetColorLabel})`,
+      ],
+      balancedEquation: `HIn(aq) [${indicatorReagent.name}] + ${
+        isBase ? 'OH⁻(aq)' : 'H⁺(aq)'
+      } ⇌ ${isBase ? 'In⁻(aq)' : 'H₂In⁺(aq)'} [${targetColorLabel}, ${trans.transitionRange}]`,
+      reactionType: 'neutralization',
+      observableEffects: {
+        colorChangeTo: resolvedHex,
+        isFinalSolutionColorless: isColorless,
+        initialAppearance: `${indicatorReagent.name} + ${partner.name} (${partner.formula})`,
+        finalAppearance: `${targetColorLabel} solution (${indicatorReagent.name} in ${
+          isBase ? 'alkaline' : 'acidic'
+        } medium, transition range ${trans.transitionRange})`,
+        temperatureDelta: 0.2,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Halochromic indicator response: ${indicatorReagent.name} exhibits its characteristic ${targetColorLabel} form in the ${
+          isBase ? 'alkaline' : 'acidic'
+        } environment of ${partner.name} (${partner.formula}), governed by its ${trans.transitionRange} transition interval.`,
+      },
+      explanation: `${indicatorReagent.name} acts as a weak conjugate acid–base indicator pair (HIn ⇌ H⁺ + In⁻). In ${partner.name}, the solution pH shifts the equilibrium toward the ${targetColorLabel} chromophore state.`,
+    };
+
+    return buildSuccessResult(dynamicIndicatorRx, amountsMap, conditions);
   }
 
   // 3. Single ingredient cases

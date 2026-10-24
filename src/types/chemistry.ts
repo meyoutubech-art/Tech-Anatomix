@@ -16,6 +16,21 @@ export type ChemicalCategory =
   | 'catalyst'
   | 'solvent';
 
+export type ReagentCategory =
+  | 'acid'
+  | 'base'
+  | 'salt'
+  | 'metal'
+  | 'oxidizer'
+  | 'indicator'
+  | 'catalyst';
+
+export type SafetyClassification =
+  | 'school_lab_supported'
+  | 'conceptual_reference'
+  | 'hazardous_restricted'
+  | 'radioactive_restricted';
+
 export interface ChemicalReagent {
   id: string;
   name: string;
@@ -42,6 +57,23 @@ export interface ChemicalReagent {
   safetyInfo?: string;
   isSimulationSupported: boolean;
   simulationNote?: string;
+  defaultPh?: number;
+  molarMass?: number;
+  aliases?: string[];
+  subcategory?: string;
+  sourceCategories?: string[];
+  sourceSubsections?: string[];
+  safetyClassification?: SafetyClassification;
+  isRestricted?: boolean;
+  restrictionReason?: string;
+  formulaCorrectionNote?: string;
+  indicatorTransition?: {
+    acidColor: string;
+    neutralColor?: string;
+    baseColor: string;
+    transitionRange: string;
+    indicatorType: 'pH' | 'redox' | 'complexometric' | 'precipitation' | 'fluorescent';
+  };
 }
 
 export interface ReactionDefinition {

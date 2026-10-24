@@ -7,6 +7,7 @@ import { REAGENTS } from '../../data/reactionsData';
 import { findOrLookupCompound, getCanonicalRegistry } from '../../data/compoundRegistry';
 import { Global3DViewer } from '../common/Global3DViewer';
 import { setupPreBatch1StudioEnvironment, styleStudioGridHelper } from '../../simulations/preBatch1VisualUpgradeStudio';
+import { soundEngine } from '../../utils/soundEngine';
 import {
   FlaskConical,
   Droplet,
@@ -285,6 +286,28 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
         return { id, amount, def };
       });
   }, [reagentsInBeaker]);
+
+  // Synchronize state-driven laboratory audio (effervescence, boiling >= 100°C, violent burst, or silence)
+  useEffect(() => {
+    const hasLiquid =
+      activeReagentsList.some((item) => item.def.state === 'liquid') ||
+      (totalVolume > 0 && Boolean(activeReaction));
+    soundEngine.syncChemistryReactionState({
+      sourceId: 'chemistry-lab',
+      hasLiquid,
+      totalVolume,
+      temperatureC: temperature,
+      reactionProgress: uiReactionProgress,
+      activeReaction,
+      reactionRunKey: activeReaction ? `${activeReaction.id}::${reactionStartTimeRef.current}` : undefined,
+    });
+  }, [activeReagentsList, totalVolume, temperature, uiReactionProgress, activeReaction]);
+
+  useEffect(() => {
+    return () => {
+      soundEngine.stopSource('chemistry-lab');
+    };
+  }, []);
 
   // Keep a persistent ref of latest props so the animation loop always has current state WITHOUT rebuilding WebGL!
   const stateRef = useRef({

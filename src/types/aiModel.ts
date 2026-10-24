@@ -274,4 +274,28 @@ export interface ScientificModelSpec {
   researchRecord?: ResearchRecord;
   validationReport?: ModelValidationReport;
   structuralArchetype?: string;
+  audioConfig?: ModelAudioConfig;
 }
+
+export type ModelAudioCategory =
+  | 'rotational_motor'
+  | 'oscillation_pendulum'
+  | 'collision_cradle'
+  | 'fluid_flow'
+  | 'thermal_boiling'
+  | 'electromagnetic_hum'
+  | 'electric_bell'
+  | 'cardiac_pulse'
+  | 'respiratory_airflow'
+  | 'wave_propagation'
+  | 'none';
+
+export interface ModelAudioConfig {
+  enabled: boolean;
+  category: ModelAudioCategory;
+  parameterKeys: string[];
+  baseFrequencyHz?: number;
+  minSpeedThreshold?: number;
+  description?: string;
+}
+

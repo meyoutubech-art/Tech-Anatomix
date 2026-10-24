@@ -1,4 +1,7 @@
 import { ChemicalReagent, ChemicalCategory } from '../types/chemistry';
+import { buildMergedCanonicalReagents, DOCUMENT_INVENTORY_AUDIT } from './documentCompoundInventory';
+
+export { DOCUMENT_INVENTORY_AUDIT };
 
 export interface CategoryMeta {
   id: ChemicalCategory | 'all';
@@ -27,7 +30,7 @@ export const CHEMICAL_CATEGORIES: CategoryMeta[] = [
   { id: 'solvent', label: 'Solvents', description: 'Dissolving media for solutions and extractions', color: '#0284C7' },
 ];
 
-export const REAGENTS: ChemicalReagent[] = [
+export const BASE_REAGENTS: ChemicalReagent[] = [
   // ==========================================
   // 1. ACIDS (acid)
   // ==========================================
@@ -2247,3 +2250,6 @@ export const REAGENTS: ChemicalReagent[] = [
     simulationNote: 'Curated library reference for alkali metal storage media.',
   },
 ];
+
+export const REAGENTS: ChemicalReagent[] = buildMergedCanonicalReagents(BASE_REAGENTS);
+

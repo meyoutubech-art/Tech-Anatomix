@@ -3,6 +3,7 @@ import { ReactionOptionCard, discoverReactions } from '../../data/reactionDiscov
 import { ChemicalReagent } from '../../types/chemistry';
 import { findOrLookupCompound } from '../../data/compoundRegistry';
 import { REAGENTS } from '../../data/reactionsData';
+import { soundEngine } from '../../utils/soundEngine';
 import {
   Sparkles,
   Search,
@@ -47,6 +48,11 @@ export const ReactionDiscoveryPanel: React.FC<ReactionDiscoveryPanelProps> = ({
     setIsLoadedSuccess(false);
     const res = discoverReactions(query);
     setDiscoveryResult(res);
+    if (res.options.length > 0) {
+      soundEngine.playUiFeedback('ai_completion', `ai_discover_ok::${query.trim().toLowerCase()}`);
+    } else {
+      soundEngine.playUiFeedback('validation_warning', `ai_discover_empty::${query.trim().toLowerCase()}`);
+    }
   };
 
   const handleSelectCard = (card: ReactionOptionCard) => {

@@ -23,6 +23,7 @@ import {
 } from '../../data/frogAnatomyData';
 import { FrogOrganId } from '../../types/frogAnatomy';
 import { FrogNeckDissectionScene } from './FrogNeckDissectionScene';
+import { soundEngine } from '../../utils/soundEngine';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -133,14 +134,43 @@ export const FrogAnatomyExplorer: React.FC<FrogAnatomyExplorerProps> = ({
       ? SKETCHFAB_FROG_CONFIG.outerFrogSketchfabUrl
       : SKETCHFAB_FROG_CONFIG.internalOrgansSketchfabUrl;
 
-  // Cleanup transition timer on unmount
+  // Cleanup transition timer and audio loops on unmount
   useEffect(() => {
     return () => {
       if (transitionTimerRef.current) {
         window.clearTimeout(transitionTimerRef.current);
       }
+      soundEngine.stopSource('frog-anatomy-explorer');
     };
   }, []);
+
+  // State-driven amphibian cardiorespiratory audio during internal visceral inspection
+  useEffect(() => {
+    if (stage !== 'internal') {
+      soundEngine.stopSource('frog-anatomy-explorer');
+      return;
+    }
+
+    if (selectedOrganId === 'heart') {
+      soundEngine.stopLoop('frog-anatomy-explorer::respiration');
+      soundEngine.syncHeartbeat({
+        sourceId: 'frog-anatomy-explorer',
+        active: true,
+        bpm: 48,
+        isPlaying: true,
+      });
+    } else if (selectedOrganId === 'lungs') {
+      soundEngine.stopLoop('frog-anatomy-explorer::heartbeat');
+      soundEngine.syncRespiration({
+        sourceId: 'frog-anatomy-explorer',
+        active: true,
+        breathsPerMinute: 16,
+        isPlaying: true,
+      });
+    } else {
+      soundEngine.stopSource('frog-anatomy-explorer');
+    }
+  }, [stage, selectedOrganId]);
 
   // Gracefully transition between models to allow GPU WebGL context release
   const transitionToStage = (targetStage: 'external' | 'internal') => {

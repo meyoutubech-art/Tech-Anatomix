@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChemicalReagent } from '../../types/chemistry';
 import { findOrLookupCompound } from '../../data/compoundRegistry';
+import { soundEngine } from '../../utils/soundEngine';
 import {
   Sparkles,
   Plus,
@@ -38,6 +39,11 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
     setIsAddedSuccess(false);
     const result = findOrLookupCompound(query);
     setSearchResult(result);
+    if (result.found && result.compound) {
+      soundEngine.playUiFeedback('ai_completion', `ai_lookup_ok::${result.compound.id}`);
+    } else {
+      soundEngine.playUiFeedback('validation_warning', `ai_lookup_warn::${query.trim().toLowerCase()}`);
+    }
   };
 
   const handleAdd = () => {
@@ -164,7 +170,31 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
                 </span>
               </div>
 
-              {searchResult.compound.hazard && (
+              {searchResult.compound.isRestricted && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-100/90 border border-amber-300 text-amber-950 text-[11px]">
+                  <ShieldAlert className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">
+                      {searchResult.compound.safetyClassification === 'radioactive_restricted'
+                        ? 'Radioactive Substance — Reference Only (Interactive Mixing Disabled)'
+                        : 'Restricted Hazardous Substance — Reference Only (Interactive Mixing Disabled)'}
+                    </span>
+                    <p className="mt-0.5 text-amber-900">
+                      {searchResult.compound.restrictionReason ||
+                        'This compound is preserved in the canonical registry for educational lookup only and cannot be mixed in the virtual beaker.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {searchResult.compound.formulaCorrectionNote && (
+                <div className="flex items-center gap-1.5 p-2 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 text-[10px]">
+                  <Info className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                  <span>{searchResult.compound.formulaCorrectionNote}</span>
+                </div>
+              )}
+
+              {searchResult.compound.hazard && !searchResult.compound.isRestricted && (
                 <div className="flex items-center gap-1.5 p-2 rounded-lg bg-rose-100/80 border border-rose-200 text-rose-800 text-[11px] font-semibold">
                   <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                   <span>Safety Note: {searchResult.compound.hazard}</span>
@@ -174,7 +204,9 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
               {/* Explicit "Add to Experiment" Button */}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-[11px] text-slate-500">
-                  {selectedIngredientIds.includes(searchResult.compound.id)
+                  {searchResult.compound.isRestricted
+                    ? 'Catalogued for educational reference only'
+                    : selectedIngredientIds.includes(searchResult.compound.id)
                     ? 'Currently added in beaker'
                     : 'Ready to load into active experiment'}
                 </span>
@@ -182,13 +214,21 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
                 <button
                   type="button"
                   onClick={handleAdd}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-                    isAddedSuccess
-                      ? 'bg-emerald-700 text-white'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/20'
+                  disabled={Boolean(searchResult.compound.isRestricted)}
+                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs ${
+                    searchResult.compound.isRestricted
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      : isAddedSuccess
+                      ? 'bg-emerald-700 text-white cursor-pointer'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/20 cursor-pointer'
                   }`}
                 >
-                  {isAddedSuccess ? (
+                  {searchResult.compound.isRestricted ? (
+                    <>
+                      <ShieldAlert className="w-4 h-4" />
+                      <span>Restricted (Reference Only)</span>
+                    </>
+                  ) : isAddedSuccess ? (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Added to Experiment!</span>

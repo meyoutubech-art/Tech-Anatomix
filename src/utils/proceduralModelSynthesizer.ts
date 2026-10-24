@@ -7,6 +7,7 @@ import {
   ResearchRecord,
 } from '../types/aiModel';
 import { validateResearchGroundedModel } from './modelValidator';
+import { resolveValidatedModelAudioConfig } from './soundEngine';
 
 /**
  * CPK Element Colors & Covalent Radii for Dynamic 3D Molecular Geometry Synthesis
@@ -298,6 +299,7 @@ export function synthesizeProceduralScientificModel(
     subjectDomain,
     researchRecord: researchRecord || spec.researchRecord,
   };
+  enriched.audioConfig = resolveValidatedModelAudioConfig(enriched);
   enriched.validationReport = validateResearchGroundedModel(prompt, enriched, enriched.researchRecord);
   enriched.scientificSpecification = buildScientificConceptSpecification(
     prompt,

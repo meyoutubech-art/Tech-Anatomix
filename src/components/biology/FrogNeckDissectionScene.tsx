@@ -5,6 +5,7 @@ import { FROG_ORGAN_MANIFEST, FROG_ORGAN_LIST } from '../../data/frogAnatomyData
 import { FrogOrganId } from '../../types/frogAnatomy';
 import { ModelPositionControls } from '../common/ModelPositionControls';
 import { setupPreBatch1StudioEnvironment } from '../../simulations/preBatch1VisualUpgradeStudio';
+import { soundEngine } from '../../utils/soundEngine';
 import {
   Scissors,
   RotateCcw,
@@ -28,86 +29,22 @@ interface FrogNeckDissectionSceneProps {
   isDissectionCompleted?: boolean;
 }
 
-// Procedural Web Audio Sound Generator (Zero external audio file dependencies)
+// Unified State-Driven Dissection Audio Bridge
 class DissectionAudioFX {
-  private ctx: AudioContext | null = null;
   public enabled: boolean = true;
 
-  private initCtx() {
-    if (typeof window === 'undefined') return;
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-      }
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
-  }
-
-  // Soft surgical snip/incision micro-tick during neck rotation
   playIncisionTick(progress: number) {
     if (!this.enabled) return;
-    try {
-      this.initCtx();
-      if (!this.ctx) return;
-
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
-
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(400 + progress * 800, this.ctx.currentTime);
-      filter.Q.setValueAtTime(3.0, this.ctx.currentTime);
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(180 + progress * 240, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(320 + progress * 200, this.ctx.currentTime + 0.04);
-
-      gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.045);
-    } catch {
-      // Audio context error or blocked by autoplay
-    }
+    soundEngine.playSurgicalIncision({
+      sourceId: 'frog-neck-dissection',
+      progress,
+      velocity: 1.0,
+    });
   }
 
-  // Celebratory biological discovery chime upon completing dissection
   playDissectionComplete() {
     if (!this.enabled) return;
-    try {
-      this.initCtx();
-      if (!this.ctx) return;
-
-      const now = this.ctx.currentTime;
-      // Triad chords: C5, E5, G5, C6
-      const freqs = [523.25, 659.25, 783.99, 1046.5];
-      freqs.forEach((freq, idx) => {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
-
-        gain.gain.setValueAtTime(0.12, now + idx * 0.07);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.6);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(now + idx * 0.07);
-        osc.stop(now + idx * 0.07 + 0.65);
-      });
-    } catch {
-      // Audio context error
-    }
+    soundEngine.playUiFeedback('dissection_complete', `frog_dissection_complete_${Date.now()}`);
   }
 }
 

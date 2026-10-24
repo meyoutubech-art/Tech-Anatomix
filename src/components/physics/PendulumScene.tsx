@@ -4,6 +4,8 @@ import { SimpleOrbitControls } from '../../simulations/orbitControls';
 import { PendulumParams, PendulumResults, PendulumIntegrator } from '../../simulations/physics/pendulumEngine';
 import { Global3DViewer } from '../common/Global3DViewer';
 import { setupPreBatch1StudioEnvironment, styleStudioGridHelper } from '../../simulations/preBatch1VisualUpgradeStudio';
+import { soundEngine } from '../../utils/soundEngine';
+import { CURATED_AI_MODELS } from '../../data/curatedAiModels';
 
 interface PendulumSceneProps {
   params: PendulumParams;
@@ -40,6 +42,28 @@ export const PendulumScene: React.FC<PendulumSceneProps> = ({
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [modelPosition, setModelPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const pendulumVisualGroupRef = useRef<THREE.Group | null>(null);
+
+  useEffect(() => {
+    soundEngine.syncModelSimulationAudio({
+      sourceId: 'pendulum-scene',
+      modelSpec: CURATED_AI_MODELS.pendulum,
+      isPlaying,
+      parameters: {
+        length: params.length,
+        gravity: params.gravity,
+        initialAngle: params.initialAngle,
+      },
+      liveMetrics: {
+        oscillationFreqHz: results.frequency,
+      },
+    });
+  }, [params.length, params.gravity, params.initialAngle, results.frequency, isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      soundEngine.stopSource('pendulum-scene');
+    };
+  }, []);
 
   useEffect(() => {
     if (pendulumVisualGroupRef.current) {

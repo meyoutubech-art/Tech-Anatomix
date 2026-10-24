@@ -118,6 +118,7 @@ export function normalizeChemicalSearchText(input: string): string {
   };
   return input
     .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, (ch) => subscriptMap[ch] || ch)
+    .replace(/[’‘]/g, "'")
     .toLowerCase()
     .trim();
 }
@@ -147,33 +148,51 @@ export function findOrLookupCompound(query: string): {
   const q = normalizeChemicalSearchText(query);
   const qClean = q.replace(/\((aq|s|l|g)\)/gi, '').replace(/[^a-z0-9]/g, '');
 
-  // 0. Safety Check for Hazardous or Prohibited Substances
-  if (
-    q.includes('uranium') ||
-    q.includes('plutonium') ||
-    q.includes('cyanide') ||
-    q.includes('mercury') ||
-    q.includes('radium') ||
-    q.includes('sarin')
-  ) {
+  // 0. Block unverified chemical weapons not in the educational document
+  if (q.includes('sarin') || q.includes('vx nerve') || q.includes('mustard gas')) {
     return {
       found: false,
-      message: `"${query}" is a hazardous, toxic, or radioactive substance not permitted in classroom virtual laboratories. Tech-Anatomix supports standard educational acids, bases, salts, metals, indicators, oxidizers, and catalysts.`,
+      message: `"${query}" is a prohibited chemical weapon or hazardous substance not permitted in classroom virtual laboratories.`,
     };
   }
 
-  // 1. Exact ID or exact formula match first (prevents short formulas like H2O from matching hydrated salts)
+  // 1. Exact ID, exact name, exact base name (without parentheticals), exact alias, or exact primary formula match first
   const exactMatch = canonicalRegistry.find((c) => {
     const idNorm = normalizeChemicalSearchText(c.id);
     const nameNorm = normalizeChemicalSearchText(c.name);
+    const nameBaseNorm = nameNorm.replace(/\s*\([^)]*\)/g, '').trim();
+    const aliasMatch = (c.aliases || []).some((a) => normalizeChemicalSearchText(a) === q);
     const formulaPrimary = normalizeChemicalSearchText(c.formula)
       .replace(/\((aq|s|l|g)\)/gi, '')
       .split('[')[0]
+      .split('·')[0]
       .replace(/[^a-z0-9]/g, '');
-    return idNorm === q || nameNorm === q || (formulaPrimary.length > 0 && formulaPrimary === qClean);
+    const formulaFull = normalizeChemicalSearchText(c.formula)
+      .replace(/\((aq|s|l|g)\)/gi, '')
+      .split('[')[0]
+      .replace(/[^a-z0-9]/g, '');
+    return (
+      idNorm === q ||
+      nameNorm === q ||
+      nameBaseNorm === q ||
+      aliasMatch ||
+      (formulaPrimary.length > 0 && formulaPrimary === qClean) ||
+      (formulaFull.length > 0 && formulaFull === qClean)
+    );
   });
 
   if (exactMatch) {
+    if (exactMatch.isRestricted) {
+      return {
+        found: false,
+        compound: exactMatch,
+        sourceConfidence: `Restricted Reference Entry (${exactMatch.restrictionReason || 'Safety Restricted'})`,
+        message: `"${exactMatch.name} (${exactMatch.formula})" is a hazardous, toxic, or radioactive substance not permitted for interactive mixing in classroom virtual laboratories. ${
+          exactMatch.restrictionReason || ''
+        }`.trim(),
+        isNewEntry: false,
+      };
+    }
     return {
       found: true,
       compound: exactMatch,
@@ -275,6 +294,22 @@ export function findOrLookupCompound(query: string): {
     'thiosulfate': 'na2s2o3',
     'aqueous iodine': 'iodine_solution',
     'lugol': 'iodine_solution',
+    'bleach': 'naocl',
+    'sodium hypochlorite': 'naocl',
+    'oxalic acid': 'oxalic_acid',
+    'citric acid': 'c6h8o7',
+    'formic acid': 'hcooh',
+    'phosphoric acid': 'h3po4',
+    'boric acid': 'h3bo3',
+    'barium hydroxide': 'ba_oh2',
+    'lithium hydroxide': 'lioh',
+    'potassium chromate': 'k2cro4',
+    'mohr salt': 'mohrs_salt',
+    'mohrs salt': 'mohrs_salt',
+    'alum': 'potash_alum',
+    'turmeric': 'curcumin_turmeric',
+    'red cabbage': 'red_cabbage_indicator',
+    'starch': 'starch_solution',
   };
 
   for (const [alias, canonicalId] of Object.entries(aliasMap)) {
@@ -291,11 +326,15 @@ export function findOrLookupCompound(query: string): {
     }
   }
 
-  // 3. Partial name or multi-atom formula match in canonical registry
+  // 3. Partial name, alias, or multi-atom formula match in canonical registry
   const matchInRegistry = canonicalRegistry.find((c) => {
     const idMatch = normalizeChemicalSearchText(c.id) === q;
     const nameNorm = normalizeChemicalSearchText(c.name);
     const nameMatch = nameNorm.includes(q) || q.includes(nameNorm);
+    const aliasMatch = (c.aliases || []).some((a) => {
+      const aNorm = normalizeChemicalSearchText(a);
+      return aNorm === q || (q.length >= 4 && (aNorm.includes(q) || q.includes(aNorm)));
+    });
     const formulaClean = normalizeChemicalSearchText(c.formula)
       .replace(/\((aq|s|l|g)\)/gi, '')
       .split('[')[0]
@@ -303,10 +342,21 @@ export function findOrLookupCompound(query: string): {
     const formulaMatch =
       formulaClean.length > 0 &&
       (formulaClean === qClean || (formulaClean.length >= 4 && qClean.includes(formulaClean)));
-    return idMatch || nameMatch || formulaMatch;
+    return idMatch || nameMatch || aliasMatch || formulaMatch;
   });
 
   if (matchInRegistry) {
+    if (matchInRegistry.isRestricted) {
+      return {
+        found: false,
+        compound: matchInRegistry,
+        sourceConfidence: `Restricted Reference Entry (${matchInRegistry.restrictionReason || 'Safety Restricted'})`,
+        message: `"${matchInRegistry.name} (${matchInRegistry.formula})" is a hazardous, toxic, or radioactive substance not permitted for interactive mixing in classroom virtual laboratories. ${
+          matchInRegistry.restrictionReason || ''
+        }`.trim(),
+        isNewEntry: false,
+      };
+    }
     return {
       found: true,
       compound: matchInRegistry,
@@ -315,7 +365,7 @@ export function findOrLookupCompound(query: string): {
     };
   }
 
-  // 3. Safety Check for Hazardous or Prohibited Substances
+  // 4. Safety Check for Unverified Hazardous or Prohibited Substances
   if (
     q.includes('uranium') ||
     q.includes('plutonium') ||
@@ -330,7 +380,7 @@ export function findOrLookupCompound(query: string): {
     };
   }
 
-  // 4. Honest Unverified Response
+  // 5. Honest Unverified Response
   return {
     found: false,
     message: `Could not find a verified educational compound entry for "${query}" in the canonical chemical database. Try searching for standard classroom compounds like "Sodium Bicarbonate", "Acetic Acid", "Calcium Carbonate", "Hydrochloric Acid", "Manganese Dioxide", or "Zinc".`,

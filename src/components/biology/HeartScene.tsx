@@ -5,8 +5,9 @@ import { HEART_STRUCTURES } from '../../data/biologyData';
 import { HeartStructureInfo } from '../../types/biology';
 import { Global3DViewer } from '../common/Global3DViewer';
 import { EducationalExplanationBox, ExplanationData } from '../common/EducationalExplanationBox';
-import { Activity, Heart, Droplets, Info } from 'lucide-react';
+import { Activity, Heart, Droplets, Info, Play, Pause } from 'lucide-react';
 import { setupPreBatch1StudioEnvironment } from '../../simulations/preBatch1VisualUpgradeStudio';
+import { soundEngine } from '../../utils/soundEngine';
 
 interface HeartSceneProps {
   selectedStructureId: string;
@@ -22,6 +23,22 @@ export const HeartScene: React.FC<HeartSceneProps> = ({ selectedStructureId, onS
   const [isPlaying, setIsPlaying] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [bpm, setBpm] = useState(72);
+
+  // State-driven cardiac S1/S2 lub-dub audio synchronization
+  useEffect(() => {
+    soundEngine.syncHeartbeat({
+      sourceId: 'heart-scene',
+      active: true,
+      bpm,
+      isPlaying,
+    });
+  }, [bpm, isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      soundEngine.stopSource('heart-scene');
+    };
+  }, []);
 
   const structure = HEART_STRUCTURES.find((s) => s.id === selectedStructureId) || HEART_STRUCTURES[0];
 
@@ -292,7 +309,38 @@ export const HeartScene: React.FC<HeartSceneProps> = ({ selectedStructureId, onS
               Cardiovascular Hemodynamics, 4 Chambers & Valvular Mechanics
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 bg-rose-50/80 border border-rose-200 px-3 py-1.5 rounded-xl">
+              <Activity className="w-3.5 h-3.5 text-rose-600" />
+              <label htmlFor="heart-scene-bpm-slider" className="text-xs font-semibold text-rose-900">
+                Heart Rate: <span className="font-mono font-bold">{bpm} BPM</span>
+              </label>
+              <input
+                id="heart-scene-bpm-slider"
+                type="range"
+                min={40}
+                max={180}
+                step={1}
+                value={bpm}
+                onChange={(e) => setBpm(parseInt(e.target.value, 10))}
+                className="w-24 sm:w-28 accent-rose-600 cursor-pointer"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsPlaying((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                isPlaying
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+              title={isPlaying ? 'Pause Cardiac Rhythm & Audio' : 'Resume Cardiac Rhythm & Audio'}
+            >
+              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              <span>{isPlaying ? 'Pumping' : 'Paused'}</span>
+            </button>
+
             <span className="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium">
               3D Interactive View
             </span>

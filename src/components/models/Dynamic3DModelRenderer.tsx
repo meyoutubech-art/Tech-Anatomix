@@ -131,6 +131,7 @@ import {
   createPreBatch1UpgradedGeometry,
   enhancePreBatch1ModelAssemblies,
 } from '../../simulations/preBatch1VisualUpgradeStudio';
+import { soundEngine } from '../../utils/soundEngine';
 
 
 
@@ -314,6 +315,7 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
 
   // Capture fresh initial snapshot and reset position when model changes
   useEffect(() => {
+    soundEngine.stopSource('dynamic-3d-renderer');
     const snap = captureInitialModelStateSnapshot(modelSpec);
     initialSnapshotRef.current = snap;
     setInternalParameters({ ...snap.parameters });
@@ -324,6 +326,23 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
     setIsPlaying(true);
     setLastParamWhy(null);
   }, [modelSpec.id]);
+
+  // Synchronize state-driven simulation audio with active 3D model, parameters, conditions, and play/pause state
+  useEffect(() => {
+    soundEngine.syncModelSimulationAudio({
+      sourceId: 'dynamic-3d-renderer',
+      modelSpec,
+      isPlaying,
+      parameters,
+      conditions,
+    });
+  }, [modelSpec, isPlaying, parameters, conditions]);
+
+  useEffect(() => {
+    return () => {
+      soundEngine.stopSource('dynamic-3d-renderer');
+    };
+  }, []);
 
   // Synchronize translation smoothly without recreating WebGL context
   useEffect(() => {
