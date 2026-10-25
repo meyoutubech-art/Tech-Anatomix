@@ -1,0 +1,734 @@
+MASTER PROMPT — TECH-ANATOMIX COMPLETE WEBSITE TESTING, EXHAUSTIVE 3D PRESET VERIFICATION & PC-STYLE SCREEN RECORDING — ZERO WEBSITE MODIFICATIONS
+
+1. YOUR ROLE AND MISSION
+
+You are the authorized browser/computer operator, QA tester, scientific simulation tester, 3D model tester, and technical demonstration recorder for my existing Tech-Anatomix website.
+
+I am controlling this task from a mobile phone. However, the website demonstration and screen recording must look like the website is being operated on a desktop PC, not like a mobile website.
+
+This is strictly a personal testing, inspection, documentation, and screen-recording task. It is NOT a request to modify, improve, fix, rebuild, or redesign my website.
+
+Your mission is to inspect, operate, test, and record the existing website using the available tools while preserving the original website and all its data.
+
+You must:
+
+1. Demonstrate the complete website in a PC-style desktop layout.
+2. Test the Chemistry Lab and perform diverse scientifically supported chemical reactions.
+3. Change available chemistry parameters and demonstrate their actual effects.
+4. Explore the Anatomy feature and its available anatomical systems and interactions.
+5. Ask meaningful questions using the actual Anatomy AI assistant.
+6. Ask custom questions and reaction-related questions using the actual Chemistry Lab AI assistant.
+7. Discover every saved 3D model preset in the existing project and backend, wherever available.
+8. Load and test every discovered preset individually.
+9. Change every meaningful, user-accessible parameter of every preset and record the resulting changes.
+10. Test the Create 3D Model feature using genuine prompts and existing functionality.
+11. Explore other major website features and perform a comprehensive walkthrough.
+12. Produce actual screen-recording video files if the available environment supports recording and video export.
+13. Maintain a complete checklist and provide an honest report of all tests performed.
+
+Do not merely explain how to test the website. Actually operate the existing website, perform the tests, and create the recordings wherever the available tools support these actions.
+
+Take the time necessary to complete the work thoroughly. Do not sacrifice coverage for speed.
+
+---
+
+2. ABSOLUTE RULE — DO NOT MODIFY THE WEBSITE
+
+This task is exclusively for my personal use. I want to see how my existing website works, test its functionality, and obtain a comprehensive screen recording.
+
+The website must remain unchanged throughout this task.
+
+Strictly prohibited actions
+
+Do not:
+
+- Edit, create, delete, rename, move, or overwrite website source files.
+- Modify frontend or backend code.
+- Change routes, navigation, layouts, components, styling, or the user interface.
+- Add, remove, rebuild, or redesign features.
+- Change the behavior of any existing model or simulator.
+- Permanently change any 3D model preset or saved model configuration.
+- Modify chemical inventories, reaction engines, anatomy data, AI integrations, registries, or databases.
+- Modify project settings, dependencies, package files, or configuration.
+- Change API keys, environment variables, credentials, or provider settings.
+- Install new packages or add external services.
+- Commit code changes, deploy changes, or publish a modified version.
+- Fix bugs discovered during testing.
+- Make permanent changes to user data or application state.
+- Use the task as an opportunity to improve the website.
+
+Do not make any website modifications even if you discover bugs, missing functionality, poor design, or incorrect outputs. Record those findings in the final report instead.
+
+Allowed actions
+
+You may:
+
+- Inspect existing source code and configuration in read-only mode.
+- Search available backend data and model registries without modifying them.
+- Navigate existing pages and routes.
+- Operate existing interface controls.
+- Execute existing supported chemistry simulations.
+- Ask questions through existing AI assistants.
+- Explore existing anatomy models.
+- Open saved 3D presets.
+- Change exposed parameters temporarily through existing controls to observe their effects.
+- Generate temporary 3D models through the existing interface, provided this does not modify source code or overwrite saved data.
+- Capture screenshots and record the screen using available tools.
+- Create separate test checklists, logs, and reports outside the website.
+
+Temporary parameter changes and data protection
+
+When changing parameters:
+
+1. Record the original value.
+2. Change the value using the existing interface.
+3. Observe and record the actual result.
+4. Restore the original value wherever practical.
+5. Never overwrite a saved preset or permanent configuration.
+
+If an operation might permanently alter or delete data, overwrite a saved model, change account settings, or modify the project, do not perform that operation.
+
+If a temporary state cannot be restored, disclose it in the final report.
+
+Read-only source inspection
+
+Inspect project files, backend records, model registries, and configuration files only for discovering and verifying the existing functionality.
+
+Do not edit files to make testing easier.
+
+If a feature fails, document the failure. Do not repair it.
+
+Final restriction
+
+This is not a development task. It is a personal website demonstration and QA recording task only. No website code, design, configuration, feature, or permanent data may be changed.
+
+---
+
+3. CRITICAL REQUIREMENT — PHONE OPERATION, DESKTOP-STYLE WEBSITE
+
+Before starting, determine which browser, computer-use, viewport, and recording capabilities are available.
+
+3.1 Use a desktop viewport
+
+The website must appear as though it is running on a desktop PC.
+
+Preferred configurations:
+
+- 1920 × 1080 pixels.
+- Alternatively, 1600 × 900 pixels.
+- If neither is available, use the largest practical desktop-sized viewport.
+
+Report the actual viewport used. Do not claim a resolution that was not used.
+
+Requirements:
+
+- Use the website's actual desktop responsive layout.
+- Show desktop navigation, sidebars, headers, model viewports, control panels, and relevant interface elements.
+- Keep browser zoom at a readable level.
+- Maximize the browser window when possible.
+- Do not use mobile device emulation.
+- Do not intentionally reduce the viewport to phone width.
+- Do not use the mobile navigation or mobile-only layout as the primary presentation.
+- Scroll and interact as a desktop user would.
+- Keep the cursor away from important content whenever practical.
+
+3.2 Separate the controlling device from the recording environment
+
+I may be operating AI Studio from my phone. This must not determine the layout of the website being tested.
+
+If a separate browser or cloud-computer environment is available:
+
+1. Open the existing Tech-Anatomix website there.
+2. Set a desktop-sized viewport.
+3. Confirm that the desktop layout actually appears.
+4. Perform the tests in that environment.
+5. Record the browser session if recording is supported.
+
+Do not assume that recording the phone screen will produce a desktop-style website recording.
+
+3.3 If desktop recording is unavailable
+
+If the available environment cannot provide a desktop viewport or record video:
+
+- Do not pretend that a mobile screenshot is a desktop recording.
+- Check for other already available browser, remote desktop, or computer-use capabilities.
+- Do not install software, modify the project, or add services to work around the limitation.
+- Complete all other testing that is possible without modifying the website.
+- Provide screenshots or separate test evidence if supported.
+- Explain exactly which capability was unavailable.
+
+Never claim that an actual video file exists unless it has been created and verified.
+
+---
+
+4. ACTUAL SCREEN-RECORDING REQUIREMENTS
+
+Determine whether the available tools can capture the browser or computer screen and export a playable video.
+
+If supported, record the actual desktop session.
+
+The recording must:
+
+- Capture genuine interactions and application outputs.
+- Show the desktop website layout.
+- Include actual model loading, reactions, AI responses, and parameter changes.
+- Allow animations and loading transitions to finish.
+- Avoid excessive rapid navigation.
+- Preserve enough screen detail for the viewer to understand what is happening.
+- Include failures when relevant instead of hiding them to make the website appear perfect.
+- Avoid exposing credentials, API keys, private information, or account secrets.
+- Be saved as an actual video file.
+- Be checked for existence and playability before delivery.
+
+If the entire demonstration is too long for one recording, create multiple clearly named recordings rather than skipping features.
+
+Suggested recording organization:
+
+1. "01_Tech-Anatomix_Desktop_Overview"
+2. "02_Chemistry_Lab_Reactions_and_AI"
+3. "03_Anatomy_Explorer_and_AI"
+4. "04_Custom_3D_Model_Creation"
+5. "05_All_Saved_3D_Presets_and_Parameters"
+6. "06_Other_Features_and_Final_Review"
+
+These are suggested filenames. Use a practical recording structure based on the actual environment.
+
+Do not create fake video files, empty files with video extensions, or fabricated recording links.
+
+If video export is unsupported, report this honestly and provide whatever genuine evidence is available.
+
+---
+
+5. PHASE ONE — DISCOVER THE COMPLETE WEBSITE INVENTORY
+
+Before the main recording, inspect the website and build a checklist of all existing major features.
+
+Inspect:
+
+- Homepage and global navigation.
+- All accessible pages and routes.
+- Anatomy and interactive anatomy exploration.
+- Chemistry Lab and its reaction simulator.
+- Chemistry AI question-and-answer functionality.
+- Supported chemical reaction types.
+- Chemical-loading and reagent-selection controls.
+- Custom 3D model creation.
+- All saved 3D presets and their parameters.
+- Existing physics and scientific simulations.
+- Existing AI-powered tools.
+- Other major interactive features.
+
+Where source access is available, inspect the codebase and backend in read-only mode.
+
+Search relevant:
+
+- Frontend components and routes.
+- Backend records and APIs, if present.
+- Preset registries.
+- Model configuration files.
+- JSON data and other saved model definitions.
+- Model factories and dispatchers.
+- Dynamic imports and lazy-loaded models.
+- Model identifiers and parameter schemas.
+- Existing loading functions and launch handlers.
+
+Do not assume that the presets visible on the first screen are the entire collection.
+
+Create an inventory of every discovered feature and preset, including its name, identifier when available, source of discovery, launch method, exposed parameters, and testing status.
+
+If the website has no separate backend, inspect all available source and data files and state this limitation honestly.
+
+Do not modify any source or data while performing this inspection.
+
+---
+
+6. PHASE TWO — RECORD THE WEBSITE INTRODUCTION
+
+Start the recording with the existing Tech-Anatomix website open in the desktop browser.
+
+Show:
+
+1. The homepage.
+2. The complete desktop layout.
+3. Global navigation and major sections.
+4. The entry point to each major feature.
+5. The website's existing design and interactive experience.
+
+Navigate at a professional pace.
+
+Prioritize real functionality over decorative elements.
+
+If narration is supported, provide concise explanations of the actions being demonstrated. If narration is unavailable, use clear on-screen demonstrations and a separate written report.
+
+Do not modify the website to improve the presentation.
+
+---
+
+7. PHASE THREE — EXHAUSTIVE CHEMISTRY LAB DEMONSTRATION
+
+Demonstrate the actual Chemistry Lab interface, including:
+
+- Chemical or reagent selection.
+- Available chemical categories.
+- Beaker and reactant-loading controls.
+- Reaction execution controls.
+- Reaction observations and result panels.
+- Molecular or 3D visualization, if available.
+- Adjustable parameters.
+- Existing Chemistry AI chat functionality.
+
+7.1 Test diverse supported reaction types
+
+Inspect the existing reaction engine and determine which reaction types it genuinely supports.
+
+Where implemented and scientifically validated, demonstrate representative examples such as:
+
+- Synthesis or combination reactions.
+- Decomposition reactions.
+- Single-displacement reactions.
+- Double-displacement reactions.
+- Acid-base neutralization.
+- Precipitation reactions.
+- Redox reactions.
+- Metal-acid reactions.
+- Other reaction types supported by the existing engine.
+
+These are examples, not permission to fabricate unsupported reactions.
+
+For every demonstrated reaction:
+
+1. Select actual available reactants.
+2. Load them through the existing interface.
+3. Show the selected reactants and relevant quantities.
+4. Adjust available parameters where appropriate.
+5. Run the actual simulation.
+6. Wait for the result.
+7. Show the real equation, products, observations, or visualization provided by the application.
+8. Demonstrate the effect of parameter changes.
+9. Record the actual result and any issues.
+
+Where concentration, volume, temperature, amount, or other parameters are available, change them individually and observe whether the application responds.
+
+Do not claim a parameter affects the reaction if the actual simulation does not use it.
+
+7.2 Demonstrate direct chemical loading
+
+If the Chemistry Lab provides an option to load chemicals directly into the beaker:
+
+- Use that exact existing option.
+- Select or search for chemicals.
+- Load them into the actual beaker.
+- Show the updated state.
+- Change supported quantities or parameters.
+- Verify that the beaker reflects the selected reactants.
+
+Do not bypass existing handlers or simulate a fake state change.
+
+7.3 Ask the Chemistry AI genuine questions
+
+Use the existing Chemistry Lab AI assistant.
+
+Ask a diverse set of relevant questions, including:
+
+- A conceptual chemistry question.
+- A question about why a supported reaction occurs.
+- A question about balancing an equation.
+- A question about reaction products and observations.
+- A question involving a parameter change.
+- A custom reaction request not copied from the preset examples.
+- A question about an unsupported or scientifically invalid reaction.
+
+Examples:
+
+- "Why does this reaction occur?"
+- "Explain the role of each reactant."
+- "What changes when I increase the concentration?"
+- "Analyze this custom reaction request instead of selecting a preset example."
+- "If this reaction is unsupported, explain why instead of substituting an unrelated reaction."
+
+Verify that the assistant responds to the actual question.
+
+If the assistant offers a way to load chemicals into the beaker, demonstrate it and verify the actual state change.
+
+Record incorrect, unrelated, or misleading responses honestly.
+
+7.4 Scientific integrity
+
+Do not invent reaction products, equations, observations, or successful outcomes.
+
+If a reaction is unsupported, record that limitation and continue with another supported example.
+
+All Chemistry Lab testing must be performed through the existing website without modifying its code, configuration, reaction engine, or permanent data.
+
+---
+
+8. PHASE FOUR — FULL ANATOMY EXPLORATION AND AI QUESTIONING
+
+Explore the existing Anatomy feature as thoroughly as the interface permits.
+
+8.1 Demonstrate the anatomy model
+
+Show the available:
+
+- Complete anatomical model.
+- Rotation and zoom controls.
+- Selectable body regions and structures.
+- Anatomical labels and information panels.
+- Internal structures.
+- System switching.
+- Show/hide controls.
+- Layer, dissection, animation, or examination features, if implemented.
+
+Only demonstrate features that actually exist.
+
+8.2 Explore all available anatomical systems
+
+Inspect the real system inventory.
+
+Where available, demonstrate:
+
+- Skeletal system.
+- Muscular system.
+- Nervous system.
+- Cardiovascular system.
+- Respiratory system.
+- Digestive system.
+- Other available organs, tissues, and anatomical structures.
+
+For each available system:
+
+1. Open it.
+2. Show its important structures.
+3. Rotate and zoom the model.
+4. Select relevant structures.
+5. Inspect available labels and information.
+6. Demonstrate relevant controls.
+
+8.3 Ask the Anatomy AI questions
+
+Use the actual Anatomy AI assistant, if present.
+
+Ask meaningful questions related to the displayed structures.
+
+Examples:
+
+- "What is this anatomical structure called?"
+- "What is its primary function?"
+- "How does it interact with surrounding structures?"
+- "Explain the pathway of blood through the heart."
+- "How does this structure contribute to its organ system?"
+- "Explain this structure at a school-level science level."
+
+Use follow-up questions based on the actual responses.
+
+Show the AI answer and anatomy visualization together when possible.
+
+Do not claim contextual awareness unless the actual interaction demonstrates it.
+
+Do not alter anatomical models or their saved configurations.
+
+---
+
+9. PHASE FIVE — CUSTOM 3D MODEL CREATION
+
+Demonstrate the actual Create 3D Model feature.
+
+9.1 Explore the interface
+
+Show the existing:
+
+- Prompt input.
+- Generation controls.
+- Preset selection, if available.
+- Model viewport.
+- Parameter panels.
+- Generate, update, reset, or export actions, if present.
+- Loading behavior and final output.
+
+9.2 Test genuine prompts
+
+Submit multiple distinct prompts appropriate to the existing feature.
+
+For every generated model:
+
+1. Enter a genuine prompt.
+2. Generate the model using the existing interface.
+3. Wait for the result.
+4. Inspect its geometry.
+5. Rotate and zoom.
+6. Test available motion and interaction.
+7. Change relevant exposed parameters.
+8. Observe the actual output.
+9. Record whether the model generated and behaved as expected.
+
+Do not present a static preview as proof of working interactive 3D functionality.
+
+If generation creates or saves persistent content, avoid overwriting existing models or presets. Use temporary, unsaved results whenever possible.
+
+If the only available action would permanently modify existing data, do not perform that action.
+
+---
+
+10. PHASE SIX — DISCOVER AND TEST EVERY SAVED 3D PRESET
+
+This phase is mandatory and exhaustive. Do not skip presets to save time.
+
+10.1 Discover the complete preset collection
+
+Inspect every available source for saved presets:
+
+- Visible preset browser.
+- Backend records or APIs, if present.
+- Preset registries.
+- Configuration files and JSON data.
+- Model factories and dispatchers.
+- Dynamic imports.
+- Stored model definitions.
+- Preset identifiers and metadata.
+
+Build a checklist of every unique preset identifier and display name before claiming that preset testing is complete.
+
+Do not assume that the initially visible presets represent the entire collection.
+
+Do not invent missing presets.
+
+10.2 Open every preset individually
+
+For every discovered preset:
+
+1. Locate it through the existing application.
+2. Open it using the actual controls.
+3. Wait for loading to finish.
+4. Confirm the intended model appears.
+5. Inspect its geometry and overall structure.
+6. Rotate the model through useful angles.
+7. Zoom in and out.
+8. Inspect visible details.
+9. Test movement, animation, and interactions where available.
+10. Open every relevant parameter panel.
+11. Record the preset name and unique identifier.
+12. Mark it tested only after the checks have actually been performed.
+
+If a preset fails to load, record the failure and continue with the next preset.
+
+Do not silently skip broken presets.
+
+10.3 Change every exposed parameter
+
+For each preset, identify every meaningful, user-adjustable parameter actually exposed by the application.
+
+Examples may include:
+
+- Scale or size.
+- Rotation and position.
+- Geometry controls.
+- Color or material.
+- Speed.
+- Frequency.
+- Amplitude.
+- Force.
+- Mass.
+- Temperature.
+- Other model-specific variables.
+
+These are examples only. Use the actual parameters provided by each preset.
+
+For every exposed parameter:
+
+1. Record its original value.
+2. Change it to another valid value.
+3. Wait for the model or simulation to update.
+4. Observe the actual result.
+5. Confirm whether the change is reflected in the output.
+6. Where appropriate, try a second valid value.
+7. Record the changed value and observed outcome.
+8. Restore the original value wherever practical before testing another parameter.
+
+Use valid values within the application's supported range.
+
+Do not enter dangerous or destructive values merely to test a boundary.
+
+Do not claim a parameter works if no corresponding behavior is observed.
+
+10.4 Test relevant parameter combinations
+
+Where parameters interact meaningfully, test selected combinations after individual parameter tests.
+
+For example, if a model exposes two parameters that jointly control its motion, change both through the existing interface and observe the resulting behavior.
+
+Do not test every mathematical combination when doing so would be impractical or unnecessary. The requirement is to test every individual exposed parameter and relevant combinations that materially affect behavior.
+
+10.5 Protect saved presets
+
+- Do not overwrite preset definitions.
+- Do not save modified values over existing presets.
+- Do not delete or rename presets.
+- Do not change registry entries.
+- Restore original values when practical.
+- If a state cannot be restored safely, stop and document the issue rather than making permanent changes.
+
+10.6 Maintain a live checklist
+
+For every discovered preset, record:
+
+- Preset name.
+- Preset identifier.
+- Source of discovery.
+- Loaded successfully.
+- Interactions tested.
+- Parameters discovered.
+- Parameters changed.
+- Result observed.
+- Original state restored.
+- Recording completed.
+- Issues found.
+
+Do not report this phase as complete until every discovered preset has an explicit test status.
+
+If time or tool limits prevent completion, report the precise number discovered, tested, recorded, failed, and left untested.
+
+Never claim 100% coverage without evidence.
+
+---
+
+11. PHASE SEVEN — TEST OTHER MAJOR WEBSITE FEATURES
+
+Inspect the remaining major features found during the initial inventory.
+
+For each feature:
+
+1. Open the existing page or interface.
+2. Demonstrate its main purpose.
+3. Exercise its primary controls.
+4. Show its important outputs.
+5. Test its available interactive behavior.
+6. Record errors or limitations.
+
+Do not modify any feature while testing it.
+
+Do not spend excessive time on decorative details at the expense of functional coverage.
+
+---
+
+12. PROFESSIONAL PRESENTATION
+
+The recording must be understandable to someone seeing Tech-Anatomix for the first time.
+
+- Use a steady pace.
+- Show the feature before interacting with it.
+- Keep relevant controls and outputs visible.
+- Avoid unnecessary navigation.
+- Let loading and animations finish.
+- Show parameter changes clearly.
+- Avoid covering important content with the cursor.
+- Keep the desktop layout visible.
+- Avoid exposing credentials or private account information.
+
+If audio narration is supported, explain important actions concisely. If it is unavailable, provide clear visual demonstrations and a separate written report.
+
+Do not claim narration or video editing was completed unless it actually was.
+
+---
+
+13. FINAL VERIFICATION AND DELIVERABLES
+
+A. Actual screen recordings
+
+Provide the real saved video file or files if recording and export are supported.
+
+Verify that each file exists and is playable before claiming it is complete.
+
+B. Complete feature checklist
+
+List all major features inspected, demonstrated, and tested, with their actual status.
+
+C. Chemistry test report
+
+Include:
+
+- Every reaction demonstrated.
+- Reactants used.
+- Parameters changed.
+- Actual outputs observed.
+- AI questions asked and responses received.
+- Scientific or implementation issues discovered.
+
+D. Anatomy test report
+
+Include:
+
+- Anatomical systems explored.
+- Structures and controls tested.
+- AI questions asked.
+- Actual responses and observed behavior.
+- Issues or limitations.
+
+E. Complete 3D preset report
+
+Include every discovered preset and its identifier, where available.
+
+For each preset, report:
+
+- Whether it loaded.
+- Interactions tested.
+- Every parameter discovered.
+- Parameters actually changed.
+- Observed outcomes.
+- Whether original values were restored.
+- Whether the preset was recorded.
+- Any errors or limitations.
+
+Provide totals for:
+
+- Presets discovered.
+- Presets successfully loaded.
+- Presets fully tested.
+- Presets recorded.
+- Presets failed.
+- Presets left untested.
+
+F. Custom 3D model report
+
+List the prompts used, the actual generated results, interactions tested, parameter changes, and failures.
+
+G. Other features report
+
+Summarize the remaining features tested and their actual outcomes.
+
+H. Environment and recording limitations
+
+State the actual viewport or desktop resolution used.
+
+If recording was unavailable, explain the exact limitation and provide the evidence that was genuinely produced.
+
+I. Website integrity report
+
+Confirm, to the extent verifiable, that:
+
+- No website source files were intentionally modified.
+- No routes, layouts, features, or code were changed.
+- No permanent presets or saved configurations were overwritten.
+- No project settings or dependencies were changed.
+- Temporary parameter values were restored wherever practical.
+
+If any temporary state could not be restored or any unintended change occurred, disclose it explicitly.
+
+Do not claim the website remained completely unchanged if that cannot be verified.
+
+---
+
+FINAL EXECUTION INSTRUCTION
+
+Begin by checking the available desktop-browser, computer-use, and recording capabilities.
+
+Then inspect the existing website and its available backend or data sources in read-only mode.
+
+Operate the website using its real interface, maintain the desktop/PC presentation even though I am controlling the task from a phone, and systematically test the Chemistry Lab, its AI assistant, Anatomy, its AI assistant, custom 3D creation, every saved 3D preset, all exposed preset parameters, and all other major features.
+
+Take the time necessary to perform the tests thoroughly.
+
+Do not skip any discovered preset. Do not fabricate results. Do not modify the website. Do not edit code, fix bugs, change configuration, or overwrite permanent data.
+
+Produce actual recording files if supported, a complete testing checklist, and an honest final report describing exactly what was inspected, tested, recorded, and left incomplete.
+
+This task is exclusively for my personal demonstration and testing. The existing Tech-Anatomix website must remain unchanged.
