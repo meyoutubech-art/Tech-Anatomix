@@ -388,15 +388,6 @@ export const AnatomyPage: React.FC<AnatomyPageProps> = ({ onNavigate, initialSpe
                 <span>Anatomy Knowledge Check ({activeQuizQuestions.length} Questions)</span>
               </button>
             </div>
-
-            <button
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
-              title="Export Anatomy Curriculum as PowerPoint Presentation (.pptx)"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-rose-400" />
-              <span>Export Presentation (.pptx)</span>
-            </button>
           </div>
         </div>
       </section>

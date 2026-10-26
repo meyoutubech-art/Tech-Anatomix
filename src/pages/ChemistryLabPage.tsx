@@ -1629,17 +1629,6 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                     <span className="text-[10px] text-slate-400 mt-1 block italic">
                       Educational Visualization Notice: 3D particle settling, effervescent bubbles, and color transitions are synchronized representations of this stoichiometric result.
                     </span>
-                    {evaluatedResult.isSupported && (
-                      <div className="pt-2 mt-1 border-t border-slate-100 flex items-center justify-end">
-                        <button
-                          onClick={() => setIsExportModalOpen(true)}
-                          className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                        >
-                          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Export Experiment Slides (.pptx)</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

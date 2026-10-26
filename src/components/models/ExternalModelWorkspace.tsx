@@ -110,18 +110,6 @@ export const ExternalModelWorkspace: React.FC<ExternalModelWorkspaceProps> = ({
               <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
             </a>
           )}
-
-          {onExportPresentation && (
-            <button
-              type="button"
-              onClick={onExportPresentation}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-              title="Export 3D Model Deck as PowerPoint (.pptx)"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-rose-400" />
-              <span>Export .pptx</span>
-            </button>
-          )}
         </div>
       </div>
 

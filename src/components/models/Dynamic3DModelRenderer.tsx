@@ -7504,15 +7504,6 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                     <RotateCcw className="w-3.5 h-3.5 text-sky-600" />
                     <span>Retry / Reset</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsExportModalOpen(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                    title="Export 3D Model Deck as PowerPoint (.pptx)"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Export .pptx</span>
-                  </button>
                   <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                     {Object.keys(modelSpec.parameters).length} Params
                   </span>

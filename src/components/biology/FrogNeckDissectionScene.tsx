@@ -892,72 +892,6 @@ export const FrogNeckDissectionScene: React.FC<FrogNeckDissectionSceneProps> = (
       }}
       className="w-full flex flex-col gap-4 bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-2xl relative"
     >
-      {/* Viewport Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-        <div className="flex items-center gap-2.5">
-          <span className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-            <Scissors className="w-4 h-4" />
-          </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Interactive Neck Rotation Dissection
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800 font-semibold">
-                Mouse-Operated
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Click & drag the glowing neck portion with your mouse to rotate and sever cervical tissues.
-            </p>
-          </div>
-        </div>
-
-        {/* Action Controls & Sound Toggle */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={toggleSound}
-            className={`p-2 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
-              soundEnabled
-                ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
-                : 'bg-slate-900/60 border-slate-800 text-slate-600'
-            }`}
-            title={soundEnabled ? 'Mute Dissection Audio' : 'Unmute Dissection Audio'}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </button>
-
-          <button
-            onClick={() => handleSetCameraPreset('ventral')}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
-              cameraMode === 'ventral'
-                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-            }`}
-          >
-            Ventral
-          </button>
-          <button
-            onClick={() => handleSetCameraPreset('cranial')}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
-              cameraMode === 'cranial'
-                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-700/60'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
-            }`}
-          >
-            Neck Close-Up
-          </button>
-
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold transition-colors cursor-pointer"
-            title="Reset Dissection Angle"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset</span>
-          </button>
-        </div>
-      </div>
 
       {/* Main 3D Canvas Viewport */}
       <div className="relative w-full h-[400px] sm:h-[450px] lg:h-[480px] rounded-2xl overflow-hidden border border-slate-800/90 shadow-2xl bg-[#0a0f1d]">
@@ -997,7 +931,7 @@ export const FrogNeckDissectionScene: React.FC<FrogNeckDissectionSceneProps> = (
               ) : isDraggingNeck ? (
                 <span className="text-amber-300 font-medium">Rotating neck... continue to 90°</span>
               ) : (
-                <span className="text-slate-400">Drag green neck ring or use slider below</span>
+                <span className="text-slate-400">Drag green neck ring with mouse to rotate</span>
               )}
             </div>
           </div>
@@ -1027,74 +961,6 @@ export const FrogNeckDissectionScene: React.FC<FrogNeckDissectionSceneProps> = (
         onToggleKeyboardActive={setIsKeyboardActive}
       />
 
-      {/* Accessible Slider & Step Controls Strip */}
-      <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
-              Neck Rotation Precision Controller
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span>Drag mouse on 3D neck OR use slider below</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-slate-500 font-mono">0° (Closed)</span>
-          <input
-            type="range"
-            min="0"
-            max="90"
-            value={neckAngleDeg}
-            onChange={(e) => handleAngleChange(Number(e.target.value))}
-            className="flex-1 accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-          />
-          <span className="text-xs text-emerald-400 font-mono font-bold">90° (Dissected)</span>
-        </div>
-
-        {/* Quick Angle Jump Pills */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-slate-400">Quick Angles:</span>
-            <button
-              onClick={() => handleAngleChange(0)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors cursor-pointer"
-            >
-              0°
-            </button>
-            <button
-              onClick={() => handleAngleChange(30)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors cursor-pointer"
-            >
-              30°
-            </button>
-            <button
-              onClick={() => handleAngleChange(60)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors cursor-pointer"
-            >
-              60°
-            </button>
-            <button
-              onClick={() => handleAngleChange(90)}
-              className="px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-xs font-mono font-bold transition-colors cursor-pointer"
-            >
-              90° (Complete)
-            </button>
-          </div>
-
-          {!completed && (
-            <button
-              onClick={handleAutoDissect}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
-            >
-              <Play className="w-3.5 h-3.5" />
-              <span>Auto-Rotate Neck</span>
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
