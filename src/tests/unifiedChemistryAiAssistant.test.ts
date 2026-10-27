@@ -218,4 +218,34 @@ test('TECH-ANATOMIX — Unified Chemistry AI Assistant Verification Suite', asyn
     assert.strictEqual(runResult.status, 'ready');
     assert.strictEqual(runResult.reaction?.id, chosenCard.id);
   });
+
+  await t.test('E. DYNAMIC SCIENTIFIC COMPOUND ADDITION & REACTION SYNTHESIS: Unlisted chemicals added to list & reaction engine', () => {
+    // 1. Potassium Thiocyanate (KSCN) + Iron(III) Chloride (FeCl3) -> Blood-Red [Fe(SCN)]2+ Complex
+    const kscnRes = resolveAiChemistryAssistantQuery('Potassium Thiocyanate and Iron(III) Chloride');
+    assert.strictEqual(kscnRes.isSimulatorExecutable, true);
+    assert.ok(kscnRes.matchedReaction, 'Must synthesize scientifically accurate Fe3+ + SCN- reaction');
+    assert.ok(
+      kscnRes.matchedReaction?.balancedEquation.includes('[Fe(SCN)]²⁺'),
+      'Must form blood-red thiocyanatoiron(III) complex'
+    );
+
+    // 2. Ascorbic Acid + Iodine -> Vitamin C redox decolorization
+    const vitCRes = resolveAiChemistryAssistantQuery('Ascorbic Acid + Iodine');
+    assert.strictEqual(vitCRes.isSimulatorExecutable, true);
+    assert.ok(
+      vitCRes.matchedReaction?.balancedEquation.includes('C₆H₈O₆') &&
+        vitCRes.matchedReaction?.balancedEquation.includes('2HI'),
+      'Must synthesize stoichiometric Vitamin C + I2 redox equation'
+    );
+
+    // 3. Arbitrary IUPAC salt not in static preset list (e.g. Rubidium Carbonate + Hydrochloric Acid)
+    const rbCarbRes = resolveAiChemistryAssistantQuery('Rubidium Carbonate + Hydrochloric Acid');
+    assert.strictEqual(rbCarbRes.isSimulatorExecutable, true);
+    assert.ok(
+      rbCarbRes.matchedReaction?.observableEffects.producesGas &&
+        rbCarbRes.matchedReaction?.observableEffects.gasName?.includes('CO₂'),
+      'Carbonate + Acid must evolve CO2 gas'
+    );
+  });
 });
+

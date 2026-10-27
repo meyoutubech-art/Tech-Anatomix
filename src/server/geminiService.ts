@@ -2290,3 +2290,121 @@ export async function getSafeDiagnostics() {
     candidates: status.candidates,
   };
 }
+
+// 7. AI-Assisted Chemical Compound Verification & Synthesis
+export async function resolveChemicalCompoundWithAi(query: string): Promise<{
+  found: boolean;
+  isRestricted?: boolean;
+  compound?: {
+    id: string;
+    name: string;
+    formula: string;
+    state: 'liquid' | 'solid' | 'gas';
+    color: string;
+    isColorless: boolean;
+    type: 'acid' | 'base' | 'salt' | 'metal' | 'indicator' | 'oxidizer' | 'catalyst' | 'reagent' | 'reducing_agent';
+    category: 'acid' | 'base' | 'salt' | 'metal' | 'indicator' | 'oxidizer' | 'catalyst';
+    subcategory: string;
+    description: string;
+    unit: 'mL' | 'g';
+    pourAmount: number;
+    hazard?: string;
+  };
+  message?: string;
+}> {
+  const client = getAiClient();
+  if (!client) {
+    return {
+      found: false,
+      message: 'Live AI synthesis unavailable (offline mode). Using local canonical chemical database.',
+    };
+  }
+
+  const execution = await modelRouter.executeWithModelFallback<any>(
+    'chat_assistant',
+    async (modelId: string) => {
+      const response = await client.models.generateContent({
+        model: modelId,
+        contents: `You are an expert IUPAC chemist and laboratory safety officer.
+The user wants to add the chemical "${query}" to an educational virtual chemistry laboratory reagent shelf and reaction simulator.
+Determine if "${query}" is a real, scientifically valid chemical compound or element.
+- If it is fictional/nonsense (e.g. "kryptonite", "unobtainium"), return {"isValid": false, "isProhibited": false, "reason": "Not a real chemical substance."}.
+- If it is a chemical weapon, nerve agent, extreme toxin, or radioactive material (e.g. sarin, VX, cyanide, radium, plutonium, uranium), return {"isValid": false, "isProhibited": true, "reason": "Hazardous, toxic, or radioactive substance prohibited in classroom virtual laboratories."}.
+- If it is a real, valid chemical compound or element, return JSON with exact IUPAC/common name, formula with Unicode subscripts and phase suffix like (aq) or (s), physical state in aqueous lab ('liquid' for aqueous solutions/acids/bases/soluble salts, 'solid' for insoluble solids/metals/catalysts, 'gas' for gases), hex color in aqueous solution/solid (use '#F8FAFC' if colourless/white), isColorless boolean, category ('acid' | 'base' | 'salt' | 'metal' | 'indicator' | 'oxidizer' | 'catalyst'), type ('acid' | 'base' | 'salt' | 'metal' | 'indicator' | 'oxidizer' | 'catalyst' | 'reagent' | 'reducing_agent'), subcategory, concise scientific description (1-2 sentences including dissociation or reactivity), unit ('mL' or 'g'), pourAmount (20 for mL, 10 for g), and optional hazard note.
+
+Return ONLY valid JSON matching:
+{
+  "isValid": boolean,
+  "isProhibited": boolean,
+  "reason": string,
+  "compound": {
+    "id": string,
+    "name": string,
+    "formula": string,
+    "state": "liquid" | "solid" | "gas",
+    "color": string,
+    "isColorless": boolean,
+    "category": "acid" | "base" | "salt" | "metal" | "indicator" | "oxidizer" | "catalyst",
+    "type": "acid" | "base" | "salt" | "metal" | "indicator" | "oxidizer" | "catalyst" | "reagent" | "reducing_agent",
+    "subcategory": string,
+    "description": string,
+    "unit": "mL" | "g",
+    "pourAmount": number,
+    "hazard": string
+  }
+}`,
+      });
+
+      const parsed = JSON.parse(cleanJsonText(response.text || '{}'));
+      return parsed;
+    },
+    12000
+  );
+
+  if (execution && execution.result) {
+    const res = execution.result as any;
+    if (res.isProhibited) {
+      return {
+        found: false,
+        isRestricted: true,
+        message: res.reason || `"${query}" is a prohibited hazardous or radioactive substance.`,
+      };
+    }
+    if (res.isValid && res.compound && res.compound.name && res.compound.formula) {
+      const c = res.compound;
+      const safeId =
+        String(c.id || c.name)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '') || `custom_${Date.now()}`;
+      return {
+        found: true,
+        compound: {
+          id: safeId,
+          name: String(c.name),
+          formula: String(c.formula),
+          state: c.state === 'solid' || c.state === 'gas' ? c.state : 'liquid',
+          color: /^#[0-9A-Fa-f]{6}$/.test(c.color) ? c.color : '#F8FAFC',
+          isColorless: Boolean(c.isColorless ?? c.color === '#F8FAFC'),
+          type: c.type || c.category || 'salt',
+          category: c.category || 'salt',
+          subcategory: String(c.subcategory || 'Verified Chemical Reagent'),
+          description: String(c.description || `${c.name} (${c.formula}) — verified laboratory reagent.`),
+          unit: c.unit === 'g' ? 'g' : 'mL',
+          pourAmount: Number(c.pourAmount) || (c.unit === 'g' ? 10 : 20),
+          hazard: c.hazard ? String(c.hazard) : undefined,
+        },
+      };
+    }
+    return {
+      found: false,
+      message: res.reason || `Could not verify "${query}" as a valid classroom chemical compound.`,
+    };
+  }
+
+  return {
+    found: false,
+    message: `Could not find a verified educational compound entry for "${query}".`,
+  };
+}
+

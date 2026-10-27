@@ -320,22 +320,30 @@ export function extractCanonicalCompoundsFromQuery(queryText: string): {
   // 1. Clean conversational prefixes and split by conjunctions
   const cleanedPhrase = qLower
     .replace(
-      /^(what\s+is|what\s+are|tell\s+me\s+about|explain\s+the\s+reaction\s+between|explain\s+the\s+reaction\s+of|explain|describe|what\s+happens\s+when|what\s+happens\s+if\s+i\s+mix|what\s+happens\s+if|reaction\s+of|reaction\s+between|properties\s+of|role\s+of|add|load|pour|put|mix)\s+/i,
+      /^(please\s+|can\s+you\s+|could\s+you\s+)?(what\s+is|what\s+are|tell\s+me\s+about|explain\s+the\s+reaction\s+between|explain\s+the\s+reaction\s+of|explain|describe|what\s+happens\s+when|what\s+happens\s+if\s+i\s+mix|what\s+happens\s+if|reaction\s+of|reaction\s+between|properties\s+of|role\s+of|add|load|pour|put|mix|react|combine)\s+/i,
       ''
     )
-    .replace(/\s+(into\s+the\s+beaker|to\s+the\s+beaker|in\s+the\s+beaker|in\s+acidic\s+medium|in\s+alkaline\s+medium|in\s+basic\s+medium|in\s+water|under\s+standard\s+conditions)\s*$/i, '')
+    .replace(
+      /\s+(into\s+the\s+beaker|to\s+the\s+beaker|in\s+the\s+beaker|to\s+the\s+list|in\s+the\s+list|to\s+the\s+shelf|to\s+the\s+library|in\s+the\s+reaction|to\s+the\s+reaction|in\s+acidic\s+medium|in\s+alkaline\s+medium|in\s+basic\s+medium|in\s+water|under\s+standard\s+conditions)\s*$/i,
+      ''
+    )
     .replace(/[?.!]+$/g, '')
     .trim();
 
   const segments = cleanedPhrase
-    .split(/\s*(?:\+|\band\b|\bwith\b|\bplus\b|\bvs\.?\b|\breacts\s+with\b|\bis\s+mixed\s+with\b|\bis\s+added\s+to\b|,)\s*/i)
+    .split(
+      /\s*(?:\+|\band\s+react\s+it\s+with\b|\band\s+mix\s+with\b|\band\b|\bwith\b|\bplus\b|\bvs\.?\b|\breacts\s+with\b|\bis\s+mixed\s+with\b|\bis\s+added\s+to\b|,)\s*/i
+    )
     .map((s) =>
       s
         .replace(
-          /^(reacting|mixing|combining|adding|loading|if\s+i\s+mix|when\s+mixing|between|the\s+reaction\s+between|does)\s+/i,
+          /^(reacting|react|mixing|combining|adding|loading|if\s+i\s+mix|when\s+mixing|between|the\s+reaction\s+between|does)\s+/i,
           ''
         )
-        .replace(/\s+(react|reacts|are\s+mixed|is\s+added|together|in\s+acidic\s+medium|in\s+basic\s+medium|to\s+beaker|into\s+beaker).*$/i, '')
+        .replace(
+          /\s+(react|reacts|are\s+mixed|is\s+added|together|in\s+acidic\s+medium|in\s+basic\s+medium|to\s+beaker|into\s+beaker|to\s+the\s+list|in\s+the\s+list|to\s+the\s+shelf|in\s+the\s+reaction).*$/i,
+          ''
+        )
         .trim()
     )
     .filter((s) => s.length >= 2 && !STOP_WORDS.has(s));
@@ -1358,7 +1366,28 @@ export function resolveAiChemistryAssistantQuery(
   // 6. Single Canonical Compound Mentioned
   if (matched.length === 1) {
     const reagent = matched[0];
-    const compatible = REACTIONS.filter((rx) => rx.reactants.includes(reagent.id));
+    let compatible = REACTIONS.filter((rx) => rx.reactants.includes(reagent.id));
+
+    // For newly added / synthesized compounds or extended registry compounds, synthesize verified partner reactions
+    if (compatible.length === 0 && !reagent.isRestricted && reagent.category !== 'catalyst') {
+      const candidatePartners = ['fecl3', 'agno3', 'naoh', 'hcl', 'nahco3', 'bacl2', 'iodine_solution', 'kmn_o4_reagent', 'ki'];
+      const dynamicMatches: ReactionDefinition[] = [];
+      for (const pid of candidatePartners) {
+        if (pid === reagent.id) continue;
+        const evalRes = evaluateReactionRecipe({
+          ingredients: [
+            { id: reagent.id, amount: 20 },
+            { id: pid, amount: 20 },
+          ],
+          conditions: { temperature: 25, concentration: 1.0, catalystId: null },
+        });
+        if (evalRes.isSupported && evalRes.reaction && !dynamicMatches.some((d) => d.id === evalRes.reaction!.id)) {
+          dynamicMatches.push(evalRes.reaction);
+          if (dynamicMatches.length >= 3) break;
+        }
+      }
+      compatible = dynamicMatches;
+    }
 
     // Check if the user asked an insufficiently specified reaction question (e.g. "What happens when HCl reacts?")
     const isUnderSpecifiedReactionAsk =

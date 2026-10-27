@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChemicalReagent } from '../../types/chemistry';
-import { findOrLookupCompound } from '../../data/compoundRegistry';
+import { findOrLookupCompound, registerCanonicalCompound } from '../../data/compoundRegistry';
 import { soundEngine } from '../../utils/soundEngine';
 import {
   Sparkles,
@@ -8,10 +8,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Search,
-  FlaskConical,
   ShieldAlert,
   Info,
-  Layers,
+  Loader2,
 } from 'lucide-react';
 
 interface AiCompoundAddPanelProps {
@@ -30,20 +29,91 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
     sourceConfidence?: string;
     message?: string;
   } | null>(null);
+  const [isSearchingAi, setIsSearchingAi] = useState(false);
   const [isAddedSuccess, setIsAddedSuccess] = useState(false);
+
+  const runLookup = async (rawQuery: string) => {
+    const trimmed = rawQuery.trim();
+    if (!trimmed) return;
+
+    setIsAddedSuccess(false);
+    const localResult = findOrLookupCompound(trimmed);
+
+    if (localResult.found && localResult.compound) {
+      setSearchResult(localResult);
+      soundEngine.playUiFeedback('ai_completion', `ai_lookup_ok::${localResult.compound.id}`);
+      return;
+    }
+
+    // If explicitly blocked by laboratory safety rules, do not attempt remote synthesis
+    if (localResult.sourceConfidence === 'Restricted Safety Exclusion') {
+      setSearchResult(localResult);
+      soundEngine.playUiFeedback('validation_warning', `ai_lookup_warn::${trimmed.toLowerCase()}`);
+      return;
+    }
+
+    // Fallback to live Gemini AI scientific compound verification & registration
+    setIsSearchingAi(true);
+    try {
+      const response = await fetch('/api/ai/chemistry-resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: trimmed }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.isValidChemical && !data.isProhibited && data.compound) {
+          const newReagent: ChemicalReagent = {
+            id: data.compound.id,
+            name: data.compound.name,
+            formula: data.compound.formula,
+            state: data.compound.state === 'solid' || data.compound.state === 'gas' ? data.compound.state : 'liquid',
+            color: data.compound.color || '#f8fafc',
+            isColorless: Boolean(data.compound.isColorless),
+            type: data.compound.type || 'salt',
+            category: data.compound.category || 'salt',
+            subcategory: data.compound.subcategory || 'AI Verified Reagent',
+            concentration: data.compound.concentration || '0.5 M',
+            initialQuantity: 100,
+            pourAmount: data.compound.pourAmount || 20,
+            unit: data.compound.unit || 'mL',
+            description: data.compound.description,
+            hazard: data.compound.hazard || 'Handle with standard laboratory PPE',
+            aliases: data.compound.aliases || [trimmed.toLowerCase()],
+            isSimulationSupported: true,
+            safetyClassification: 'school_lab_supported',
+            visualLabStatus: 'Reaction-supported',
+          };
+          registerCanonicalCompound(newReagent);
+          setSearchResult({
+            found: true,
+            compound: newReagent,
+            sourceConfidence: 'AI Scientific Compound Synthesizer (Added to Reagent Shelf & Reaction Engine)',
+          });
+          soundEngine.playUiFeedback('ai_completion', `ai_lookup_ok::${newReagent.id}`);
+          setIsSearchingAi(false);
+          return;
+        } else if (data.rejectionReason) {
+          setSearchResult({
+            found: false,
+            message: data.rejectionReason,
+          });
+          soundEngine.playUiFeedback('validation_warning', `ai_lookup_warn::${trimmed.toLowerCase()}`);
+          setIsSearchingAi(false);
+          return;
+        }
+      }
+    } catch {
+      // Fallback to local result message if offline or server unavailable
+    }
+    setIsSearchingAi(false);
+    setSearchResult(localResult);
+    soundEngine.playUiFeedback('validation_warning', `ai_lookup_warn::${trimmed.toLowerCase()}`);
+  };
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!query.trim()) return;
-
-    setIsAddedSuccess(false);
-    const result = findOrLookupCompound(query);
-    setSearchResult(result);
-    if (result.found && result.compound) {
-      soundEngine.playUiFeedback('ai_completion', `ai_lookup_ok::${result.compound.id}`);
-    } else {
-      soundEngine.playUiFeedback('validation_warning', `ai_lookup_warn::${query.trim().toLowerCase()}`);
-    }
+    void runLookup(query);
   };
 
   const handleAdd = () => {
@@ -54,13 +124,13 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
   };
 
   const quickQueryExamples = [
+    'Potassium Thiocyanate',
+    'Ascorbic Acid',
+    'Cobalt(II) Chloride',
+    'Sodium Sulfite',
+    'Nickel(II) Sulfate',
     'Baking Soda',
-    'Manganese Dioxide',
-    'Citric Acid',
-    'Phenolphthalein',
     'Potassium Iodide',
-    'Lead Nitrate',
-    'Chalk',
   ];
 
   return (
@@ -75,7 +145,7 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
               AI-Assisted Compound Addition
             </h3>
             <p className="text-[11px] text-slate-500">
-              Discover and add supported compounds beyond the visible preset shelf
+              Type any real chemical not in the shelf to add it to the list &amp; reaction engine
             </p>
           </div>
         </div>
@@ -93,31 +163,39 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='Type compound name or formula (e.g. "baking soda", "manganese dioxide", "citric acid")...'
+            placeholder='Type any chemical name or formula (e.g. "Potassium Thiocyanate", "Ascorbic Acid", "Cobalt Chloride")...'
             className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-900"
           />
         </div>
         <button
           type="submit"
-          disabled={!query.trim()}
+          disabled={!query.trim() || isSearchingAi}
           className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
         >
-          <Search className="w-3.5 h-3.5" />
-          <span>Lookup</span>
+          {isSearchingAi ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Verifying...</span>
+            </>
+          ) : (
+            <>
+              <Search className="w-3.5 h-3.5" />
+              <span>Lookup &amp; Add to List</span>
+            </>
+          )}
         </button>
       </form>
 
       {/* Quick Example Chips */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-slate-500">
-        <span className="shrink-0 font-medium text-slate-400">Try searching:</span>
+        <span className="shrink-0 font-medium text-slate-400">Try adding:</span>
         {quickQueryExamples.map((ex) => (
           <button
             key={ex}
             type="button"
             onClick={() => {
               setQuery(ex);
-              setIsAddedSuccess(false);
-              setSearchResult(findOrLookupCompound(ex));
+              void runLookup(ex);
             }}
             className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium whitespace-nowrap transition-colors cursor-pointer"
           >

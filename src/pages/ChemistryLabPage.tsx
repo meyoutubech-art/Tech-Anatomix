@@ -9,6 +9,7 @@ import {
   REACTIONS,
   evaluateReactionRecipe,
   ReactionEvaluationResult,
+  getReagentDisplayInfo,
 } from '../data/reactionsData';
 import { ChemicalReagent, ReactionDefinition } from '../types/chemistry';
 import { EducationalExplanationBox, ExplanationData } from '../components/common/EducationalExplanationBox';
@@ -17,8 +18,10 @@ import { AiCompoundAddPanel } from '../components/chemistry/AiCompoundAddPanel';
 import {
   findOrLookupCompound,
   getCanonicalRegistry,
+  getRegistryVersion,
   normalizeChemicalSearchText,
   registerCanonicalCompound,
+  subscribeRegistryChange,
 } from '../data/compoundRegistry';
 import { PresentationExportModal } from '../components/common/PresentationExportModal';
 import { PresentationExportOptions } from '../utils/presentationGenerator';
@@ -391,7 +394,15 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
     return options;
   }, [ingredients]);
 
-  // Filtered reagents for the library shelf (includes core REAGENTS + full verified registry)
+  // Subscribe to dynamic additions in the Canonical Chemistry Registry
+  const [registryVersion, setRegistryVersion] = useState<number>(() => getRegistryVersion());
+  useEffect(() => {
+    return subscribeRegistryChange(() => {
+      setRegistryVersion(getRegistryVersion());
+    });
+  }, []);
+
+  // Filtered reagents for the library shelf (includes core REAGENTS + full verified registry + dynamically added AI chemicals)
   const allLibraryReagents = useMemo(() => {
     const map = new Map<string, ChemicalReagent>();
     REAGENTS.forEach((r) => map.set(r.id, r));
@@ -401,7 +412,7 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
       }
     });
     return Array.from(map.values());
-  }, []);
+  }, [registryVersion]);
 
   const filteredReagents = useMemo(() => {
     const qNorm = normalizeChemicalSearchText(searchQuery);
@@ -1540,7 +1551,7 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                         <span className="font-mono text-slate-900">
                           {evaluatedResult.reactantsList?.join(' + ') ||
                             evaluatedResult.reaction.reactants
-                              .map((id) => REAGENTS.find((r) => r.id === id)?.formula || id)
+                              .map((id) => getReagentDisplayInfo(id).formula || id)
                               .join(' + ')}
                         </span>
                       </div>

@@ -8,6 +8,7 @@ import {
   scanDiagram,
   interpretPromptChange,
   getSafeDiagnostics,
+  resolveChemicalCompoundWithAi,
 } from './geminiService';
 
 dotenv.config();
@@ -150,5 +151,19 @@ app.post(
     }
   }
 );
+
+// AI-Assisted Chemical Compound Resolution & Synthesis
+app.post(['/api/ai/chemistry-resolve', '/ai/chemistry-resolve'], async (req, res) => {
+  const { query } = req.body || {};
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ found: false, message: 'Chemical query is required' });
+  }
+  try {
+    const result = await resolveChemicalCompoundWithAi(query.trim());
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(500).json({ found: false, message: err.message });
+  }
+});
 
 export default app;

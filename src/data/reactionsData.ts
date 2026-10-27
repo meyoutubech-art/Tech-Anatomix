@@ -1,5 +1,6 @@
 import { ChemicalReagent, ReactionDefinition } from '../types/chemistry';
 import { REAGENTS } from './chemicalLibraryData';
+import { getCanonicalRegistry } from './compoundRegistry';
 
 export type StructuredReactionStatus =
   | 'VALIDATED_SUPPORTED_REACTION'
@@ -1507,11 +1508,977 @@ const EXTRA_REAGENT_LABELS: Record<string, { name: string; formula: string; type
   nh4cl: { name: 'Ammonium Chloride', formula: 'NH₄Cl (aq)', type: 'salt' },
 };
 
+const DYNAMIC_REACTIONS: ReactionDefinition[] = [];
+
+export function registerDynamicReaction(rx: ReactionDefinition): void {
+  const existingIdx = DYNAMIC_REACTIONS.findIndex((r) => r.id === rx.id);
+  if (existingIdx >= 0) {
+    DYNAMIC_REACTIONS[existingIdx] = rx;
+  } else {
+    DYNAMIC_REACTIONS.push(rx);
+  }
+}
+
+export function findReagentById(id: string): ChemicalReagent | undefined {
+  return getCanonicalRegistry().find((r) => r.id === id) || REAGENTS.find((r) => r.id === id);
+}
+
 export function getReagentDisplayInfo(id: string): { name: string; formula: string; type: string } {
-  const found = REAGENTS.find((r) => r.id === id);
+  const found = findReagentById(id);
   if (found) return { name: found.name, formula: found.formula, type: found.type };
   if (EXTRA_REAGENT_LABELS[id]) return EXTRA_REAGENT_LABELS[id];
   return { name: id, formula: id, type: 'reagent' };
+}
+
+function cleanFormulaState(formula: string): string {
+  return formula.replace(/\s*\((aq|s|l|g|sat\.\s*aq)\)/gi, '').trim();
+}
+
+/**
+ * Scientifically rigorous stoichiometric reaction synthesizer for combinations of canonical
+ * or dynamically added chemical reagents that are not in the 52 static presets.
+ * Covers:
+ *  1. Coordination complexation (Fe³⁺ + SCN⁻, Co²⁺ + SCN⁻, Cu²⁺ + NH₃, Fe³⁺ + phenolate/salicylate/tannate, hexacyanoferrate complexes)
+ *  2. Redox electron transfer (I₂ + Ascorbic Acid/Sulfite, KMnO₄ + reducing agents, K₂Cr₂O₇ + reducing agents)
+ *  3. Acid + Carbonate / Bicarbonate decarboxylation (→ Salt + H₂O + CO₂↑)
+ *  4. Acid + Sulfite / Bisulfite (→ Salt + H₂O + SO₂↑) and Acid + Sulfide (→ Salt + H₂S↑)
+ *  5. Acid + Base Brønsted–Lowry neutralization (→ Salt + H₂O + ΔH)
+ *  6. Active Metal + Acid single displacement (→ Metal Salt + H₂↑ or NO₂↑ with HNO₃)
+ *  7. Active Metal + Less Reactive Metal Salt single displacement (electrochemical series E°)
+ *  8. Metal Salt + Hydroxide Base precipitation (or Ammonium Salt + Base → NH₃↑)
+ *  9. Double-displacement Salt Metathesis precipitation (governed by K_sp solubility rules)
+ */
+function synthesizeScientificReaction(
+  reagents: ChemicalReagent[],
+  amountsMap: Record<string, number>
+): ReactionDefinition | null {
+  // Filter out pure water and passive indicators when 2+ reactive solutes are present
+  const coreReagents =
+    reagents.filter((r) => r.id !== 'water' && r.category !== 'indicator').length >= 2
+      ? reagents.filter((r) => r.id !== 'water' && r.category !== 'indicator')
+      : reagents;
+
+  if (coreReagents.length < 2) return null;
+
+  const r1 = coreReagents[0];
+  const r2 = coreReagents[1];
+  const pair = [r1, r2];
+  const reqAmounts: Record<string, number> = {
+    [r1.id]: Math.min(amountsMap[r1.id] || 10, 10),
+    [r2.id]: Math.min(amountsMap[r2.id] || 10, 10),
+  };
+
+  const f1 = cleanFormulaState(r1.formula);
+  const f2 = cleanFormulaState(r2.formula);
+  const combinedText = `${r1.id} ${r1.name} ${r1.formula} | ${r2.id} ${r2.name} ${r2.formula}`.toLowerCase();
+
+  // Do not synthesize an ambient aqueous reaction for organic alcohol + carboxylic acid (Fischer Esterification requires conc. H2SO4 + reflux heat)
+  const hasAlcohol = pair.some(
+    (c) =>
+      c.id === 'ethanol' ||
+      c.name.toLowerCase().includes('ethanol') ||
+      c.name.toLowerCase().includes('methanol') ||
+      c.name.toLowerCase().includes('propanol') ||
+      c.name.toLowerCase().includes('butanol')
+  );
+  if (hasAlcohol && pair.some((c) => c.category === 'acid')) {
+    return null;
+  }
+
+  // Do not synthesize an ambient aqueous reaction for solid-state Thermite (Al + metal oxide)
+  if (
+    pair.some((c) => c.id === 'al_metal') &&
+    pair.some((c) => ['fe2o3', 'fe3o4', 'cr2o3', 'mno2', 'cuo'].includes(c.id))
+  ) {
+    return null;
+  }
+
+  // 1A. Coordination Complex: Iron(III) + Thiocyanate (Blood-Red [Fe(SCN)]²⁺)
+  const fe3Reagent = pair.find(
+    (c) =>
+      c.id === 'fecl3' ||
+      c.id.startsWith('fe3_') ||
+      /iron\(iii\)|ferric/i.test(c.name)
+  );
+  const scnReagent = pair.find(
+    (c) =>
+      c.id.endsWith('_scn') ||
+      /thiocyanate|rhodanide|kscn|nh4scn|nascn/i.test(`${c.id} ${c.name} ${c.formula}`)
+  );
+  if (fe3Reagent && scnReagent && fe3Reagent.id !== scnReagent.id) {
+    const feForm = cleanFormulaState(fe3Reagent.formula);
+    const scnForm = cleanFormulaState(scnReagent.formula);
+    return {
+      id: `synth_complex_${fe3Reagent.id}_${scnReagent.id}`,
+      name: `${fe3Reagent.name} + ${scnReagent.name} Thiocyanate Complexation`,
+      reactants: [fe3Reagent.id, scnReagent.id],
+      requiredAmounts: reqAmounts,
+      products: ['[Fe(SCN)]²⁺ (aq, blood-red complex)', 'Spectator Ions (aq)'],
+      balancedEquation: `${feForm}(aq) + ${scnForm}(aq) ⇌ [Fe(SCN)]²⁺(aq) [blood-red complex] + Spectator Ions`,
+      reactionType: 'precipitation',
+      observableEffects: {
+        colorChangeTo: '#991B1B',
+        isFinalSolutionColorless: false,
+        initialAppearance: `${fe3Reagent.name} (${fe3Reagent.formula}) + ${scnReagent.name} (${scnReagent.formula})`,
+        finalAppearance: 'Intense blood-red homogeneous solution of pentaaqua(thiocyanato-κN)iron(III) complex ([Fe(H₂O)₅(SCN)]²⁺)',
+        temperatureDelta: 1.5,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Classic qualitative analytical test for Fe³⁺ and SCN⁻ ions: mixing ${fe3Reagent.name} and ${scnReagent.name} produces an instantaneous deep blood-red solution due to ligand-to-metal charge transfer (LMCT) in the [Fe(SCN)]²⁺ coordination complex.`,
+      },
+      explanation: `Thiocyanate ions (SCN⁻) displace inner-sphere water ligands on hexaaquairon(III) ([Fe(H₂O)₆]³⁺) to form the blood-red monothiocyanatoiron(III) complex ion ([Fe(H₂O)₅(SCN)]²⁺, Kf ≈ 890). No precipitate or gas is formed.`,
+    };
+  }
+
+  // 1B. Coordination Complex: Cobalt(II) + Thiocyanate (Deep Blue [Co(SCN)₄]²⁻)
+  const co2Reagent = pair.find(
+    (c) => c.id.startsWith('co2_') || /cobalt\(ii\)|cobaltous|cocl2|coso4/i.test(`${c.id} ${c.name} ${c.formula}`)
+  );
+  if (co2Reagent && scnReagent && co2Reagent.id !== scnReagent.id) {
+    return {
+      id: `synth_complex_${co2Reagent.id}_${scnReagent.id}`,
+      name: `${co2Reagent.name} + ${scnReagent.name} Vogel’s Tetrathiocyanatocobaltate(II) Complexation`,
+      reactants: [co2Reagent.id, scnReagent.id],
+      requiredAmounts: reqAmounts,
+      products: ['[Co(SCN)₄]²⁻ (aq, deep cobalt-blue complex)'],
+      balancedEquation: `Co²⁺(aq) + 4SCN⁻(aq) ⇌ [Co(SCN)₄]²⁻(aq) [deep cobalt-blue tetrahedral complex]`,
+      reactionType: 'precipitation',
+      observableEffects: {
+        colorChangeTo: '#1D4ED8',
+        isFinalSolutionColorless: false,
+        initialAppearance: `Rose-pink ${co2Reagent.name} + colourless ${scnReagent.name}`,
+        finalAppearance: 'Deep royal cobalt-blue solution of tetrahedral [Co(SCN)₄]²⁻ complex',
+        temperatureDelta: 1.2,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Vogel’s reaction: rose-pink octahedral [Co(H₂O)₆]²⁺ coordinates with thiocyanate ions (SCN⁻) to form the intensely colored royal-blue tetrahedral tetrathiocyanatocobaltate(II) complex ([Co(SCN)₄]²⁻).`,
+      },
+      explanation: `Substitution of six water ligands on octahedral Co²⁺ by four thiocyanate ligands induces a coordination geometry transition from octahedral ([Co(H₂O)₆]²⁺, rose-pink) to tetrahedral ([Co(SCN)₄]²⁻, intense cobalt-blue).`,
+    };
+  }
+
+  // 1C. Iron(III) + Tannic Acid / Phenol / Salicylate (Violet / Blue-Black Charge-Transfer Complex)
+  const phenolicPartner = pair.find((c) =>
+    /tannic|tannin|phenol|carbolic|salicyl/i.test(`${c.id} ${c.name}`)
+  );
+  if (fe3Reagent && phenolicPartner && fe3Reagent.id !== phenolicPartner.id) {
+    return {
+      id: `synth_phenolate_${fe3Reagent.id}_${phenolicPartner.id}`,
+      name: `${fe3Reagent.name} + ${phenolicPartner.name} Iron(III)–Phenolate Complexation`,
+      reactants: [fe3Reagent.id, phenolicPartner.id],
+      requiredAmounts: reqAmounts,
+      products: ['Iron(III)–Phenolate Charge-Transfer Complex (aq)'],
+      balancedEquation: `Fe³⁺(aq) + 3ArOH(aq) ⇌ [Fe(OAr)₃](aq) [deep violet / blue-black complex] + 3H⁺(aq)`,
+      reactionType: 'precipitation',
+      observableEffects: {
+        colorChangeTo: '#4C1D95',
+        isFinalSolutionColorless: false,
+        initialAppearance: `Amber ${fe3Reagent.name} + ${phenolicPartner.name}`,
+        finalAppearance: 'Deep violet to blue-black iron(III)–phenolate chelate solution',
+        temperatureDelta: 1.0,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Characteristic ferric chloride test for phenols and enols: ${fe3Reagent.name} coordinates with ${phenolicPartner.name} to yield a deep violet/blue-black ligand-to-metal charge-transfer complex.`,
+      },
+      explanation: `Phenolic hydroxyl groups deprotonate and coordinate to high-spin Fe³⁺ centers, producing a strong ligand-to-metal charge-transfer (LMCT) absorption band in the visible region.`,
+    };
+  }
+
+  // 1D. Hexacyanoferrate(II/III) (Ferrocyanide / Ferricyanide) + Iron / Copper Salts (Prussian Blue / Turnbull's Blue / Hatchett's Brown)
+  const ferroFerricyanide = pair.find((c) =>
+    /ferrocyanide|ferricyanide|hexacyanoferrate|fecn6/i.test(`${c.id} ${c.name} ${c.formula}`)
+  );
+  if (ferroFerricyanide) {
+    const metalPartner = pair.find((c) => c.id !== ferroFerricyanide.id)!;
+    const mText = `${metalPartner.id} ${metalPartner.name} ${metalPartner.formula}`.toLowerCase();
+    if (/fecl|fe_so4|fe2|fe3|iron|ferric|ferrous/i.test(mText)) {
+      return {
+        id: `synth_prussian_${metalPartner.id}_${ferroFerricyanide.id}`,
+        name: `Prussian Blue Synthesis (${metalPartner.name} + ${ferroFerricyanide.name})`,
+        reactants: [metalPartner.id, ferroFerricyanide.id],
+        requiredAmounts: reqAmounts,
+        products: ['Fe₄[Fe(CN)₆]₃ (s)↓ (Prussian Blue)', 'Soluble Potassium Salt (aq)'],
+        balancedEquation: `4Fe³⁺(aq) + 3[Fe(CN)₆]⁴⁻(aq) → Fe₄[Fe(CN)₆]₃(s)↓ [deep Prussian blue precipitate]`,
+        reactionType: 'precipitation',
+        observableEffects: {
+          colorChangeTo: '#1E3A8A',
+          isFinalSolutionColorless: false,
+          initialAppearance: `${metalPartner.name} + ${ferroFerricyanide.name}`,
+          finalAppearance: 'Intense dark Prussian-blue suspension and colloidal precipitate of Iron(III) Hexacyanoferrate(II)',
+          temperatureDelta: 1.8,
+          producesGas: false,
+          producesFumesAboveLiquid: false,
+          producesPrecipitate: true,
+          precipitateColor: '#1E3A8A',
+          precipitateName: 'Prussian Blue (Fe₄[Fe(CN)₆]₃)',
+          isViolent: false,
+          hazardType: 'none',
+          description: `Mixed-valence coordination precipitation: iron cations react with hexacyanoferrate ions to precipitate intense dark Prussian blue (Fe₄[Fe(CN)₆]₃(s)↓) driven by intervalence charge transfer between Fe(II) and Fe(III).`,
+        },
+        explanation: `Cyanide-bridged mixed-valence Fe(II)–CN–Fe(III) lattice forms instantaneously with an intense intervalence charge-transfer (IVCT) absorption band at 680 nm.`,
+      };
+    }
+    if (/cu|copper|cupric/i.test(mText)) {
+      return {
+        id: `synth_hatchett_${metalPartner.id}_${ferroFerricyanide.id}`,
+        name: `Hatchett’s Brown Precipitation (${metalPartner.name} + ${ferroFerricyanide.name})`,
+        reactants: [metalPartner.id, ferroFerricyanide.id],
+        requiredAmounts: reqAmounts,
+        products: ['Cu₂[Fe(CN)₆] (s)↓ (Reddish-Brown)', 'Soluble Salt (aq)'],
+        balancedEquation: `2Cu²⁺(aq) + [Fe(CN)₆]⁴⁻(aq) → Cu₂[Fe(CN)₆](s)↓ [chocolate reddish-brown precipitate]`,
+        reactionType: 'precipitation',
+        observableEffects: {
+          colorChangeTo: '#7C2D12',
+          isFinalSolutionColorless: false,
+          initialAppearance: `Azure-blue ${metalPartner.name} + ${ferroFerricyanide.name}`,
+          finalAppearance: 'Gelatinous reddish-brown precipitate of Copper(II) Hexacyanoferrate(II) (Hatchett’s Brown)',
+          temperatureDelta: 1.5,
+          producesGas: false,
+          producesFumesAboveLiquid: false,
+          producesPrecipitate: true,
+          precipitateColor: '#7C2D12',
+          precipitateName: 'Copper(II) Ferrocyanide (Cu₂[Fe(CN)₆])',
+          isViolent: false,
+          hazardType: 'none',
+          description: `Copper(II) ions react with ferrocyanide to form a dense chocolate reddish-brown precipitate of Cu₂[Fe(CN)₆](s)↓ (known as Hatchett’s brown and used historically to form Traube’s semipermeable membranes).`,
+        },
+        explanation: `Insoluble Prussian-blue analogue network solid precipitates immediately upon mixing aqueous Cu²⁺ and [Fe(CN)₆]⁴⁻ ions.`,
+      };
+    }
+  }
+
+  // 2A. Redox: Iodine Solution + Ascorbic Acid (Vitamin C) / Sulfite / Bisulfite
+  const iodineReagent = pair.find(
+    (c) => c.id === 'iodine_solution' || /\biodine\b/i.test(c.name)
+  );
+  const iodineReductant = pair.find(
+    (c) =>
+      c.id !== iodineReagent?.id &&
+      (/ascorbic|vitamin c|sulfite|sulphite|bisulfite|thiosulfate|so3|s2o3|sncl2|stannous/i.test(
+        `${c.id} ${c.name} ${c.formula}`
+      ))
+  );
+  if (iodineReagent && iodineReductant) {
+    const isAscorbic = /ascorbic|vitamin c/i.test(iodineReductant.name);
+    return {
+      id: `synth_redox_${iodineReagent.id}_${iodineReductant.id}`,
+      name: `Iodometric Redox Titration (${iodineReagent.name} + ${iodineReductant.name})`,
+      reactants: [iodineReagent.id, iodineReductant.id],
+      requiredAmounts: reqAmounts,
+      products: isAscorbic
+        ? ['Dehydroascorbic Acid (C₆H₆O₆, aq)', '2HI (aq, colourless)']
+        : ['Oxidized Oxyanion (SO₄²⁻ / S₄O₆²⁻, aq)', '2I⁻ (aq, colourless)'],
+      balancedEquation: isAscorbic
+        ? 'C₆H₈O₆(aq) + I₂(aq) → C₆H₆O₆(aq) + 2HI(aq) [amber → colourless]'
+        : `${cleanFormulaState(iodineReductant.formula)}(aq) + I₂(aq) + H₂O(l) → Oxidized Product(aq) + 2I⁻(aq) + 2H⁺(aq)`,
+      reactionType: 'redox',
+      observableEffects: {
+        colorChangeTo: '#F8FAFC',
+        isFinalSolutionColorless: true,
+        initialAppearance: `Amber-brown ${iodineReagent.name} + colourless ${iodineReductant.name}`,
+        finalAppearance: 'Crystal-clear, colourless aqueous solution (complete reduction of I₂ to I⁻)',
+        temperatureDelta: 2.8,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Quantitative redox decolorization: ${iodineReductant.name} rapidly donates two electrons to reduce amber-brown molecular iodine (I₂/I₃⁻) into colourless iodide ions (I⁻).`,
+      },
+      explanation: `${
+        isAscorbic
+          ? 'Ascorbic acid (Vitamin C, E° ≈ +0.06 V) is oxidized at its enediol group to dehydroascorbic acid while reducing I₂ (E° = +0.54 V) to colourless I⁻.'
+          : `${iodineReductant.name} acts as a two-electron reducing agent, quantitatively reducing brown triiodide/iodine (I₂) to colourless hydrated iodide ions (I⁻).`
+      }`,
+    };
+  }
+
+  // 2B. Redox: Permanganate (MnO4⁻) + Reducing Agent (Ascorbic, Citric, Tartaric, Lactic, Formic, Sulfite, Nitrite, Sn²⁺, Fe²⁺)
+  const permanganateReagent = pair.find(
+    (c) => c.id === 'kmn_o4_reagent' || c.id.endsWith('_mno4') || /permanganate/i.test(c.name)
+  );
+  const mno4Reductant = pair.find(
+    (c) =>
+      c.id !== permanganateReagent?.id &&
+      (/ascorbic|vitamin c|citric|tartaric|lactic|malic|formic|oxalic|sulfite|sulphite|bisulfite|thiosulfate|nitrite|ferrous|iron\(ii\)|stannous|tin\(ii\)|glucose|sucrose/i.test(
+        `${c.id} ${c.name} ${c.formula}`
+      ))
+  );
+  if (permanganateReagent && mno4Reductant) {
+    const evolvesCo2 = /ascorbic|citric|tartaric|formic|oxalic|malic/i.test(mno4Reductant.name);
+    return {
+      id: `synth_redox_${permanganateReagent.id}_${mno4Reductant.id}`,
+      name: `Permanganate Redox Reduction (${permanganateReagent.name} + ${mno4Reductant.name})`,
+      reactants: [permanganateReagent.id, mno4Reductant.id],
+      requiredAmounts: reqAmounts,
+      products: evolvesCo2
+        ? ['Mn²⁺ (aq, colourless)', 'CO₂ (g)↑', 'H₂O (l)']
+        : ['Mn²⁺ (aq, colourless)', 'Oxidized Substrate (aq)', 'H₂O (l)'],
+      balancedEquation: evolvesCo2
+        ? `2MnO₄⁻(aq) [deep violet] + 5${cleanFormulaState(mno4Reductant.formula)}(aq) + 6H⁺(aq) → 2Mn²⁺(aq) [colourless] + CO₂(g)↑ + H₂O(l)`
+        : `2MnO₄⁻(aq) [deep violet] + 5${cleanFormulaState(mno4Reductant.formula)}(aq) + 6H⁺(aq) → 2Mn²⁺(aq) [colourless] + 5Oxidized Product(aq) + 3H₂O(l)`,
+      reactionType: 'redox',
+      observableEffects: {
+        colorChangeTo: '#F8FAFC',
+        isFinalSolutionColorless: true,
+        initialAppearance: `Intense royal-violet ${permanganateReagent.name} + ${mno4Reductant.name}`,
+        finalAppearance: `Clear, colourless Mn²⁺(aq) solution as purple permanganate is completely reduced${
+          evolvesCo2 ? ' with gentle CO₂ effervescence' : ''
+        }`,
+        temperatureDelta: 6.5,
+        producesGas: evolvesCo2,
+        gasName: evolvesCo2 ? 'Carbon Dioxide (CO₂)' : undefined,
+        gasColor: evolvesCo2 ? '#FFFFFF' : undefined,
+        gasVigor: evolvesCo2 ? 2 : undefined,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Five-electron redox reduction: intense purple MnO₄⁻ (Mn(VII), E° = +1.51 V) oxidizes ${mno4Reductant.name} and is reduced to nearly colourless d⁵ hexaaquamanganese(II) ([Mn(H₂O)₆]²⁺).`,
+      },
+      explanation: `Permanganate (MnO₄⁻) is a powerful 5-electron oxidizing agent. Electron transfer from ${mno4Reductant.name} reduces Mn(VII) to high-spin d⁵ Mn²⁺, whose spin-forbidden d–d transitions render the final solution virtually colourless.`,
+    };
+  }
+
+  // 2C. Redox: Dichromate (Cr2O7²⁻) + Reducing Agent (Sulfite, Ascorbic, Oxalic, Formic, Fe²⁺, Sn²⁺)
+  const dichromateReagent = pair.find(
+    (c) => c.id === 'k2cr2o7' || c.id.endsWith('_cr2o7') || /dichromate/i.test(c.name)
+  );
+  const crReductant = pair.find(
+    (c) =>
+      c.id !== dichromateReagent?.id &&
+      (/ascorbic|vitamin c|oxalic|formic|tartaric|citric|sulfite|sulphite|bisulfite|thiosulfate|ferrous|iron\(ii\)|stannous|tin\(ii\)/i.test(
+        `${c.id} ${c.name} ${c.formula}`
+      ))
+  );
+  if (dichromateReagent && crReductant) {
+    return {
+      id: `synth_redox_${dichromateReagent.id}_${crReductant.id}`,
+      name: `Dichromate Redox Reduction (${dichromateReagent.name} + ${crReductant.name})`,
+      reactants: [dichromateReagent.id, crReductant.id],
+      requiredAmounts: reqAmounts,
+      products: ['2Cr³⁺ (aq, emerald-green)', 'Oxidized Product (aq)', '7H₂O (l)'],
+      balancedEquation: `Cr₂O₇²⁻(aq) [orange] + 3${cleanFormulaState(crReductant.formula)}(aq) + 14H⁺(aq) → 2Cr³⁺(aq) [emerald-green] + 3Oxidized Product + 7H₂O(l)`,
+      reactionType: 'redox',
+      observableEffects: {
+        colorChangeTo: '#059669',
+        isFinalSolutionColorless: false,
+        initialAppearance: `Vivid orange ${dichromateReagent.name} + ${crReductant.name}`,
+        finalAppearance: 'Deep emerald-green hexaaquachromium(III) ([Cr(H₂O)₆]³⁺) solution',
+        temperatureDelta: 8.0,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Six-electron redox transition: bright orange hexavalent dichromate (Cr₂O₇²⁻, Cr(VI), E° = +1.33 V) oxidizes ${crReductant.name} and transitions sharply to emerald-green trivalent chromium(III) ([Cr(H₂O)₆]³⁺).`,
+      },
+      explanation: `Each dichromate ion accepts 6 electrons from ${crReductant.name}, cleaving Cr–O bonds to form octahedral d³ [Cr(H₂O)₆]³⁺ complexes with characteristic green d–d absorption bands.`,
+    };
+  }
+
+  // 3. Acid + Carbonate / Bicarbonate Decarboxylation (→ Salt + H₂O + CO₂↑)
+  const acidReagent = pair.find(
+    (c) => c.category === 'acid' || c.type === 'acid' || c.secondaryCategories?.includes('acid')
+  );
+  const carbonateReagent = pair.find(
+    (c) =>
+      c.id !== acidReagent?.id &&
+      (c.type === 'carbonate' ||
+        /carbonate|bicarbonate|hydrogencarbonate|co3|hco3/i.test(`${c.id} ${c.name} ${c.formula}`))
+  );
+  if (acidReagent && carbonateReagent) {
+    const isBicarb = /bicarbonate|hydrogencarbonate|hco3/i.test(
+      `${carbonateReagent.id} ${carbonateReagent.name} ${carbonateReagent.formula}`
+    );
+    const acidF = cleanFormulaState(acidReagent.formula);
+    const carbF = cleanFormulaState(carbonateReagent.formula);
+    return {
+      id: `synth_carb_${acidReagent.id}_${carbonateReagent.id}`,
+      name: `${acidReagent.name} + ${carbonateReagent.name} Effervescent Decarboxylation`,
+      reactants: [acidReagent.id, carbonateReagent.id],
+      requiredAmounts: reqAmounts,
+      products: ['Aqueous Salt (aq)', 'H₂O (l)', 'CO₂ (g)↑'],
+      balancedEquation: isBicarb
+        ? `${acidF}(aq) + ${carbF}(s/aq) → Salt(aq) + H₂O(l) + CO₂(g)↑`
+        : `2${acidF}(aq) + ${carbF}(s/aq) → Salt(aq) + H₂O(l) + CO₂(g)↑`,
+      reactionType: 'gas_evolution',
+      observableEffects: {
+        colorChangeTo: '#F8FAFC',
+        isFinalSolutionColorless: true,
+        initialAppearance: `${acidReagent.name} (${acidReagent.formula}) + ${carbonateReagent.name} (${carbonateReagent.formula})`,
+        finalAppearance: 'Clear aqueous salt solution with brisk streams of colourless CO₂(g) bubbles rising to the surface',
+        temperatureDelta: isBicarb ? -3.5 : 4.5,
+        producesGas: true,
+        gasName: 'Carbon Dioxide (CO₂)',
+        gasColor: '#FFFFFF',
+        gasVigor: 4,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Acid–carbonate proton transfer and decarboxylation: ${acidReagent.name} protonates ${carbonateReagent.name} to form transient carbonic acid (H₂CO₃), which immediately decomposes into liquid water and briskly effervescing carbon dioxide gas (CO₂↑).`,
+      },
+      explanation: `Net ionic equation: ${
+        isBicarb ? 'H⁺(aq) + HCO₃⁻(aq) → H₂O(l) + CO₂(g)↑' : '2H⁺(aq) + CO₃²⁻(aq/s) → H₂O(l) + CO₂(g)↑'
+      }. Rapid nucleation and escape of CO₂ gas drives the equilibrium irreversibly to completion.`,
+    };
+  }
+
+  // 4. Acid + Sulfite / Bisulfite (→ SO2↑) or Acid + Sulfide (→ H2S↑)
+  const sulfiteOrSulfide = pair.find(
+    (c) =>
+      c.id !== acidReagent?.id &&
+      (/\bsulfite\b|\bsulphite\b|\bbisulfite\b|\bmetabisulfite\b|\bsulfide\b|\bsulphide\b|_so3|_hso3|_s\b/i.test(
+        `${c.id} ${c.name}`
+      ))
+  );
+  if (acidReagent && sulfiteOrSulfide) {
+    const isSulfite = /sulfite|sulphite|so3/i.test(`${sulfiteOrSulfide.id} ${sulfiteOrSulfide.name}`);
+    const acidF = cleanFormulaState(acidReagent.formula);
+    const partnerF = cleanFormulaState(sulfiteOrSulfide.formula);
+    return {
+      id: `synth_gas_${acidReagent.id}_${sulfiteOrSulfide.id}`,
+      name: `${acidReagent.name} + ${sulfiteOrSulfide.name} Gas Evolution`,
+      reactants: [acidReagent.id, sulfiteOrSulfide.id],
+      requiredAmounts: reqAmounts,
+      products: isSulfite
+        ? ['Aqueous Salt (aq)', 'H₂O (l)', 'SO₂ (g)↑']
+        : ['Aqueous Salt (aq)', 'H₂S (g)↑'],
+      balancedEquation: isSulfite
+        ? `2${acidF}(aq) + ${partnerF}(aq) → Salt(aq) + H₂O(l) + SO₂(g)↑`
+        : `2${acidF}(aq) + ${partnerF}(s/aq) → Salt(aq) + H₂S(g)↑`,
+      reactionType: 'gas_evolution',
+      observableEffects: {
+        colorChangeTo: '#F8FAFC',
+        isFinalSolutionColorless: true,
+        initialAppearance: `${acidReagent.name} + ${sulfiteOrSulfide.name}`,
+        finalAppearance: `Clear aqueous salt solution with evolution of ${isSulfite ? 'SO₂(g)' : 'H₂S(g)'} gas bubbles`,
+        temperatureDelta: 5.0,
+        producesGas: true,
+        gasName: isSulfite ? 'Sulfur Dioxide (SO₂)' : 'Hydrogen Sulfide (H₂S)',
+        gasColor: '#F8FAFC',
+        gasVigor: 3,
+        producesFumesAboveLiquid: true,
+        fumeColor: '#E2E8F0',
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'gas_eruption',
+        description: `Protonation of ${sulfiteOrSulfide.name} by ${acidReagent.name} liberates ${
+          isSulfite
+            ? 'sulfur dioxide gas (SO₂↑) via decomposition of unstable sulfurous acid (H₂SO₃)'
+            : 'hydrogen sulfide gas (H₂S↑) via double-displacement proton transfer'
+        }.`,
+      },
+      explanation: `Net ionic equation: ${
+        isSulfite ? 'SO₃²⁻(aq) + 2H⁺(aq) → H₂O(l) + SO₂(g)↑' : 'S²⁻(aq/s) + 2H⁺(aq) → H₂S(g)↑'
+      }.`,
+    };
+  }
+
+  // 5. Acid + Base Neutralization (→ Salt + H2O + Exothermic Heat)
+  const baseReagent = pair.find(
+    (c) =>
+      c.id !== acidReagent?.id &&
+      (c.category === 'base' || c.type === 'base' || c.secondaryCategories?.includes('base'))
+  );
+  if (acidReagent && baseReagent) {
+    const acidF = cleanFormulaState(acidReagent.formula);
+    const baseF = cleanFormulaState(baseReagent.formula);
+    const isBariumSulfatePpt =
+      /h2so4|sulfuric|sulphuric/i.test(`${acidReagent.id} ${acidReagent.name}`) &&
+      /ba_oh2|barium/i.test(`${baseReagent.id} ${baseReagent.name}`);
+
+    return {
+      id: `synth_neut_${acidReagent.id}_${baseReagent.id}`,
+      name: `${acidReagent.name} + ${baseReagent.name} Neutralization`,
+      reactants: [acidReagent.id, baseReagent.id],
+      requiredAmounts: reqAmounts,
+      products: isBariumSulfatePpt
+        ? ['BaSO₄ (s)↓', '2H₂O (l)']
+        : [`Aqueous Salt (${baseF.replace(/\(OH\)₂|OH/g, '')} Salt, aq)`, 'H₂O (l)'],
+      balancedEquation: isBariumSulfatePpt
+        ? 'H₂SO₄(aq) + Ba(OH)₂(aq) → BaSO₄(s)↓ + 2H₂O(l) + ΔH'
+        : `${acidF}(aq) + ${baseF}(aq) → Salt(aq) + H₂O(l) + ΔH (-57.3 kJ/mol)`,
+      reactionType: 'neutralization',
+      observableEffects: {
+        colorChangeTo: '#F8FAFC',
+        isFinalSolutionColorless: !isBariumSulfatePpt,
+        initialAppearance: `${acidReagent.name} (${acidReagent.formula}) + ${baseReagent.name} (${baseReagent.formula})`,
+        finalAppearance: isBariumSulfatePpt
+          ? 'Dense white BaSO₄(s) precipitate in neutral water'
+          : 'Clear, colourless neutral aqueous salt solution with exothermic warming',
+        temperatureDelta: 11.5,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: isBariumSulfatePpt,
+        precipitateColor: isBariumSulfatePpt ? '#FFFFFF' : undefined,
+        precipitateName: isBariumSulfatePpt ? 'Barium Sulfate (BaSO₄)' : undefined,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Brønsted–Lowry acid–base neutralization: hydronium ions (H⁺) from ${acidReagent.name} combine with hydroxide/basic sites from ${baseReagent.name} to form water (H⁺(aq) + OH⁻(aq) → H₂O(l)), releasing exothermic enthalpy of neutralization.`,
+      },
+      explanation: `Proton transfer from ${acidReagent.name} (${acidF}) to ${baseReagent.name} (${baseF}) yields water and the corresponding conjugate salt in solution, raising the beaker temperature.`,
+    };
+  }
+
+  // 6. Active Metal + Acid Single Displacement
+  const metalReagent = pair.find((c) => c.category === 'metal' || c.type === 'metal' || c.type === 'alkali_metal');
+  if (metalReagent && acidReagent) {
+    const nobleMetals = new Set([
+      'au_metal',
+      'pt_metal',
+      'pt_wire',
+      'ag_metal',
+      'cu',
+      'hg_metal',
+      'ir_metal',
+      'pd_metal',
+      'rh_metal',
+      'ru_metal',
+      'bi_metal',
+      'sb_metal',
+    ]);
+    const isOxidizingAcid = acidReagent.id === 'hno3' || /nitric/i.test(acidReagent.name);
+    if (!nobleMetals.has(metalReagent.id) || (isOxidizingAcid && ['cu', 'ag_metal'].includes(metalReagent.id))) {
+      const mSym = cleanFormulaState(metalReagent.formula);
+      const aSym = cleanFormulaState(acidReagent.formula);
+      return {
+        id: `synth_metal_acid_${metalReagent.id}_${acidReagent.id}`,
+        name: `${metalReagent.name} + ${acidReagent.name} Single-Displacement Reaction`,
+        reactants: [metalReagent.id, acidReagent.id],
+        requiredAmounts: reqAmounts,
+        products: isOxidizingAcid
+          ? [`${mSym}(NO₃)₂ (aq)`, 'NO₂ (g)↑', 'H₂O (l)']
+          : [`Aqueous ${metalReagent.name} Salt (aq)`, 'H₂ (g)↑'],
+        balancedEquation: isOxidizingAcid
+          ? `${mSym}(s) + 4HNO₃(aq) → ${mSym}(NO₃)₂(aq) + 2NO₂(g)↑ + 2H₂O(l)`
+          : `${mSym}(s) + 2${aSym}(aq) → ${mSym}²⁺(aq) + 2Anion⁻(aq) + H₂(g)↑`,
+        reactionType: 'single_displacement',
+        observableEffects: {
+          colorChangeTo: mSym === 'Cu' ? '#0284C7' : mSym === 'Fe' ? '#86EFAC' : '#F8FAFC',
+          isFinalSolutionColorless: !['Cu', 'Fe', 'Co', 'Ni', 'Cr'].includes(mSym),
+          initialAppearance: `Metallic ${metalReagent.name} (${mSym}(s)) + ${acidReagent.name} (${acidReagent.formula})`,
+          finalAppearance: isOxidizingAcid
+            ? `Dissolution of ${metalReagent.name} with evolution of reddish-brown NO₂(g) fumes`
+            : `Dissolution of ${metalReagent.name} with brisk streams of colourless H₂(g) bubbles`,
+          temperatureDelta: 18.0,
+          producesGas: true,
+          gasName: isOxidizingAcid ? 'Nitrogen Dioxide (NO₂) — Toxic' : 'Hydrogen Gas (H₂)',
+          gasColor: isOxidizingAcid ? '#B45309' : '#FFFFFF',
+          gasVigor: 4,
+          producesFumesAboveLiquid: isOxidizingAcid,
+          fumeColor: isOxidizingAcid ? '#B45309' : undefined,
+          producesPrecipitate: false,
+          isViolent: false,
+          hazardType: 'gas_eruption',
+          description: `Electrochemical single displacement: ${metalReagent.name} (${mSym}) has a negative standard reduction potential (E° < 0.00 V) and reduces protons from ${acidReagent.name} to evolve hydrogen gas (H₂↑) while dissolving into hydrated metal cations.`,
+        },
+        explanation: `Because ${metalReagent.name} lies above hydrogen in the electrochemical reactivity series, electron transfer from ${mSym}(s) to H⁺(aq) is thermodynamically spontaneous (ΔG° < 0).`,
+      };
+    }
+  }
+
+  // 7. Ammonium Salt + Strong Base → Ammonia Gas Evolution (NH3↑)
+  const nh4Salt = pair.find(
+    (c) => c.id.startsWith('nh4') || /ammonium|\(nh₄\)|nh₄/i.test(`${c.id} ${c.name} ${c.formula}`)
+  );
+  const hydroxideBase = pair.find(
+    (c) =>
+      c.id !== nh4Salt?.id &&
+      (c.category === 'base' || /hydroxide|naoh|koh|ba_oh2|ca_oh2|lioh/i.test(`${c.id} ${c.name} ${c.formula}`))
+  );
+  if (nh4Salt && hydroxideBase) {
+    return {
+      id: `synth_nh3_${nh4Salt.id}_${hydroxideBase.id}`,
+      name: `${nh4Salt.name} + ${hydroxideBase.name} Ammonia Evolution`,
+      reactants: [nh4Salt.id, hydroxideBase.id],
+      requiredAmounts: reqAmounts,
+      products: ['NH₃ (g)↑', 'H₂O (l)', 'Aqueous Alkali Salt (aq)'],
+      balancedEquation: `${cleanFormulaState(nh4Salt.formula)}(aq) + ${cleanFormulaState(hydroxideBase.formula)}(aq) → NH₃(g)↑ + H₂O(l) + Salt(aq)`,
+      reactionType: 'gas_evolution',
+      observableEffects: {
+        colorChangeTo: '#F8FAFC',
+        isFinalSolutionColorless: true,
+        initialAppearance: `${nh4Salt.name} + ${hydroxideBase.name}`,
+        finalAppearance: 'Clear colourless solution evolving pungent alkaline ammonia gas (NH₃↑)',
+        temperatureDelta: 2.5,
+        producesGas: true,
+        gasName: 'Ammonia Gas (NH₃)',
+        gasColor: '#F8FAFC',
+        gasVigor: 3,
+        producesFumesAboveLiquid: true,
+        fumeColor: '#E2E8F0',
+        producesPrecipitate: false,
+        isViolent: false,
+        hazardType: 'gas_eruption',
+        description: `Brønsted–Lowry deprotonation of ammonium ions: hydroxide ions (OH⁻) from ${hydroxideBase.name} abstract a proton from NH₄⁺ in ${nh4Salt.name} to generate volatile ammonia gas (NH₃↑) and water.`,
+      },
+      explanation: `Net ionic equation: NH₄⁺(aq) + OH⁻(aq) ⇌ NH₃(g)↑ + H₂O(l). Because OH⁻ is a much stronger base than NH₃ (pKb = 4.75), equilibrium lies strongly to the right.`,
+    };
+  }
+
+  // 8. Metal Salt + Hydroxide Base → Metal Hydroxide Precipitation M(OH)n(s)↓
+  const anyBase = pair.find((c) => c.category === 'base' || c.type === 'base');
+  const saltPartnerForBase = pair.find(
+    (c) =>
+      c.id !== anyBase?.id &&
+      (c.category === 'salt' || c.type === 'salt' || c.type === 'reagent') &&
+      !/^(na|k_|k\b|li|rb|cs|nh4|water)/i.test(c.id) &&
+      !/^(sodium|potassium|lithium|rubidium|cesium|caesium|ammonium)\s/i.test(c.name)
+  );
+  if (anyBase && saltPartnerForBase) {
+    const sText = `${saltPartnerForBase.id} ${saltPartnerForBase.name} ${saltPartnerForBase.formula}`.toLowerCase();
+    let pptFormula = 'M(OH)₂(s)↓';
+    let pptName = 'Metal Hydroxide Precipitate';
+    let pptColor = '#FFFFFF';
+    let finalSolColor = '#F8FAFC';
+    let isColorlessFinal = true;
+
+    if (/cu|copper|cupric/.test(sText)) {
+      if (anyBase.id === 'nh3' || /ammonia/i.test(anyBase.name)) {
+        return {
+          id: `synth_cu_nh3_${saltPartnerForBase.id}`,
+          name: `${saltPartnerForBase.name} + ${anyBase.name} Tetraamminecopper(II) Complexation`,
+          reactants: [saltPartnerForBase.id, anyBase.id],
+          requiredAmounts: reqAmounts,
+          products: ['[Cu(NH₃)₄]²⁺ (aq, deep royal-blue)', 'Cu(OH)₂ (s)↓ (transient)'],
+          balancedEquation: `Cu²⁺(aq) + 4NH₃(aq) ⇌ [Cu(NH₃)₄]²⁺(aq) [intense royal-blue complex]`,
+          reactionType: 'precipitation',
+          observableEffects: {
+            colorChangeTo: '#1E40AF',
+            isFinalSolutionColorless: false,
+            initialAppearance: `Azure-blue ${saltPartnerForBase.name} + ${anyBase.name}`,
+            finalAppearance: 'Intense deep royal-blue solution of tetraamminecopper(II) complex ([Cu(NH₃)₄]²⁺)',
+            temperatureDelta: 3.5,
+            producesGas: false,
+            producesFumesAboveLiquid: false,
+            producesPrecipitate: false,
+            isViolent: false,
+            hazardType: 'none',
+            description: `Ligand exchange reaction: aqueous ammonia first forms a pale blue Cu(OH)₂ precipitate that dissolves in excess NH₃ to produce the deep royal-blue square-planar [Cu(NH₃)₄(H₂O)₂]²⁺ coordination complex.`,
+          },
+          explanation: `Ammonia ligands replace four equatorial water ligands on Cu²⁺ (Kf = 1.1 × 10¹³), shifting the d–d absorption band and intensifying the royal-blue color.`,
+        };
+      }
+      pptFormula = 'Cu(OH)₂(s)↓';
+      pptName = 'Copper(II) Hydroxide (Cu(OH)₂)';
+      pptColor = '#38BDF8';
+      finalSolColor = '#E0F2FE';
+      isColorlessFinal = false;
+    } else if (/fe3|fecl3|iron\(iii\)|ferric/.test(sText)) {
+      pptFormula = 'Fe(OH)₃(s)↓';
+      pptName = 'Iron(III) Hydroxide (Fe(OH)₃)';
+      pptColor = '#B45309';
+      finalSolColor = '#FEF3C7';
+      isColorlessFinal = false;
+    } else if (/fe2|fe_so4|fecl2|iron\(ii\)|ferrous/.test(sText)) {
+      pptFormula = 'Fe(OH)₂(s)↓';
+      pptName = 'Iron(II) Hydroxide (Fe(OH)₂)';
+      pptColor = '#15803D';
+      finalSolColor = '#DCFCE7';
+      isColorlessFinal = false;
+    } else if (/co2|cocl2|coso4|cobalt/.test(sText)) {
+      pptFormula = 'Co(OH)₂(s)↓';
+      pptName = 'Cobalt(II) Hydroxide (Co(OH)₂)';
+      pptColor = '#EC4899';
+      finalSolColor = '#FCE7F3';
+      isColorlessFinal = false;
+    } else if (/ni2|niso4|nicl2|nickel/.test(sText)) {
+      pptFormula = 'Ni(OH)₂(s)↓';
+      pptName = 'Nickel(II) Hydroxide (Ni(OH)₂)';
+      pptColor = '#22C55E';
+      finalSolColor = '#DCFCE7';
+      isColorlessFinal = false;
+    } else if (/mn2|mnso4|mncl2|manganese\(ii\)|manganous/.test(sText)) {
+      pptFormula = 'Mn(OH)₂(s)↓';
+      pptName = 'Manganese(II) Hydroxide (Mn(OH)₂)';
+      pptColor = '#FBCFE8';
+    } else if (/cr3|crcl3|chromium\(iii\)|chromic/.test(sText)) {
+      pptFormula = 'Cr(OH)₃(s)↓';
+      pptName = 'Chromium(III) Hydroxide (Cr(OH)₃)';
+      pptColor = '#4D7C0F';
+      finalSolColor = '#ECFCCB';
+      isColorlessFinal = false;
+    } else if (/ag|silver/.test(sText)) {
+      pptFormula = 'Ag₂O(s)↓';
+      pptName = 'Silver(I) Oxide (Ag₂O)';
+      pptColor = '#78350F';
+    } else if (/zn|zinc/.test(sText)) {
+      pptFormula = 'Zn(OH)₂(s)↓';
+      pptName = 'Zinc Hydroxide (Zn(OH)₂)';
+      pptColor = '#FFFFFF';
+    } else if (/al|aluminium|aluminum/.test(sText)) {
+      pptFormula = 'Al(OH)₃(s)↓';
+      pptName = 'Aluminium Hydroxide (Al(OH)₃)';
+      pptColor = '#FFFFFF';
+    } else if (/mg|magnesium/.test(sText)) {
+      pptFormula = 'Mg(OH)₂(s)↓';
+      pptName = 'Magnesium Hydroxide (Mg(OH)₂)';
+      pptColor = '#FFFFFF';
+    } else if (/pb|lead/.test(sText)) {
+      pptFormula = 'Pb(OH)₂(s)↓';
+      pptName = 'Lead(II) Hydroxide (Pb(OH)₂)';
+      pptColor = '#FFFFFF';
+    } else if (/sn|tin|stannous/.test(sText)) {
+      pptFormula = 'Sn(OH)₂(s)↓';
+      pptName = 'Tin(II) Hydroxide (Sn(OH)₂)';
+      pptColor = '#FFFFFF';
+    } else if (/ca|calcium/.test(sText)) {
+      pptFormula = 'Ca(OH)₂(s)↓';
+      pptName = 'Calcium Hydroxide (Ca(OH)₂)';
+      pptColor = '#FFFFFF';
+    } else {
+      pptFormula = null as unknown as string;
+    }
+
+    if (pptFormula) {
+      return {
+        id: `synth_oh_ppt_${saltPartnerForBase.id}_${anyBase.id}`,
+        name: `${saltPartnerForBase.name} + ${anyBase.name} Hydroxide Precipitation`,
+        reactants: [saltPartnerForBase.id, anyBase.id],
+        requiredAmounts: reqAmounts,
+        products: [pptFormula, 'Aqueous Spectator Salt (aq)'],
+        balancedEquation: `${cleanFormulaState(saltPartnerForBase.formula)}(aq) + 2${cleanFormulaState(anyBase.formula)}(aq) → ${pptFormula} + Soluble Salt(aq)`,
+        reactionType: 'precipitation',
+        observableEffects: {
+          colorChangeTo: finalSolColor,
+          isFinalSolutionColorless: isColorlessFinal,
+          initialAppearance: `${saltPartnerForBase.name} (${saltPartnerForBase.formula}) + ${anyBase.name} (${anyBase.formula})`,
+          finalAppearance: `Insoluble ${pptName} (${pptFormula}) precipitate settling in aqueous solution`,
+          temperatureDelta: 2.5,
+          producesGas: false,
+          producesFumesAboveLiquid: false,
+          producesPrecipitate: true,
+          precipitateColor: pptColor,
+          precipitateName: pptName,
+          isViolent: false,
+          hazardType: 'none',
+          description: `Double-displacement hydroxide precipitation: mixing ${saltPartnerForBase.name} with alkaline ${anyBase.name} causes the ion product to exceed K_sp, immediately nucleating an insoluble ${pptName} (${pptFormula}) precipitate.`,
+        },
+        explanation: `Hydrated metal cations react with hydroxide ions (Mⁿ⁺(aq) + nOH⁻(aq) → M(OH)ₙ(s)↓) to form an insoluble metal hydroxide lattice.`,
+      };
+    }
+  }
+
+  // 9. Salt + Salt (or Acid + Salt) Double-Displacement Metathesis Precipitation (Q_sp > K_sp)
+  // Extract cations and anions from the two reagents
+  const detectCation = (r: ChemicalReagent): string | null => {
+    const t = `${r.id} ${r.name} ${r.formula}`.toLowerCase();
+    if (/\bag|silver/.test(t)) return 'Ag';
+    if (/\bpb|lead|plumbous/.test(t)) return 'Pb';
+    if (/\bba|barium/.test(t)) return 'Ba';
+    if (/\bsr|strontium/.test(t)) return 'Sr';
+    if (/\bca|calcium/.test(t)) return 'Ca';
+    if (/\bcu|copper|cupric/.test(t)) return 'Cu';
+    if (/fe3|fecl3|iron\(iii\)|ferric/.test(t)) return 'Fe3';
+    if (/fe2|fe_so4|fecl2|iron\(ii\)|ferrous/.test(t)) return 'Fe2';
+    if (/\bco2|cocl2|coso4|cobalt/.test(t)) return 'Co';
+    if (/\bni2|niso4|nicl2|nickel/.test(t)) return 'Ni';
+    if (/\bmn2|mnso4|mncl2|manganese\(ii\)/.test(t)) return 'Mn';
+    if (/\bzn|zinc/.test(t)) return 'Zn';
+    if (/\bmg|magnesium/.test(t)) return 'Mg';
+    if (/\bal|aluminium|aluminum/.test(t)) return 'Al';
+    if (/\bsn|tin|stannous/.test(t)) return 'Sn';
+    return null;
+  };
+
+  const detectAnions = (r: ChemicalReagent): string[] => {
+    const t = `${r.id} ${r.name} ${r.formula}`.toLowerCase();
+    const out: string[] = [];
+    if (/chromate|cro4|cro₄/.test(t) && !/dichromate/.test(t)) out.push('CrO4');
+    if (/carbonate|co3|co₃/.test(t) && !/bicarbonate|hco3|hco₃/.test(t)) out.push('CO3');
+    if (/phosphate|po4|po₄/.test(t)) out.push('PO4');
+    if (/oxalate|c2o4|c₂o₄/.test(t)) out.push('C2O4');
+    if (/sulfide|sulphide|_s\b|\bs²⁻/.test(t) && !/sulfate|sulfite|thiosulfate/.test(t)) out.push('S');
+    if (/sulfate|sulphate|so4|so₄|h2so4/.test(t) && !/thiosulfate|bisulfate/.test(t)) out.push('SO4');
+    if (/sulfite|sulphite|so3|so₃/.test(t)) out.push('SO3');
+    if (/iodide|\bi\b|_i\b|ki\b|nai\b|hi\b/.test(t)) out.push('I');
+    if (/bromide|br\b|_br\b|nabr|kbr|hbr/.test(t)) out.push('Br');
+    if (/chloride|cl\b|cl₂|cl₃|_cl\b|nacl|kcl|hcl|bacl2|cacl2|fecl/.test(t) && !/hypochlorite|chlorate|perchlorate/.test(t)) out.push('Cl');
+    if (/thiocyanate|scn/.test(t)) out.push('SCN');
+    return out;
+  };
+
+  const cat1 = detectCation(r1);
+  const cat2 = detectCation(r2);
+  const anions1 = detectAnions(r1);
+  const anions2 = detectAnions(r2);
+
+  interface PptMatch {
+    formula: string;
+    name: string;
+    colorHex: string;
+    colorDesc: string;
+    kspNote: string;
+  }
+
+  const checkInsolublePair = (cat: string | null, an: string): PptMatch | null => {
+    if (!cat) return null;
+    if (cat === 'Ag') {
+      if (an === 'Cl') return { formula: 'AgCl(s)↓', name: 'Silver Chloride (AgCl)', colorHex: '#FFFFFF', colorDesc: 'curdy white', kspNote: 'K_sp = 1.8 × 10⁻¹⁰' };
+      if (an === 'Br') return { formula: 'AgBr(s)↓', name: 'Silver Bromide (AgBr)', colorHex: '#FEF08A', colorDesc: 'pale cream-yellow', kspNote: 'K_sp = 5.4 × 10⁻¹³' };
+      if (an === 'I') return { formula: 'AgI(s)↓', name: 'Silver Iodide (AgI)', colorHex: '#FACC15', colorDesc: 'bright canary-yellow', kspNote: 'K_sp = 8.5 × 10⁻¹⁷' };
+      if (an === 'CrO4') return { formula: 'Ag₂CrO₄(s)↓', name: 'Silver Chromate (Ag₂CrO₄)', colorHex: '#B91C1C', colorDesc: 'brick-red', kspNote: 'K_sp = 1.1 × 10⁻¹²' };
+      if (an === 'PO4') return { formula: 'Ag₃PO₄(s)↓', name: 'Silver Phosphate (Ag₃PO₄)', colorHex: '#EAB308', colorDesc: 'bright yellow', kspNote: 'K_sp = 8.9 × 10⁻¹⁷' };
+      if (an === 'CO3') return { formula: 'Ag₂CO₃(s)↓', name: 'Silver Carbonate (Ag₂CO₃)', colorHex: '#FEF08A', colorDesc: 'pale yellow', kspNote: 'K_sp = 8.5 × 10⁻¹²' };
+      if (an === 'S') return { formula: 'Ag₂S(s)↓', name: 'Silver Sulfide (Ag₂S)', colorHex: '#1E293B', colorDesc: 'jet-black', kspNote: 'K_sp = 6.0 × 10⁻⁵¹' };
+      if (an === 'SCN') return { formula: 'AgSCN(s)↓', name: 'Silver Thiocyanate (AgSCN)', colorHex: '#FFFFFF', colorDesc: 'curdy white', kspNote: 'K_sp = 1.0 × 10⁻¹²' };
+      if (an === 'C2O4') return { formula: 'Ag₂C₂O₄(s)↓', name: 'Silver Oxalate (Ag₂C₂O₄)', colorHex: '#FFFFFF', colorDesc: 'white', kspNote: 'K_sp = 5.4 × 10⁻¹²' };
+    }
+    if (cat === 'Pb') {
+      if (an === 'I') return { formula: 'PbI₂(s)↓', name: 'Lead(II) Iodide (PbI₂)', colorHex: '#FACC15', colorDesc: 'glittering golden-yellow', kspNote: 'K_sp = 9.8 × 10⁻⁹' };
+      if (an === 'CrO4') return { formula: 'PbCrO₄(s)↓', name: 'Lead(II) Chromate (PbCrO₄)', colorHex: '#EAB308', colorDesc: 'vivid chrome-yellow', kspNote: 'K_sp = 2.8 × 10⁻¹³' };
+      if (an === 'SO4') return { formula: 'PbSO₄(s)↓', name: 'Lead(II) Sulfate (PbSO₄)', colorHex: '#FFFFFF', colorDesc: 'dense white', kspNote: 'K_sp = 2.5 × 10⁻⁸' };
+      if (an === 'Cl') return { formula: 'PbCl₂(s)↓', name: 'Lead(II) Chloride (PbCl₂)', colorHex: '#FFFFFF', colorDesc: 'white crystalline', kspNote: 'K_sp = 1.7 × 10⁻⁵' };
+      if (an === 'Br') return { formula: 'PbBr₂(s)↓', name: 'Lead(II) Bromide (PbBr₂)', colorHex: '#FFFFFF', colorDesc: 'white crystalline', kspNote: 'K_sp = 6.6 × 10⁻⁶' };
+      if (an === 'CO3') return { formula: 'PbCO₃(s)↓', name: 'Lead(II) Carbonate (PbCO₃)', colorHex: '#FFFFFF', colorDesc: 'chalky white', kspNote: 'K_sp = 7.4 × 10⁻¹⁴' };
+      if (an === 'S') return { formula: 'PbS(s)↓', name: 'Lead(II) Sulfide (PbS)', colorHex: '#1E293B', colorDesc: 'galena black', kspNote: 'K_sp = 3.0 × 10⁻²⁸' };
+      if (an === 'PO4') return { formula: 'Pb₃(PO₄)₂(s)↓', name: 'Lead(II) Phosphate (Pb₃(PO₄)₂)', colorHex: '#FFFFFF', colorDesc: 'white', kspNote: 'K_sp = 8.0 × 10⁻⁴³' };
+      if (an === 'C2O4') return { formula: 'PbC₂O₄(s)↓', name: 'Lead(II) Oxalate (PbC₂O₄)', colorHex: '#FFFFFF', colorDesc: 'white', kspNote: 'K_sp = 8.5 × 10⁻¹⁰' };
+    }
+    if (cat === 'Ba' || cat === 'Sr' || cat === 'Ca') {
+      const cName = cat === 'Ba' ? 'Barium' : cat === 'Sr' ? 'Strontium' : 'Calcium';
+      if (an === 'SO4') return { formula: `${cat}SO₄(s)↓`, name: `${cName} Sulfate (${cat}SO₄)`, colorHex: '#FFFFFF', colorDesc: 'heavy crystalline white', kspNote: 'insoluble alkaline-earth sulfate' };
+      if (an === 'CO3') return { formula: `${cat}CO₃(s)↓`, name: `${cName} Carbonate (${cat}CO₃)`, colorHex: '#FFFFFF', colorDesc: 'chalky white', kspNote: 'insoluble alkaline-earth carbonate' };
+      if (an === 'C2O4') return { formula: `${cat}C₂O₄(s)↓`, name: `${cName} Oxalate (${cat}C₂O₄)`, colorHex: '#FFFFFF', colorDesc: 'fine white', kspNote: 'insoluble oxalate' };
+      if (an === 'PO4') return { formula: `${cat}₃(PO₄)₂(s)↓`, name: `${cName} Phosphate (${cat}₃(PO₄)₂)`, colorHex: '#FFFFFF', colorDesc: 'flocculant white', kspNote: 'insoluble phosphate' };
+      if (an === 'SO3') return { formula: `${cat}SO₃(s)↓`, name: `${cName} Sulfite (${cat}SO₃)`, colorHex: '#FFFFFF', colorDesc: 'white', kspNote: 'soluble in dilute acid' };
+      if (an === 'CrO4' && (cat === 'Ba' || cat === 'Sr')) {
+        return { formula: `${cat}CrO₄(s)↓`, name: `${cName} Chromate (${cat}CrO₄)`, colorHex: '#FEF08A', colorDesc: 'lemon-yellow', kspNote: 'K_sp = 1.2 × 10⁻¹⁰' };
+      }
+    }
+    if (['Cu', 'Fe2', 'Fe3', 'Co', 'Ni', 'Mn', 'Zn', 'Mg', 'Sn'].includes(cat)) {
+      const sym = cat.replace(/[23]/, '');
+      if (an === 'CO3') {
+        const col = cat === 'Cu' ? '#10B981' : cat === 'Co' ? '#EC4899' : cat === 'Ni' ? '#4ADE80' : '#FFFFFF';
+        const desc = cat === 'Cu' ? 'malachite blue-green' : cat === 'Co' ? 'rose-violet' : cat === 'Ni' ? 'apple-green' : 'white/buff';
+        return { formula: `${sym}CO₃(s)↓`, name: `${sym} Carbonate (${sym}CO₃)`, colorHex: col, colorDesc: desc, kspNote: 'insoluble transition-metal carbonate' };
+      }
+      if (an === 'S') {
+        const col = cat === 'Zn' ? '#FFFFFF' : cat === 'Mn' ? '#FDA4AF' : '#1E293B';
+        const desc = cat === 'Zn' ? 'white' : cat === 'Mn' ? 'salmon-pink' : 'dense black';
+        return { formula: `${sym}S(s)↓`, name: `${sym} Sulfide (${sym}S)`, colorHex: col, colorDesc: desc, kspNote: 'extremely low K_sp metal sulfide' };
+      }
+      if (an === 'PO4') {
+        const col = cat === 'Cu' ? '#38BDF8' : cat === 'Co' ? '#A855F7' : cat === 'Ni' ? '#4ADE80' : '#FFFFFF';
+        return { formula: `${sym}₃(PO₄)₂(s)↓`, name: `${sym} Phosphate`, colorHex: col, colorDesc: 'insoluble flocculant', kspNote: 'insoluble metal phosphate' };
+      }
+      if (an === 'C2O4') {
+        return { formula: `${sym}C₂O₄(s)↓`, name: `${sym} Oxalate`, colorHex: '#FFFFFF', colorDesc: 'crystalline', kspNote: 'insoluble metal oxalate' };
+      }
+    }
+    return null;
+  };
+
+  let pptMatch: PptMatch | null = null;
+  for (const a2 of anions2) {
+    pptMatch = checkInsolublePair(cat1, a2);
+    if (pptMatch) break;
+  }
+  if (!pptMatch) {
+    for (const a1 of anions1) {
+      pptMatch = checkInsolublePair(cat2, a1);
+      if (pptMatch) break;
+    }
+  }
+
+  if (pptMatch) {
+    return {
+      id: `synth_ppt_${r1.id}_${r2.id}`,
+      name: `${r1.name} + ${r2.name} Double-Displacement Precipitation`,
+      reactants: [r1.id, r2.id],
+      requiredAmounts: reqAmounts,
+      products: [pptMatch.formula, 'Soluble Spectator Ions (aq)'],
+      balancedEquation: `${f1}(aq) + ${f2}(aq) → ${pptMatch.formula} [${pptMatch.colorDesc} precipitate] + Soluble Salt(aq)`,
+      reactionType: 'precipitation',
+      observableEffects: {
+        colorChangeTo: pptMatch.colorHex === '#FFFFFF' ? '#F8FAFC' : pptMatch.colorHex,
+        isFinalSolutionColorless: pptMatch.colorHex === '#FFFFFF',
+        initialAppearance: `${r1.name} (${r1.formula}) + ${r2.name} (${r2.formula})`,
+        finalAppearance: `Immediate cloudiness and settling of a ${pptMatch.colorDesc} ${pptMatch.name} (${pptMatch.formula}) precipitate`,
+        temperatureDelta: 1.5,
+        producesGas: false,
+        producesFumesAboveLiquid: false,
+        producesPrecipitate: true,
+        precipitateColor: pptMatch.colorHex,
+        precipitateName: pptMatch.name,
+        isViolent: false,
+        hazardType: 'none',
+        description: `Ionic salt metathesis (double displacement): mixing ${r1.name} and ${r2.name} causes the ion product (Q_sp) to exceed the solubility product (${pptMatch.kspNote}), nucleating a ${pptMatch.colorDesc} precipitate of ${pptMatch.name} (${pptMatch.formula}).`,
+      },
+      explanation: `In aqueous solution, dissociated cations and anions exchange partners. Because ${pptMatch.name} has very low solubility (${pptMatch.kspNote}), it precipitates rapidly from solution while the counter-ions remain hydrated spectator ions.`,
+    };
+  }
+
+  // 10. Active Metal + Less Reactive Metal Salt Single Displacement
+  if (metalReagent) {
+    const saltPartner = pair.find((c) => c.id !== metalReagent.id && c.category === 'salt');
+    if (saltPartner) {
+      const reactivityRank: Record<string, number> = {
+        K: 12,
+        Na: 11,
+        Li: 11,
+        Ca: 10,
+        Mg: 9,
+        Al: 8,
+        Zn: 7,
+        Fe: 6,
+        Fe2: 6,
+        Fe3: 6,
+        Co: 5,
+        Ni: 4,
+        Sn: 3,
+        Pb: 2,
+        Cu: 1,
+        Ag: 0,
+      };
+      const mSym = cleanFormulaState(metalReagent.formula).replace(/[^A-Za-z]/g, '');
+      const saltCat = detectCation(saltPartner);
+      const mRank = reactivityRank[mSym];
+      const sRank = saltCat ? reactivityRank[saltCat] : undefined;
+      if (mRank !== undefined && sRank !== undefined && mRank > sRank) {
+        const displacedMetal = saltCat!.replace(/[23]/, '');
+        return {
+          id: `synth_disp_${metalReagent.id}_${saltPartner.id}`,
+          name: `${metalReagent.name} + ${saltPartner.name} Single-Displacement Redox`,
+          reactants: [metalReagent.id, saltPartner.id],
+          requiredAmounts: reqAmounts,
+          products: [`Aqueous ${metalReagent.name} Salt (aq)`, `${displacedMetal} (s)↓`],
+          balancedEquation: `${mSym}(s) + ${cleanFormulaState(saltPartner.formula)}(aq) → ${mSym} Salt(aq) + ${displacedMetal}(s)↓`,
+          reactionType: 'single_displacement',
+          observableEffects: {
+            colorChangeTo: mSym === 'Cu' ? '#0284C7' : mSym === 'Fe' ? '#86EFAC' : '#F8FAFC',
+            isFinalSolutionColorless: !['Cu', 'Fe', 'Co', 'Ni'].includes(mSym),
+            initialAppearance: `Metallic ${metalReagent.name} (${mSym}(s)) + ${saltPartner.name} (${saltPartner.formula})`,
+            finalAppearance: `Deposition of elemental ${displacedMetal}(s) on the metal surface as ${mSym} dissolves into solution`,
+            temperatureDelta: 12.0,
+            producesGas: false,
+            producesFumesAboveLiquid: false,
+            producesPrecipitate: true,
+            precipitateColor: displacedMetal === 'Cu' ? '#B45309' : displacedMetal === 'Ag' ? '#E2E8F0' : '#475569',
+            precipitateName: `Elemental ${displacedMetal} Metal Deposit (${displacedMetal}(s))`,
+            solidCoatingColor: displacedMetal === 'Cu' ? '#B45309' : '#CBD5E1',
+            isViolent: false,
+            hazardType: 'none',
+            description: `Redox single displacement: because ${metalReagent.name} (${mSym}) is higher in the electrochemical reactivity series (more negative E°) than ${displacedMetal}, it donates electrons to reduce ${displacedMetal}ⁿ⁺ ions into solid metallic ${displacedMetal}(s)↓.`,
+          },
+          explanation: `Spontaneous electron transfer from the more electropositive metal (${mSym}) to the less reactive metal cation (${displacedMetal}ⁿ⁺) drives metallic deposition and dissolution of ${mSym}ⁿ⁺.`,
+        };
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -1547,7 +2514,7 @@ export function evaluateReactionRecipe(params: {
 
   // 0. Safety Gate: Block restricted hazardous or radioactive compounds from interactive execution
   const restrictedReagent = presentIds
-    .map((id) => REAGENTS.find((r) => r.id === id))
+    .map((id) => findReagentById(id))
     .find((r) => r?.isRestricted);
 
   if (restrictedReagent) {
@@ -1600,8 +2567,10 @@ export function evaluateReactionRecipe(params: {
     }
   }
 
+  const allKnownReactions = [...REACTIONS, ...DYNAMIC_REACTIONS];
+
   // 2A. Search exact reactant set match first (highest specificity)
-  const exactReaction = REACTIONS.find(
+  const exactReaction = allKnownReactions.find(
     (r) =>
       r.reactants.length === presentIds.length &&
       r.reactants.every((reqId) => (amountsMap[reqId] || 0) > 0)
@@ -1610,7 +2579,7 @@ export function evaluateReactionRecipe(params: {
   // 2B. Fallback to subset match if all required reactants are present
   const subsetReaction =
     exactReaction ||
-    REACTIONS.find((r) => r.reactants.every((reqId) => (amountsMap[reqId] || 0) > 0));
+    allKnownReactions.find((r) => r.reactants.every((reqId) => (amountsMap[reqId] || 0) > 0));
 
   if (subsetReaction) {
     const r = subsetReaction;
@@ -1634,7 +2603,7 @@ export function evaluateReactionRecipe(params: {
 
   // 2C. Dynamic Indicator + Acid / Base Halochromic Transition Support
   const presentReagents = presentIds
-    .map((id) => REAGENTS.find((r) => r.id === id))
+    .map((id) => findReagentById(id))
     .filter((r): r is ChemicalReagent => Boolean(r));
 
   const indicatorReagent = presentReagents.find(
@@ -1730,7 +2699,7 @@ export function evaluateReactionRecipe(params: {
   if (presentIds.length === 1) {
     const singleId = presentIds[0];
     const info = getReagentDisplayInfo(singleId);
-    const fullReagent = REAGENTS.find((r) => r.id === singleId);
+    const fullReagent = findReagentById(singleId);
 
     if (singleId === 'water') {
       return {
@@ -1781,7 +2750,7 @@ export function evaluateReactionRecipe(params: {
 
   // Reference or mismatched catalyst pairings
   const catalystReagents = presentIds
-    .map((id) => REAGENTS.find((r) => r.id === id))
+    .map((id) => findReagentById(id))
     .filter((r): r is ChemicalReagent => Boolean(r && (r.category === 'catalyst' || r.type === 'catalyst')));
 
   if (catalystReagents.length > 0) {
@@ -1812,7 +2781,7 @@ export function evaluateReactionRecipe(params: {
   }
 
   // Copper with more reactive metal salts (e.g. Cu + ZnSO4, Cu + NaCl)
-  if (presentIds.includes('cu') && presentIds.length === 2) {
+  if (presentIds.includes('cu') && presentIds.length === 2 && !presentIds.some((id) => /ag/i.test(id))) {
     return {
       isSupported: false,
       status: 'unsupported',
@@ -1844,6 +2813,13 @@ export function evaluateReactionRecipe(params: {
       reaction: null,
       message: `Water (H₂O) acts as a polar solvent hydrating or diluting ${otherInfo.name} (${otherInfo.formula}) into aqueous spectator ions or dispersed phase. No new chemical products, gas evolution, or precipitate are formed by dilution alone.`,
     };
+  }
+
+  // 5. Scientifically Rigorous Stoichiometric Synthesis for Canonical & Newly Added Compounds
+  const synthesizedReaction = synthesizeScientificReaction(presentReagents, amountsMap);
+  if (synthesizedReaction) {
+    registerDynamicReaction(synthesizedReaction);
+    return buildSuccessResult(synthesizedReaction, amountsMap, conditions);
   }
 
   // Two acids mixed together
