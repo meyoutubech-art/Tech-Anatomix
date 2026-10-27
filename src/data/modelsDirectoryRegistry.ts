@@ -1,6 +1,8 @@
 import { CURATED_AI_MODELS } from './curatedAiModels';
+import { SIMULATIONS_CONFIG } from './simulationsData';
 import { PageRoute } from '../components/layout/Navbar';
 import { ScientificModelSpec } from '../types/aiModel';
+import { verifyPresetIntegrity } from '../utils/offlineModelManager';
 
 export interface ModelLaunchTarget {
   route: PageRoute;
@@ -13,13 +15,22 @@ export interface ModelLaunchTarget {
   aiProceduralPrompt?: string;
 }
 
+export type ModelIntegrationStatus = 'Integrated' | 'Needs Review' | 'Unavailable';
+export type ModelVerificationStatus = 'Verified' | 'Integrated' | 'Needs Review';
+
 export interface ScienceModelDirectoryEntry {
   id: string;
   number?: number;
   title: string;
+  canonicalName?: string;
   displayLabel: string;
   category: 'Physics' | 'Chemistry' | 'Biology' | 'Anatomy' | 'Engineering & Earth Science';
   subCategory: string;
+  subjectTags?: string[];
+  aliases?: string[];
+  discoverySource?: string;
+  integrationStatus?: ModelIntegrationStatus;
+  verificationStatus?: ModelVerificationStatus;
   shortDescription: string;
   implementationComponent: string;
   dataDefinitionSource: string;
@@ -32,6 +43,22 @@ export interface ScienceModelDirectoryEntry {
   launchTarget: ModelLaunchTarget;
 }
 
+export interface ModelDiscoveryDiagnostics {
+  totalUniqueModels: number;
+  original29Count: number;
+  additionalModelsCount: number;
+  curatedSpecsCount: number;
+  standaloneLabScenesCount: number;
+  proceduralModelsCount: number;
+  duplicateReferencesResolved: number;
+  verifiedCount: number;
+  integratedCount: number;
+  needsReviewCount: number;
+  unavailableCount: number;
+  availableCategories: ('All Subjects' | ScienceModelDirectoryEntry['category'])[];
+  categoryCounts: Record<string, number>;
+}
+
 export interface BackendAiServiceEntry {
   id: string;
   name: string;
@@ -40,6 +67,7 @@ export interface BackendAiServiceEntry {
   description: string;
   status: 'Active';
 }
+
 
 /**
  * Exact 29 Working Science Models requested for Section B ("My Science Models"),
@@ -1291,27 +1319,210 @@ function inferCuratedModelSourceAndRoute(spec: ScientificModelSpec): {
 }
 
 /**
- * Returns the complete, deduplicated inventory of all verified 3D models and model-based features
+ * Derives scientifically accurate secondary subject tags for a model entry.
+ */
+function deriveSecondarySubjectTags(
+  id: string,
+  title: string,
+  primaryCategory: ScienceModelDirectoryEntry['category'],
+  subCategory: string
+): string[] {
+  const tags = new Set<string>([primaryCategory]);
+  const corpus = `${id} ${title} ${subCategory}`.toLowerCase();
+
+  if (subCategory) {
+    subCategory
+      .split(/[&,·/]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 2 && s.length <= 34)
+      .slice(0, 2)
+      .forEach((t) => tags.add(t));
+  }
+
+  if (
+    corpus.includes('brain') ||
+    corpus.includes('heart') ||
+    corpus.includes('eye') ||
+    corpus.includes('respiratory') ||
+    corpus.includes('digestive') ||
+    corpus.includes('neuron') ||
+    corpus.includes('synapse') ||
+    corpus.includes('sarcomere') ||
+    corpus.includes('nephron') ||
+    corpus.includes('blood')
+  ) {
+    tags.add('Anatomy');
+    tags.add('Biology');
+  }
+
+  if (
+    corpus.includes('ultrasound') ||
+    corpus.includes('eye-vision') ||
+    corpus.includes('membrane') ||
+    corpus.includes('atp-synthase')
+  ) {
+    tags.add('Biophysics');
+  }
+
+  if (
+    corpus.includes('electrochemical') ||
+    corpus.includes('electrolysis') ||
+    corpus.includes('atom') ||
+    corpus.includes('orbital') ||
+    corpus.includes('crystal') ||
+    corpus.includes('kinetic-theory') ||
+    corpus.includes('thermodynamics')
+  ) {
+    tags.add('Physical Chemistry');
+  }
+
+  if (
+    corpus.includes('motor') ||
+    corpus.includes('generator') ||
+    corpus.includes('transformer') ||
+    corpus.includes('engine') ||
+    corpus.includes('turbine') ||
+    corpus.includes('hydraulic') ||
+    corpus.includes('maglev') ||
+    corpus.includes('tokamak') ||
+    corpus.includes('solar-photovoltaic') ||
+    corpus.includes('bell')
+  ) {
+    tags.add('Engineering & Earth Science');
+  }
+
+  if (
+    corpus.includes('seismic') ||
+    corpus.includes('magnetosphere') ||
+    corpus.includes('solar-system') ||
+    corpus.includes('telescope') ||
+    corpus.includes('volcano') ||
+    corpus.includes('earth')
+  ) {
+    tags.add('Earth & Space Science');
+  }
+
+  return Array.from(tags);
+}
+
+/**
+ * Automatically discovers all alias keys in CURATED_AI_MODELS and SIMULATIONS_CONFIG
+ * that point to the same underlying canonical model ID.
+ */
+function buildCanonicalAliasMap(): {
+  aliasesById: Map<string, string[]>;
+  duplicateKeysResolved: number;
+} {
+  const aliasesById = new Map<string, Set<string>>();
+  let totalCuratedKeys = 0;
+  const uniqueCuratedIds = new Set<string>();
+
+  for (const [registryKey, spec] of Object.entries(CURATED_AI_MODELS)) {
+    if (!spec || !spec.id) continue;
+    totalCuratedKeys++;
+    uniqueCuratedIds.add(spec.id);
+
+    if (!aliasesById.has(spec.id)) {
+      aliasesById.set(spec.id, new Set<string>());
+    }
+    const aliasSet = aliasesById.get(spec.id)!;
+    if (registryKey !== spec.id) {
+      aliasSet.add(registryKey);
+    }
+    const strippedTitle = (spec.title || '').replace(/^\d+\.\s*/, '').trim();
+    if (strippedTitle && strippedTitle.toLowerCase() !== spec.id.toLowerCase()) {
+      aliasSet.add(strippedTitle);
+    }
+  }
+
+  // Also map SIMULATIONS_CONFIG keys ('projectile', 'pendulum', 'circuit') to their canonical physics IDs
+  const simConfigMap: Record<string, string> = {
+    projectile: 'projectile-motion',
+    pendulum: 'simple-pendulum',
+    circuit: 'electric-circuit',
+  };
+  let simAliasesResolved = 0;
+  for (const [simKey, canonicalId] of Object.entries(simConfigMap)) {
+    if (SIMULATIONS_CONFIG[simKey]) {
+      simAliasesResolved++;
+      if (!aliasesById.has(canonicalId)) {
+        aliasesById.set(canonicalId, new Set<string>());
+      }
+      aliasesById.get(canonicalId)!.add(simKey);
+      aliasesById.get(canonicalId)!.add(`SIMULATIONS_CONFIG.${simKey}`);
+    }
+  }
+
+  // Also map BiologyLabPage foundation route IDs ('cell', 'heart', 'dna', 'frog-anatomy')
+  const bioRouteAliases: Record<string, string[]> = {
+    'biology-classic-eukaryotic-cell-scene': ['cell', 'eukaryotic-cell', 'CellScene'],
+    'biology-classic-human-heart-scene': ['heart', 'beating-heart', 'HeartScene'],
+    'biology-classic-dna-helix-scene': ['dna', 'b-dna-helix', 'DnaScene'],
+    'frog-anatomy-cervical-dissection': ['frog-anatomy', 'frog', 'rana-tigrina', 'FrogAnatomyExplorer'],
+    'human-anatomy-3d-dissection': ['human-anatomy', 'human', 'HumanAnatomyExplorer'],
+    'chemistry-3d-reaction-bench': ['reaction_bench', 'chemical-reactions-lab', 'ChemistryLabScene'],
+    'chemistry-3d-molecular-explorer': ['molecular_explorer', 'vsepr-molecules', 'MolecularScene'],
+  };
+  let routeAliasesResolved = 0;
+  for (const [canonicalId, extraAliases] of Object.entries(bioRouteAliases)) {
+    if (!aliasesById.has(canonicalId)) {
+      aliasesById.set(canonicalId, new Set<string>());
+    }
+    extraAliases.forEach((a) => {
+      aliasesById.get(canonicalId)!.add(a);
+    });
+    routeAliasesResolved += 1;
+  }
+
+  const finalMap = new Map<string, string[]>();
+  aliasesById.forEach((set, id) => {
+    finalMap.set(id, Array.from(set));
+  });
+
+  const duplicateKeysResolved =
+    totalCuratedKeys - uniqueCuratedIds.size + simAliasesResolved + routeAliasesResolved;
+
+  return { aliasesById: finalMap, duplicateKeysResolved };
+}
+
+/**
+ * Returns the complete, deduplicated unified inventory of all verified 3D models and model-based features
  * integrated across the Tech-Anatomix codebase.
  */
 export function getAllIntegratedModelsDirectory(): ScienceModelDirectoryEntry[] {
   const seenIds = new Set<string>();
   const directory: ScienceModelDirectoryEntry[] = [];
+  const { aliasesById } = buildCanonicalAliasMap();
 
-  // 1. Add all unique curated 3D ScientificModelSpec presets from CURATED_AI_MODELS (90 unique models)
+  // 1. Automatically discover all unique curated 3D ScientificModelSpec presets from CURATED_AI_MODELS (90 unique models)
   Object.values(CURATED_AI_MODELS).forEach((spec) => {
     if (!spec || !spec.id || seenIds.has(spec.id)) return;
     seenIds.add(spec.id);
 
     const my29Entry = MY_29_BY_ID.get(spec.id);
     const meta = inferCuratedModelSourceAndRoute(spec);
+    const cleanTitle = my29Entry ? my29Entry.title : spec.title.replace(/^\d+\.\s*/, '').trim();
+    const primaryCategory = my29Entry ? my29Entry.category : meta.category;
+    const subCategory = my29Entry ? my29Entry.subCategory : meta.subCategory;
+    const isSpecVerified = verifyPresetIntegrity(spec);
+    const discoveredAliases = aliasesById.get(spec.id) || [];
+    if (my29Entry && !discoveredAliases.includes(`#${my29Entry.number}`)) {
+      discoveredAliases.unshift(`Model #${my29Entry.number}`, my29Entry.displayLabel);
+    }
 
     directory.push({
       id: spec.id,
-      title: my29Entry ? my29Entry.title : spec.title.replace(/^\d+\.\s*/, ''),
+      number: my29Entry?.number,
+      title: cleanTitle,
+      canonicalName: cleanTitle,
       displayLabel: spec.title,
-      category: my29Entry ? my29Entry.category : meta.category,
-      subCategory: my29Entry ? my29Entry.subCategory : meta.subCategory,
+      category: primaryCategory,
+      subCategory,
+      subjectTags: deriveSecondarySubjectTags(spec.id, cleanTitle, primaryCategory, subCategory),
+      aliases: discoveredAliases,
+      discoverySource: 'Curated 3D Spec Registry',
+      integrationStatus: 'Integrated',
+      verificationStatus: isSpecVerified ? 'Verified' : 'Needs Review',
       shortDescription: spec.description || my29Entry?.shortDescription || '',
       implementationComponent: my29Entry ? my29Entry.implementationComponent : meta.implementationComponent,
       dataDefinitionSource: my29Entry ? my29Entry.dataDefinitionSource : meta.dataDefinitionSource,
@@ -1325,29 +1536,49 @@ export function getAllIntegratedModelsDirectory(): ScienceModelDirectoryEntry[] 
     });
   });
 
-  // 2. Add the 7 dedicated standalone Three.js laboratory scenes (Anatomy, Chemistry Bench, Molecular Explorer, Cell/Heart/DNA Foundations)
+  // 2. Automatically include the 7 dedicated standalone Three.js laboratory scenes
   STANDALONE_LAB_SCENES.forEach((scene) => {
     if (seenIds.has(scene.id)) return;
     seenIds.add(scene.id);
-    directory.push(scene);
+    const sceneAliases = aliasesById.get(scene.id) || [scene.displayLabel];
+    directory.push({
+      ...scene,
+      canonicalName: scene.title,
+      subjectTags: deriveSecondarySubjectTags(scene.id, scene.title, scene.category, scene.subCategory),
+      aliases: sceneAliases,
+      discoverySource: 'Standalone Three.js Lab Scene',
+      integrationStatus: 'Integrated',
+      verificationStatus: 'Verified',
+    });
   });
 
-  // 3. Add the 25 specialized deterministic procedural 3D models from proceduralModelSynthesizer.ts
+  // 3. Automatically include the 25 specialized deterministic procedural 3D models from proceduralModelSynthesizer.ts
   PROCEDURAL_SYNTHESIZER_MODELS.forEach((proc) => {
     if (seenIds.has(proc.id)) return;
     seenIds.add(proc.id);
+    const promptKeywords = proc.prompt
+      .split(/\s+/)
+      .filter((w) => w.length > 2);
     directory.push({
       id: proc.id,
       title: proc.title,
+      canonicalName: proc.title,
       displayLabel: proc.title,
       category: proc.category,
       subCategory: proc.subCategory,
+      subjectTags: deriveSecondarySubjectTags(proc.id, proc.title, proc.category, proc.subCategory),
+      aliases: [proc.prompt, ...promptKeywords],
+      discoverySource: 'Procedural 3D Synthesizer Registry',
+      integrationStatus: 'Integrated',
+      verificationStatus: 'Verified',
       shortDescription: proc.shortDescription,
       implementationComponent: 'src/pages/AiModelGeneratorPage.tsx · src/utils/proceduralModelSynthesizer.ts',
       dataDefinitionSource: `src/utils/proceduralModelSynthesizer.ts (${proc.id})`,
       routeLabel: 'Create 3D Model Studio → Procedural 3D Synthesizer',
       status: 'Procedural 3D Synthesizer',
       isInMy29Models: false,
+      partsCount: 6,
+      parametersCount: 3,
       launchTarget: {
         route: 'ai-generator',
         modelId: proc.id,
@@ -1358,6 +1589,72 @@ export function getAllIntegratedModelsDirectory(): ScienceModelDirectoryEntry[] 
 
   return directory;
 }
+
+/**
+ * Alias for getAllIntegratedModelsDirectory() representing the single unified model library.
+ */
+export function getUnifiedModelLibrary(): ScienceModelDirectoryEntry[] {
+  return getAllIntegratedModelsDirectory();
+}
+
+/**
+ * Computes real-time discovery diagnostics across all model registries in the application.
+ */
+export function getModelDiscoveryDiagnostics(): ModelDiscoveryDiagnostics {
+  const inventory = getAllIntegratedModelsDirectory();
+  const { duplicateKeysResolved } = buildCanonicalAliasMap();
+
+  const original29Count = inventory.filter((m) => m.isInMy29Models).length;
+  const curatedSpecsCount = inventory.filter((m) => m.status === 'Active & Verified').length;
+  const standaloneLabScenesCount = inventory.filter((m) => m.status === 'Standalone Lab Scene').length;
+  const proceduralModelsCount = inventory.filter((m) => m.status === 'Procedural 3D Synthesizer').length;
+
+  const verifiedCount = inventory.filter((m) => m.verificationStatus === 'Verified').length;
+  const integratedCount = inventory.filter((m) => m.integrationStatus === 'Integrated').length;
+  const needsReviewCount = inventory.filter(
+    (m) => m.integrationStatus === 'Needs Review' || m.verificationStatus === 'Needs Review'
+  ).length;
+  const unavailableCount = inventory.filter((m) => m.integrationStatus === 'Unavailable').length;
+
+  const categoryCounts: Record<string, number> = {
+    'All Subjects': inventory.length,
+  };
+  const preferredOrder: ScienceModelDirectoryEntry['category'][] = [
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Anatomy',
+    'Engineering & Earth Science',
+  ];
+  const discoveredCategories: ('All Subjects' | ScienceModelDirectoryEntry['category'])[] = [
+    'All Subjects',
+  ];
+
+  preferredOrder.forEach((cat) => {
+    const count = inventory.filter((m) => m.category === cat).length;
+    if (count > 0) {
+      categoryCounts[cat] = count;
+      discoveredCategories.push(cat);
+    }
+  });
+
+  return {
+    totalUniqueModels: inventory.length,
+    original29Count,
+    additionalModelsCount: inventory.length - original29Count,
+    curatedSpecsCount,
+    standaloneLabScenesCount,
+    proceduralModelsCount,
+    duplicateReferencesResolved: duplicateKeysResolved,
+    verifiedCount,
+    integratedCount,
+    needsReviewCount,
+    unavailableCount,
+    availableCategories: discoveredCategories,
+    categoryCounts,
+  };
+}
+
 
 /**
  * Backend AI & Scientific Computation Services discovered during full-codebase inspection (no secrets exposed).

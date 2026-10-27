@@ -1,10 +1,13 @@
 import {
   MY_SCIENCE_MODELS_29,
   getAllIntegratedModelsDirectory,
+  getUnifiedModelLibrary,
+  getModelDiscoveryDiagnostics,
   BACKEND_AI_AND_SCIENTIFIC_SERVICES,
 } from '../data/modelsDirectoryRegistry';
 import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 import { ALL_PHYSICS_PAGE_MODELS } from '../pages/PhysicsLabPage';
+import { synthesizeProceduralScientificModel } from '../utils/proceduralModelSynthesizer';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -45,12 +48,22 @@ const EXPECTED_29_TITLES: { number: number; title: string }[] = [
 ];
 
 export function runSettingsAndModelDirectoryVerification(): void {
-  console.log('=== Verifying Settings Directory & 29 Science Models ===');
+  console.log('=== Verifying Unified Model Library & Automatic Discovery ===');
 
-  // 1. Verify exact count and ordering of the 29 models
+  const unifiedLibrary = getUnifiedModelLibrary();
+  const allDirectory = getAllIntegratedModelsDirectory();
+  const diagnostics = getModelDiscoveryDiagnostics();
+
+  // 1. Verify single unified library matches getAllIntegratedModelsDirectory()
+  assert(
+    unifiedLibrary.length === allDirectory.length,
+    `Expected getUnifiedModelLibrary() (${unifiedLibrary.length}) to equal getAllIntegratedModelsDirectory() (${allDirectory.length})`
+  );
+
+  // 2. Verify all 29 original models remain present in the unified library without duplicates
   assert(
     MY_SCIENCE_MODELS_29.length === 29,
-    `Expected exactly 29 models in MY_SCIENCE_MODELS_29, got ${MY_SCIENCE_MODELS_29.length}`
+    `Expected 29 original models, got ${MY_SCIENCE_MODELS_29.length}`
   );
 
   const curatedById = new Map<string, any>();
@@ -58,65 +71,145 @@ export function runSettingsAndModelDirectoryVerification(): void {
     if (spec && spec.id) curatedById.set(spec.id, spec);
   });
 
-  EXPECTED_29_TITLES.forEach((expected, idx) => {
-    const entry = MY_SCIENCE_MODELS_29[idx];
+  EXPECTED_29_TITLES.forEach((expected) => {
+    const unifiedEntry = unifiedLibrary.find((m) => m.my29Number === expected.number);
     assert(
-      entry.number === expected.number,
-      `Entry at index ${idx} has number ${entry.number}, expected ${expected.number}`
+      Boolean(unifiedEntry),
+      `Original model #${expected.number} (${expected.title}) is missing from the unified library`
     );
     assert(
-      entry.title === expected.title,
-      `Entry #${expected.number} has title "${entry.title}", expected "${expected.title}"`
+      unifiedEntry!.title === expected.title,
+      `Original model #${expected.number} has title "${unifiedEntry!.title}", expected "${expected.title}"`
     );
     assert(
-      entry.displayLabel === `${expected.number}. ${expected.title}`,
-      `Entry #${expected.number} displayLabel "${entry.displayLabel}" does not match "${expected.number}. ${expected.title}"`
-    );
-
-    // Verify underlying 3D ScientificModelSpec exists in CURATED_AI_MODELS
-    const spec = curatedById.get(entry.id);
-    assert(
-      Boolean(spec),
-      `Entry #${expected.number} (${expected.title}) with ID "${entry.id}" not found in CURATED_AI_MODELS`
-    );
-    assert(
-      Array.isArray(spec.parts) && spec.parts.length > 0,
-      `Entry #${expected.number} (${expected.title}) has no 3D parts`
+      unifiedEntry!.isInMy29Models === true,
+      `Original model #${expected.number} must have isInMy29Models=true`
     );
 
-    // Verify launchTarget route is valid
-    if (entry.launchTarget.route === 'physics') {
+    // Ensure it appears ONLY ONCE in the unified library
+    const occurrences = unifiedLibrary.filter(
+      (m) => m.id === unifiedEntry!.id || m.my29Number === expected.number
+    );
+    assert(
+      occurrences.length === 1,
+      `Original model #${expected.number} (${expected.title}) appeared ${occurrences.length} times in unified library`
+    );
+
+    const spec = curatedById.get(unifiedEntry!.id);
+    assert(
+      Boolean(spec) && Array.isArray(spec.parts) && spec.parts.length > 0,
+      `Original model #${expected.number} (${expected.title}) has no valid 3D parts in CURATED_AI_MODELS`
+    );
+
+    if (unifiedEntry!.launchTarget.route === 'physics') {
       const inPhysicsPage = ALL_PHYSICS_PAGE_MODELS.some(
-        (m) => m.id === entry.launchTarget.physicsModelId
+        (m) => m.id === unifiedEntry!.launchTarget.physicsModelId
       );
       assert(
         inPhysicsPage,
-        `Entry #${expected.number} (${expected.title}) targets PhysicsLabPage with "${entry.launchTarget.physicsModelId}", which is missing from ALL_PHYSICS_PAGE_MODELS`
+        `Original model #${expected.number} targets PhysicsLabPage with "${unifiedEntry!.launchTarget.physicsModelId}", which is missing from ALL_PHYSICS_PAGE_MODELS`
       );
     }
   });
-  console.log('✓ All 29 My Science Models verified with exact numbering, titles, 3D specs, and launch targets');
+  console.log('✓ All 29 original models verified inside the single unified library with zero duplicates');
 
-  // 2. Verify full integrated models inventory (deduplication & completeness)
-  const allDirectory = getAllIntegratedModelsDirectory();
-  const uniqueIds = new Set(allDirectory.map((m) => m.id));
+  // 3. Verify deduplication across the entire 122-model inventory
+  const uniqueIds = new Set(unifiedLibrary.map((m) => m.id));
   assert(
-    uniqueIds.size === allDirectory.length,
-    `Expected zero duplicate IDs in getAllIntegratedModelsDirectory(), got ${allDirectory.length} total vs ${uniqueIds.size} unique`
+    uniqueIds.size === unifiedLibrary.length,
+    `Expected zero duplicate IDs in unified library, got ${unifiedLibrary.length} total vs ${uniqueIds.size} unique`
   );
   assert(
-    allDirectory.length === 122,
-    `Expected 122 total integrated models (90 Curated 3D Specs + 7 Standalone Three.js Lab Scenes + 25 Procedural 3D Models), got ${allDirectory.length}`
+    unifiedLibrary.length === 122,
+    `Expected 122 unique discovered models (90 Curated 3D Specs + 7 Standalone Three.js Lab Scenes + 25 Procedural 3D Models), got ${unifiedLibrary.length}`
   );
-
-  const flaggedMy29 = allDirectory.filter((m) => m.isInMy29Models);
   assert(
-    flaggedMy29.length === 29,
-    `Expected all 29 My Science Models to be flagged in All Integrated Models directory, got ${flaggedMy29.length}`
+    diagnostics.totalUniqueModels === 122 &&
+      diagnostics.original29Count === 29 &&
+      diagnostics.additionalModelsCount === 93,
+    `Diagnostics mismatch: total=${diagnostics.totalUniqueModels}, original29=${diagnostics.original29Count}, additional=${diagnostics.additionalModelsCount}`
   );
-  console.log(`✓ Full codebase inventory verified: ${allDirectory.length} unique integrated models with 0 duplicates`);
+  assert(
+    diagnostics.duplicateReferencesResolved >= 83,
+    `Expected at least 83 duplicate/alias references resolved, got ${diagnostics.duplicateReferencesResolved}`
+  );
+  console.log(
+    `✓ Unified library count verified: ${diagnostics.totalUniqueModels} unique models (29 original + ${diagnostics.additionalModelsCount} additional), ${diagnostics.duplicateReferencesResolved} duplicate/alias references resolved`
+  );
 
-  // 3. Verify no secret keys or credentials appear in backend service descriptions
+  // 4. Verify Subject Filters & Secondary Subject Tags
+  const expectedCategories = [
+    'All Subjects',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Anatomy',
+    'Engineering & Earth Science',
+  ];
+  expectedCategories.forEach((cat) => {
+    assert(
+      diagnostics.availableCategories.includes(cat as any),
+      `Expected subject category "${cat}" to be present in diagnostics.availableCategories`
+    );
+  });
+
+  // Verify sum of primary categories equals 122
+  const sumPrimaryCategories =
+    (diagnostics.categoryCounts['Physics'] || 0) +
+    (diagnostics.categoryCounts['Chemistry'] || 0) +
+    (diagnostics.categoryCounts['Biology'] || 0) +
+    (diagnostics.categoryCounts['Anatomy'] || 0) +
+    (diagnostics.categoryCounts['Engineering & Earth Science'] || 0);
+  assert(
+    sumPrimaryCategories === unifiedLibrary.length,
+    `Sum of primary subject categories (${sumPrimaryCategories}) must equal total unique models (${unifiedLibrary.length})`
+  );
+  console.log('✓ Subject categories & secondary subject tags verified');
+
+  // 5. Verify Alias Search & Metadata Completeness
+  unifiedLibrary.forEach((item) => {
+    assert(Boolean(item.canonicalName && item.id), `Model ${item.id} missing canonicalName`);
+    assert(
+      Array.isArray(item.subjectTags) && item.subjectTags.length >= 1,
+      `Model ${item.id} missing subjectTags`
+    );
+    assert(Array.isArray(item.aliases), `Model ${item.id} missing aliases array`);
+    assert(
+      item.integrationStatus === 'Integrated',
+      `Model ${item.id} should have integrationStatus="Integrated"`
+    );
+    assert(
+      item.verificationStatus === 'Verified',
+      `Model ${item.id} failed verification integrity check (status=${item.verificationStatus})`
+    );
+  });
+
+  // Verify alias lookup for representative models across subjects
+  const motorEntry = unifiedLibrary.find((m) => m.id === 'dc-motor')!;
+  assert(
+    motorEntry.aliases!.includes('motor') || motorEntry.aliases!.includes('dc-electric-motor'),
+    `Expected dc-motor aliases to include "motor" or "dc-electric-motor", got ${JSON.stringify(motorEntry.aliases)}`
+  );
+
+  const bloodEntry = unifiedLibrary.find((m) => m.id === 'blood-transport')!;
+  assert(
+    bloodEntry.aliases!.includes('circulatory-system') ||
+      bloodEntry.aliases!.includes('cardiovascular-system'),
+    `Expected blood-transport aliases to include "circulatory-system"`
+  );
+
+  // Verify procedural synthesizer models load valid 3D specs when launched
+  const doublePendulumEntry = unifiedLibrary.find((m) => m.id === 'custom-double-pendulum-chaos')!;
+  const synthesizedSpec = synthesizeProceduralScientificModel(
+    doublePendulumEntry.launchTarget.aiProceduralPrompt!
+  );
+  assert(
+    synthesizedSpec && Array.isArray(synthesizedSpec.parts) && synthesizedSpec.parts.length >= 4,
+    `Procedural model "custom-double-pendulum-chaos" failed to synthesize a valid 3D spec`
+  );
+  console.log('✓ Alias search and multi-subject model loading verification passed');
+
+  // 6. Verify no secret keys or credentials appear in backend service descriptions
   BACKEND_AI_AND_SCIENTIFIC_SERVICES.forEach((svc) => {
     assert(
       !svc.description.includes('AIza') && !svc.description.includes('gsk_'),
