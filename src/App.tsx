@@ -11,6 +11,7 @@ import { AiAssistantPage } from './pages/AiAssistantPage';
 import { AiModelGeneratorPage } from './pages/AiModelGeneratorPage';
 import { AboutPage } from './pages/AboutPage';
 import { AnatomyPage } from './pages/AnatomyPage';
+import { GamingArenaPage } from './pages/GamingArenaPage';
 import { aiSpeechManager } from './utils/aiSpeechService';
 import { soundEngine } from './utils/soundEngine';
 
@@ -80,6 +81,12 @@ export default function App() {
             onNavigate={handleNavigate}
             initialSpecimen={launchTarget?.anatomySpecimen}
             launchKey={launchKey}
+          />
+        )}
+        {currentRoute === 'gaming-arena' && (
+          <GamingArenaPage
+            onNavigate={handleNavigate}
+            onLaunchModelInLab={handleLaunchModelFromSettings}
           />
         )}
         {currentRoute === 'ai-generator' && (

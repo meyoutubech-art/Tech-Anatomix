@@ -191,6 +191,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
+                  onClick={() => onNavigate('gaming-arena')}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-950 text-cyan-200 border border-cyan-800 text-sm font-semibold hover:bg-slate-900 transition-colors cursor-pointer"
+                >
+                  <span>Science Gaming Arena</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => onNavigate('chemistry')}
                   className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
                 >
