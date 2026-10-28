@@ -241,6 +241,13 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
   const [showLabels, setShowLabels] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [molecularView, setMolecularView] = useState(false);
+  const [labLightingMode, setLabLightingMode] = useState<'lab-standard' | 'clinical-bright' | 'dark-studio'>('lab-standard');
+  const [benchFocusZone, setBenchFocusZone] = useState<'bench-overview' | 'reaction-vessel' | 'reagent-rack' | 'apparatus-deck'>('bench-overview');
+  const [selectedApparatusInfo, setSelectedApparatusInfo] = useState<{
+    name: string;
+    role: string;
+    detail: string;
+  } | null>(null);
   const [pouringReagentName, setPouringReagentName] = useState<string | null>(null);
   const [isPouringAnim, setIsPouringAnim] = useState(false);
   const [hoveredReagent, setHoveredReagent] = useState<ChemicalReagent | null>(null);
@@ -249,7 +256,65 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
   const [stageOverride, setStageOverride] = useState<'auto' | 'initial' | 'final'>('auto');
   const [uiReactionProgress, setUiReactionProgress] = useState<number>(0);
   const labApparatusGroupRef = useRef<THREE.Group | null>(null);
+  const labLightsRef = useRef<{
+    ambient: THREE.AmbientLight;
+    dir: THREE.DirectionalLight;
+    fill: THREE.DirectionalLight;
+  } | null>(null);
   const stageOverrideRef = useRef<'auto' | 'initial' | 'final'>('auto');
+
+  useEffect(() => {
+    const lights = labLightsRef.current;
+    if (!lights) return;
+    if (labLightingMode === 'clinical-bright') {
+      lights.ambient.intensity = 1.2;
+      lights.dir.intensity = 1.65;
+      lights.fill.intensity = 0.72;
+    } else if (labLightingMode === 'dark-studio') {
+      lights.ambient.intensity = 0.62;
+      lights.dir.intensity = 1.15;
+      lights.fill.intensity = 0.35;
+    } else {
+      lights.ambient.intensity = 0.95;
+      lights.dir.intensity = 1.35;
+      lights.fill.intensity = 0.48;
+    }
+  }, [labLightingMode]);
+
+  const handleFocusBenchZone = (
+    zone: 'bench-overview' | 'reaction-vessel' | 'reagent-rack' | 'apparatus-deck'
+  ) => {
+    setBenchFocusZone(zone);
+    if (!controlsRef.current) return;
+    if (zone === 'reaction-vessel') {
+      controlsRef.current.reset(4.8, 0, Math.PI / 2.6, new THREE.Vector3(0, 1.0, 0.4));
+      setSelectedApparatusInfo({
+        name: '250 mL Pyrex Borosilicate Reaction Beaker (ISO 3819)',
+        role: 'Primary Stoichiometric Reaction Vessel',
+        detail:
+          'Simulates real-time aqueous solution mixing, precipitation settling, solid reactant dissolution, and liquid-phase gas effervescence.',
+      });
+    } else if (zone === 'reagent-rack') {
+      controlsRef.current.reset(6.4, 0, Math.PI / 2.8, new THREE.Vector3(0, 1.25, -2.0));
+      setSelectedApparatusInfo({
+        name: 'Elevated Chemical Reagent Dispensing Rack',
+        role: 'Primary Laboratory Reagent Storage Shelf',
+        detail:
+          'Holds calibrated reagent bottles and solid sample jars. Drag any bottle over the central beaker or click a reagent card below to dispense.',
+      });
+    } else if (zone === 'apparatus-deck') {
+      controlsRef.current.reset(5.4, -0.35, Math.PI / 2.7, new THREE.Vector3(-2.4, 0.9, 0.1));
+      setSelectedApparatusInfo({
+        name: 'Analytical Glassware & Reference Standards Deck',
+        role: 'Volumetric & Colorimetric Reference Apparatus',
+        detail:
+          'Includes a 250 mL Erlenmeyer titration flask, 100 mL graduated cylinder, and 3-tube pH colorimetric reference rack (acidic, neutral, basic).',
+      });
+    } else {
+      controlsRef.current.reset(7.8, 0, Math.PI / 3, new THREE.Vector3(0, 1.05, 0.4));
+      setSelectedApparatusInfo(null);
+    }
+  };
 
   useEffect(() => {
     stageOverrideRef.current = stageOverride;
@@ -391,6 +456,12 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
     fillLight.position.set(-6, 5, -4);
     scene.add(fillLight);
 
+    labLightsRef.current = {
+      ambient: ambientLight,
+      dir: dirLight,
+      fill: fillLight,
+    };
+
     const reactionPointLight = new THREE.PointLight(0xff4500, 0, 14, 1.2);
     reactionPointLight.position.set(beakerCenter.x, beakerCenter.y + 1.2, beakerCenter.z);
     scene.add(reactionPointLight);
@@ -409,14 +480,44 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
     scene.add(labApparatusGroup);
 
     // -------------------------------------------------------------------------
-    // TABLE & SHELF
+    // IMMERSIVE 3D LABORATORY BENCH, BACKSPLASH, TASK LIGHTING & APPARATUS
     // -------------------------------------------------------------------------
-    const tableGeo = new THREE.BoxGeometry(11.0, 0.35, 8.0);
-    const tableMat = new THREE.MeshStandardMaterial({ color: 0x15373d, roughness: 0.38, metalness: 0.25 });
+    const tableGeo = new THREE.BoxGeometry(11.4, 0.36, 8.2);
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x15373d, roughness: 0.36, metalness: 0.26 });
     const table = new THREE.Mesh(tableGeo, tableMat);
-    table.position.y = -0.175;
+    table.position.y = -0.18;
     table.receiveShadow = true;
     labApparatusGroup.add(table);
+
+    // Raised chemical containment curb along bench perimeter
+    const curbMat = new THREE.MeshStandardMaterial({ color: 0x244c56, roughness: 0.3, metalness: 0.42 });
+    const frontCurb = new THREE.Mesh(new THREE.BoxGeometry(11.4, 0.06, 0.12), curbMat);
+    frontCurb.position.set(0, 0.03, 4.04);
+    labApparatusGroup.add(frontCurb);
+
+    // Rear laboratory utility backsplash & reagent riser frame
+    const backsplash = new THREE.Mesh(
+      new THREE.BoxGeometry(10.6, 2.2, 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x102a30, roughness: 0.42, metalness: 0.32 })
+    );
+    backsplash.position.set(0, 1.1, -3.15);
+    backsplash.receiveShadow = true;
+    labApparatusGroup.add(backsplash);
+
+    // Overhead laboratory task luminaire hood bar
+    const hoodBar = new THREE.Mesh(
+      new THREE.BoxGeometry(8.8, 0.12, 0.55),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.25, metalness: 0.72 })
+    );
+    hoodBar.position.set(0, 4.35, -1.2);
+    labApparatusGroup.add(hoodBar);
+
+    const ledDiffuser = new THREE.Mesh(
+      new THREE.BoxGeometry(8.2, 0.03, 0.32),
+      new THREE.MeshBasicMaterial({ color: 0xe0f2fe })
+    );
+    ledDiffuser.position.set(0, 4.28, -1.2);
+    labApparatusGroup.add(ledDiffuser);
 
     const matGeo = new THREE.BoxGeometry(3.8, 0.025, 3.8);
     const matMat = new THREE.MeshStandardMaterial({ color: 0x1e4650, roughness: 0.28, metalness: 0.16 });
@@ -437,6 +538,87 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
     shelf.receiveShadow = true;
     shelf.castShadow = true;
     labApparatusGroup.add(shelf);
+
+    // Secondary Analytical Glassware on Left Bench Deck (Erlenmeyer Flask + Graduated Cylinder)
+    const auxGlassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xe2f1f8,
+      transmission: 0.55,
+      opacity: 0.78,
+      transparent: true,
+      roughness: 0.08,
+      metalness: 0.05,
+      ior: 1.5,
+      depthWrite: false,
+    });
+
+    const erlenmeyerGroup = new THREE.Group();
+    erlenmeyerGroup.position.set(-2.55, 0.01, 0.35);
+    const flaskCone = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.62, 1.05, 32), auxGlassMat);
+    flaskCone.position.y = 0.525;
+    const flaskNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.45, 32), auxGlassMat);
+    flaskNeck.position.y = 1.25;
+    const flaskRim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.23, 0.025, 12, 32),
+      new THREE.MeshStandardMaterial({ color: 0x93c5fd, roughness: 0.2 })
+    );
+    flaskRim.rotation.x = Math.PI / 2;
+    flaskRim.position.y = 1.48;
+    const flaskLiquid = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.46, 0.58, 0.36, 28),
+      new THREE.MeshPhysicalMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.55,
+        roughness: 0.12,
+      })
+    );
+    flaskLiquid.position.y = 0.2;
+    erlenmeyerGroup.add(flaskCone, flaskNeck, flaskRim, flaskLiquid);
+    labApparatusGroup.add(erlenmeyerGroup);
+
+    const cylinderGroup = new THREE.Group();
+    cylinderGroup.position.set(-3.55, 0.01, -0.25);
+    const cylBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.36, 0.38, 0.06, 6),
+      new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.3, metalness: 0.5 })
+    );
+    cylBase.position.y = 0.03;
+    const cylTube = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.65, 28), auxGlassMat);
+    cylTube.position.y = 0.88;
+    cylinderGroup.add(cylBase, cylTube);
+    labApparatusGroup.add(cylinderGroup);
+
+    // Right Bench Reference pH Indicator Test-Tube Rack
+    const rackGroup = new THREE.Group();
+    rackGroup.position.set(2.75, 0.01, -0.2);
+    const rackMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.35, metalness: 0.65 });
+    const rackBottom = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.06, 0.48), rackMat);
+    rackBottom.position.y = 0.03;
+    const rackTop = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.05, 0.48), rackMat);
+    rackTop.position.y = 0.72;
+    const postLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.72, 12), rackMat);
+    postLeft.position.set(-0.62, 0.36, 0);
+    const postRight = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.72, 12), rackMat);
+    postRight.position.set(0.62, 0.36, 0);
+    rackGroup.add(rackBottom, rackTop, postLeft, postRight);
+
+    const indicatorColors = [0xf43f5e, 0x10b981, 0x6366f1]; // Acidic, Neutral, Basic reference standards
+    [-0.38, 0, 0.38].forEach((tx, idx) => {
+      const tubeMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 1.05, 20), auxGlassMat);
+      tubeMesh.position.set(tx, 0.58, 0);
+      const sampleLiq = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.082, 0.082, 0.48, 18),
+        new THREE.MeshPhysicalMaterial({
+          color: indicatorColors[idx],
+          transparent: true,
+          opacity: 0.75,
+          roughness: 0.1,
+        })
+      );
+      sampleLiq.position.set(tx, 0.3, 0);
+      rackGroup.add(tubeMesh, sampleLiq);
+    });
+    labApparatusGroup.add(rackGroup);
 
     // -------------------------------------------------------------------------
     // MAIN PYREX GLASS BEAKER
@@ -1749,6 +1931,121 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
         </div>
       )}
 
+      {/* Immersive 3D Laboratory Environment & Representation Mode Toolbar */}
+      <div
+        data-testid="chemistry-immersive-bench-toolbar"
+        className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-2.5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+              <FlaskConical className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Immersive 3D Virtual Chemistry Bench</span>
+            </span>
+            <span
+              data-testid="chemistry-representation-badge"
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-md border ${
+                molecularView
+                  ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                  : 'bg-sky-50 text-sky-800 border-sky-200'
+              }`}
+            >
+              {molecularView
+                ? 'Representation: Schematic Sub-Microscopic Ion/Particle Overlay'
+                : 'Representation: Macroscopic Stoichiometric Reaction Vessel'}
+            </span>
+          </div>
+
+          {/* Lighting Preset Buttons */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-semibold text-slate-500 mr-1">Bench Lighting:</span>
+            {(
+              [
+                { id: 'lab-standard', label: 'Lab Task Light' },
+                { id: 'clinical-bright', label: 'Analytical Bright' },
+                { id: 'dark-studio', label: 'Dark Reaction Studio' },
+              ] as const
+            ).map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setLabLightingMode(mode.id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer border ${
+                  labLightingMode === mode.id
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Camera Focus & Apparatus Inspection Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-semibold text-slate-600 mr-1">3D Bench Focus:</span>
+            {(
+              [
+                { id: 'bench-overview', label: 'Full Bench Overview' },
+                { id: 'reaction-vessel', label: '250 mL Reaction Beaker' },
+                { id: 'reagent-rack', label: 'Reagent Dispensing Shelf' },
+                { id: 'apparatus-deck', label: 'Analytical Glassware Deck' },
+              ] as const
+            ).map((zone) => (
+              <button
+                key={zone.id}
+                type="button"
+                onClick={() => handleFocusBenchZone(zone.id)}
+                data-testid={`chem-focus-${zone.id}`}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer border ${
+                  benchFocusZone === zone.id
+                    ? 'bg-emerald-600 text-white border-emerald-500'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {zone.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleFocusBenchZone('bench-overview')}
+              data-testid="chem-reset-camera-btn"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+              title="Reset 3D camera angle and zoom without emptying the beaker"
+            >
+              <RotateCcw className="w-3 h-3 text-slate-500" />
+              <span>Reset Camera</span>
+            </button>
+          </div>
+        </div>
+
+        {selectedApparatusInfo && (
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start justify-between gap-3 text-xs">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900">{selectedApparatusInfo.name}</span>
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                  {selectedApparatusInfo.role}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-snug">{selectedApparatusInfo.detail}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedApparatusInfo(null)}
+              className="text-[11px] text-slate-400 hover:text-slate-700 font-semibold shrink-0 cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+
       <Global3DViewer
         title="3D Virtual Reaction Laboratory"
         subtitle={
@@ -1765,6 +2062,7 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
         onTryIt={onTryIt}
         tryItLabel="TRY IT"
         onResetCamera={() => {
+          setBenchFocusZone('bench-overview');
           if (controlsRef.current) {
             controlsRef.current.reset(7.8, 0, Math.PI / 3, new THREE.Vector3(0, 1.05, 0.4));
           }
@@ -1801,7 +2099,7 @@ export const ChemistryLabScene: React.FC<ChemistryLabSceneProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>{molecularView ? 'Molecular View ON' : 'Molecular View'}</span>
+              <span>{molecularView ? 'Schematic Ion View: ON' : 'Schematic Ion View'}</span>
             </button>
           </div>
         }

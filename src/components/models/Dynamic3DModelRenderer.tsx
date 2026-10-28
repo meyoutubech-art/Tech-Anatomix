@@ -131,6 +131,15 @@ import {
   createPreBatch1UpgradedGeometry,
   enhancePreBatch1ModelAssemblies,
 } from '../../simulations/preBatch1VisualUpgradeStudio';
+import {
+  resolveModelEnvironmentDomain,
+  IMMERSIVE_ENVIRONMENT_DESCRIPTORS,
+  ImmersiveLightingPreset,
+  CameraViewAnglePreset,
+  createDomainBackdropTexture,
+  buildDomainEnvironmentStageGroup,
+  computeCameraAnglePosition,
+} from '../../utils/immersiveEnvironmentPreset';
 import { soundEngine } from '../../utils/soundEngine';
 
 
@@ -301,6 +310,9 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
 
   const [showGrid, setShowGrid] = useState(true);
   const [showAxes, setShowAxes] = useState(false);
+  const [showEnvironmentStage, setShowEnvironmentStage] = useState(true);
+  const [lightingPreset, setLightingPreset] = useState<ImmersiveLightingPreset>('auto');
+  const [activeCameraAngle, setActiveCameraAngle] = useState<CameraViewAnglePreset>('iso');
   const [isPlaying, setIsPlaying] = useState(true);
   const [isExplorePartsActive, setIsExplorePartsActive] = useState(true);
   const [inspectedPart, setInspectedPart] = useState<ModelPartSpec | null>(null);
@@ -308,6 +320,18 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
   const [lastParamWhy, setLastParamWhy] = useState<{ title: string; observation: string; why: string } | null>(null);
   const [isBellInfoExpanded, setIsBellInfoExpanded] = useState(true);
   const [isBondingInfoExpanded, setIsBondingInfoExpanded] = useState(true);
+
+  const environmentDomain = useMemo(() => resolveModelEnvironmentDomain(modelSpec), [modelSpec]);
+  const environmentDescriptor = IMMERSIVE_ENVIRONMENT_DESCRIPTORS[environmentDomain];
+
+  const sceneRefForEnv = useRef<THREE.Scene | null>(null);
+  const domainStageGroupRef = useRef<THREE.Group | null>(null);
+  const lightsRefForEnv = useRef<{
+    ambient: THREE.AmbientLight;
+    key: THREE.DirectionalLight;
+    fill: THREE.DirectionalLight;
+    rim: THREE.DirectionalLight;
+  } | null>(null);
 
   // Universal 3D Model Position Controller state
   const [modelPosition, setModelPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -324,8 +348,62 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
     setInspectedPart(null);
     setIsExplodedView(false);
     setIsPlaying(true);
+    setActiveCameraAngle('iso');
     setLastParamWhy(null);
   }, [modelSpec.id]);
+
+  // Synchronize environment stage visibility and lighting preset without rebuilding WebGL
+  useEffect(() => {
+    if (domainStageGroupRef.current) {
+      domainStageGroupRef.current.visible = showEnvironmentStage;
+    }
+  }, [showEnvironmentStage]);
+
+  useEffect(() => {
+    const scene = sceneRefForEnv.current;
+    const lights = lightsRefForEnv.current;
+    if (!scene || !lights) return;
+
+    const tex = createDomainBackdropTexture(environmentDomain, lightingPreset);
+    if (tex) {
+      scene.background = tex;
+    }
+
+    if (lightingPreset === 'studio-daylight') {
+      lights.ambient.intensity = 0.72;
+      lights.key.intensity = 1.55;
+      lights.fill.intensity = 0.78;
+      lights.rim.intensity = 0.65;
+    } else if (lightingPreset === 'dark-lab') {
+      lights.ambient.intensity = 0.34;
+      lights.key.intensity = 1.35;
+      lights.fill.intensity = 0.48;
+      lights.rim.intensity = 0.88;
+    } else if (lightingPreset === 'clinical-surgical') {
+      lights.ambient.intensity = 0.62;
+      lights.key.intensity = 1.48;
+      lights.fill.intensity = 0.72;
+      lights.rim.intensity = 0.76;
+    } else if (lightingPreset === 'deep-space') {
+      lights.ambient.intensity = 0.28;
+      lights.key.intensity = 1.60;
+      lights.fill.intensity = 0.38;
+      lights.rim.intensity = 0.92;
+    } else {
+      lights.ambient.intensity = 0.48;
+      lights.key.intensity = 1.44;
+      lights.fill.intensity = 0.66;
+      lights.rim.intensity = 0.76;
+    }
+  }, [environmentDomain, lightingPreset]);
+
+  const handleSetCameraAngle = (angle: CameraViewAnglePreset) => {
+    setActiveCameraAngle(angle);
+    const snap = initialSnapshotRef.current;
+    const computed = computeCameraAnglePosition(angle, snap.cameraPosition, snap.cameraTarget);
+    targetCameraPosRef.current = new THREE.Vector3(...computed.position);
+    targetLookAtRef.current = new THREE.Vector3(...computed.target);
+  };
 
   // Synchronize state-driven simulation audio with active 3D model, parameters, conditions, and play/pause state
   useEffect(() => {
@@ -828,6 +906,13 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
     const isChemBatch1Studio = isChemistryBatch1Model(modelSpec.functionalType, modelSpec.id);
     const isChemBatch2Studio = isChemistryBatch2Model(modelSpec.functionalType, modelSpec.id);
     const isPreBatch1Studio = isPreBatch1Model(modelSpec.functionalType, modelSpec.id);
+    sceneRefForEnv.current = scene;
+    lightsRefForEnv.current = {
+      ambient: ambientLight,
+      key: keyLight,
+      fill: fillLight,
+      rim: rimLight,
+    };
     let disposeBatch1StudioEnv: (() => void) | null = null;
     let disposePreBatch1StudioEnv: (() => void) | null = null;
     if (isBatch1Studio || isBatch2Studio || isBatch3Studio || isBatch4Studio || isChemBatch1Studio || isChemBatch2Studio) {
@@ -842,9 +927,22 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
       keyLight.intensity = 1.42;
       fillLight.intensity = 0.65;
       rimLight.intensity = 0.75;
-      const preBatchStudio = setupPreBatch1StudioEnvironment(scene, renderer, minY);
+      const preBatchStudio = setupPreBatch1StudioEnvironment(scene, renderer, minY, {
+        includeStagePlatform: false,
+      });
       styleStudioGridHelper(grid);
       disposePreBatch1StudioEnv = preBatchStudio.dispose;
+    }
+
+    // Domain-Specific Immersive 3D Environment Stage Platform
+    const domainStage = buildDomainEnvironmentStageGroup(environmentDomain, minY, 5.4);
+    domainStage.visible = showEnvironmentStage;
+    domainStageGroupRef.current = domainStage;
+    scene.add(domainStage);
+
+    const customBackdrop = createDomainBackdropTexture(environmentDomain, lightingPreset);
+    if (customBackdrop) {
+      scene.background = customBackdrop;
     }
 
     // Axes
@@ -9113,17 +9211,91 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
             {/* =========================================================================
                 3D VIEWER OPTIONS & DISPLAY SETTINGS (Right column, below Parameter Panel)
                 ========================================================================= */}
-            <div id="ai-viewer-options-deck" className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3 transition-all">
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+            <div id="ai-viewer-options-deck" className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 transition-all">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-slate-700" />
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    3D Viewer Options & Display Settings
+                    Immersive 3D Environment & Viewer Controls
                   </h3>
                 </div>
-                <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  Display Toggles
+                <span
+                  data-testid="immersive-environment-badge"
+                  className="text-[11px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md"
+                >
+                  {environmentDescriptor.label}
                 </span>
+              </div>
+
+              {/* Domain Environment Context & Lighting Preset Bar */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-700">
+                    3D Virtual Environment & Studio Lighting
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    Domain: {environmentDescriptor.shortBadge}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  {environmentDescriptor.description}
+                </p>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {(
+                    [
+                      { id: 'auto', label: 'Auto Domain' },
+                      { id: 'studio-daylight', label: 'Studio Daylight' },
+                      { id: 'dark-lab', label: 'Dark Lab' },
+                      { id: 'clinical-surgical', label: 'Clinical Studio' },
+                      { id: 'deep-space', label: 'Deep Space' },
+                    ] as { id: ImmersiveLightingPreset; label: string }[]
+                  ).map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setLightingPreset(preset.id)}
+                      data-testid={`lighting-preset-${preset.id}`}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
+                        lightingPreset === preset.id
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                          : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Camera Perspective Presets */}
+              <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Camera Perspectives:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { id: 'iso', label: '3D Orbit' },
+                      { id: 'front', label: 'Front View' },
+                      { id: 'top', label: 'Top View' },
+                      { id: 'side', label: 'Side View' },
+                    ] as { id: CameraViewAnglePreset; label: string }[]
+                  ).map((cam) => (
+                    <button
+                      key={cam.id}
+                      type="button"
+                      onClick={() => handleSetCameraAngle(cam.id)}
+                      data-testid={`camera-angle-${cam.id}`}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border ${
+                        activeCameraAngle === cam.id
+                          ? 'bg-sky-600 text-white border-sky-500'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {cam.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
@@ -9156,6 +9328,22 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                 >
                   <Grid className="w-3.5 h-3.5" />
                   <span>{showGrid ? 'Hide Grid' : 'Show Grid'}</span>
+                </button>
+
+                {/* Environment Stage Pedestal Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowEnvironmentStage(!showEnvironmentStage)}
+                  data-testid="toggle-stage-button"
+                  className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                    showEnvironmentStage
+                      ? 'bg-teal-600 text-white border-teal-500 shadow-xs'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                  title={showEnvironmentStage ? 'Hide 3D Lab Platform' : 'Show 3D Lab Platform'}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{showEnvironmentStage ? 'Stage: ON' : 'Stage: OFF'}</span>
                 </button>
 
                 {/* Axes Toggle */}
@@ -9222,28 +9410,34 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                   <span>{isPlaying ? 'Pause Sim' : 'Resume Sim'}</span>
                 </button>
 
-                {/* Reset Camera Button */}
+                {/* Reset Camera Button (Strictly Camera Only) */}
                 <button
                   type="button"
-                  onClick={handleResetCameraOnly}
+                  onClick={() => {
+                    setActiveCameraAngle('iso');
+                    handleResetCameraOnly();
+                  }}
                   data-testid="reset-camera-button"
                   className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer"
-                  title="Reset 3D camera position, rotation, and zoom to default overview"
+                  title="Reset 3D camera position, rotation, and zoom to default overview without resetting model parameters"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                   <span>Reset Camera</span>
                 </button>
 
-                {/* Reset Apparatus & Parameters Button */}
+                {/* Reset Model & Parameters Button */}
                 <button
                   type="button"
-                  onClick={handleFullViewerReset}
+                  onClick={() => {
+                    setActiveCameraAngle('iso');
+                    handleFullViewerReset();
+                  }}
                   data-testid="reset-apparatus-button"
                   className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer"
-                  title="Reset apparatus parameters, conditions, transforms, and camera to initial defaults"
+                  title="Reset model parameters, conditions, transforms, and simulation state to initial defaults"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-sky-600" />
-                  <span>Reset Apparatus</span>
+                  <span>Reset Model</span>
                 </button>
               </div>
             </div>

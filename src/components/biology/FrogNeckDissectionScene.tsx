@@ -825,6 +825,8 @@ export const FrogNeckDissectionScene: React.FC<FrogNeckDissectionSceneProps> = (
     };
   }, []);
 
+  const [studioLighting, setStudioLighting] = useState<'surgical-theatre' | 'clinical-daylight' | 'diagnostic-contrast'>('surgical-theatre');
+
   // Quick camera presets
   const handleSetCameraPreset = (preset: 'ventral' | 'cranial' | 'orbit') => {
     setCameraMode(preset);
@@ -839,6 +841,7 @@ export const FrogNeckDissectionScene: React.FC<FrogNeckDissectionSceneProps> = (
       controlsRef.current.camera.position.set(2.8, 3.0, 2.5);
       controlsRef.current.target.set(0, 0.2, 0);
     }
+    controlsRef.current.update();
   };
 
   // Slider or button rotation handler
@@ -892,9 +895,103 @@ export const FrogNeckDissectionScene: React.FC<FrogNeckDissectionSceneProps> = (
       }}
       className="w-full flex flex-col gap-4 bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-2xl relative"
     >
+      {/* Immersive Surgical Dissection Studio Toolbar */}
+      <div
+        id="frog-dissection-studio-toolbar"
+        data-testid="frog-dissection-studio-toolbar"
+        className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/95 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-semibold text-[11px]">
+            Anatomical Dissection Studio · Stainless Wax Pan & Surgical Luminaire
+          </span>
+          <div className="flex items-center gap-1 bg-slate-800/90 border border-slate-700/80 rounded-lg p-0.5">
+            {(
+              [
+                { id: 'surgical-theatre', label: 'Surgical Theatre' },
+                { id: 'clinical-daylight', label: 'Clinical Daylight' },
+                { id: 'diagnostic-contrast', label: 'Diagnostic Contrast' },
+              ] as const
+            ).map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setStudioLighting(mode.id)}
+                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  studioLighting === mode.id
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1 bg-slate-800/90 border border-slate-700/80 rounded-lg p-0.5">
+            {(
+              [
+                { id: 'ventral', label: 'Ventral Coelom' },
+                { id: 'cranial', label: 'Cervical Focus' },
+                { id: 'orbit', label: '3D Orbit View' },
+              ] as const
+            ).map((cam) => (
+              <button
+                key={cam.id}
+                type="button"
+                onClick={() => handleSetCameraPreset(cam.id)}
+                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  cameraMode === cam.id
+                    ? 'bg-sky-600 text-white shadow-2xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                {cam.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            data-testid="frog-reset-camera-btn"
+            onClick={() => handleSetCameraPreset('ventral')}
+            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+          >
+            Reset Camera
+          </button>
+
+          <button
+            type="button"
+            data-testid="frog-auto-dissect-btn"
+            onClick={handleAutoDissect}
+            className="px-2.5 py-1 rounded-lg bg-emerald-700/80 hover:bg-emerald-600 text-white border border-emerald-500/40 text-[11px] font-semibold transition-colors cursor-pointer"
+          >
+            Complete 90° Incision
+          </button>
+
+          <button
+            type="button"
+            data-testid="frog-reset-dissection-btn"
+            onClick={handleReset}
+            className="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900/80 text-rose-200 border border-rose-700/50 text-[11px] font-medium transition-colors cursor-pointer"
+          >
+            Reset Specimen
+          </button>
+        </div>
+      </div>
 
       {/* Main 3D Canvas Viewport */}
-      <div className="relative w-full h-[400px] sm:h-[450px] lg:h-[480px] rounded-2xl overflow-hidden border border-slate-800/90 shadow-2xl bg-[#0a0f1d]">
+      <div
+        className={`relative w-full h-[400px] sm:h-[450px] lg:h-[480px] rounded-2xl overflow-hidden border border-slate-800/90 shadow-2xl transition-colors duration-300 ${
+          studioLighting === 'clinical-daylight'
+            ? 'bg-[#0f2438]'
+            : studioLighting === 'diagnostic-contrast'
+            ? 'bg-[#040812]'
+            : 'bg-[#0a0f1d]'
+        }`}
+      >
         <div ref={mountRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
 
         {/* Top-Left Dissection Progress Dial & Status */}

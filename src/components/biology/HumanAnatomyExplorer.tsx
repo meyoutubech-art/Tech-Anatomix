@@ -1837,9 +1837,99 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     handleProgressUpdate( Math.max(0, Math.min(1, ratio)) );
   };
 
+  const [studioLightingPreset, setStudioLightingPreset] = useState<'surgical-theatre' | 'clinical-daylight' | 'diagnostic-contrast'>('surgical-theatre');
+
   return (
     <div ref={wrapperRef} className="flex flex-col gap-3 w-full">
-      <div className="relative w-full h-[540px] sm:h-[600px] lg:h-[660px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col select-none">
+      {/* Immersive Medical & Anatomical Studio Toolbar */}
+      <div
+        id="human-anatomy-studio-toolbar"
+        data-testid="human-anatomy-studio-toolbar"
+        className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-950/95 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs shadow-md"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            data-testid="anatomy-studio-environment-badge"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-950/80 border border-teal-500/40 text-teal-300 font-semibold text-[11px]"
+          >
+            Medical & Anatomical Studio · Sterile Surgical Pedestal & Overhead Luminaire
+          </span>
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg p-0.5">
+            {(
+              [
+                { id: 'surgical-theatre', label: 'Surgical Theatre' },
+                { id: 'clinical-daylight', label: 'Clinical Daylight' },
+                { id: 'diagnostic-contrast', label: 'Diagnostic Contrast' },
+              ] as const
+            ).map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setStudioLightingPreset(mode.id)}
+                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  studioLightingPreset === mode.id
+                    ? 'bg-teal-600 text-white shadow-2xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            data-testid="human-anatomy-layer-toggle"
+            onClick={handleToggleWireframe}
+            className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors cursor-pointer ${
+              isWireframe
+                ? 'bg-sky-600 text-white border-sky-400'
+                : 'bg-slate-900 text-slate-200 border-slate-700 hover:bg-slate-800'
+            }`}
+          >
+            {isWireframe ? 'Layer: Wireframe Topology' : 'Layer: Epidermal & Linea Alba'}
+          </button>
+
+          <button
+            type="button"
+            data-testid="human-anatomy-reset-camera-btn"
+            onClick={handleResetCamera}
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+          >
+            Whole-Body Camera Reset
+          </button>
+
+          <button
+            type="button"
+            data-testid="human-anatomy-inspect-viscera-btn"
+            onClick={onExploreInternalOrgans}
+            className="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900/80 text-rose-200 border border-rose-500/40 text-[11px] font-semibold transition-colors cursor-pointer"
+          >
+            Inspect Visceral Organs
+          </button>
+
+          <button
+            type="button"
+            data-testid="human-anatomy-reset-dissection-btn"
+            onClick={onResetDissection}
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 text-[11px] font-medium transition-colors cursor-pointer"
+          >
+            Reset Incision (0%)
+          </button>
+        </div>
+      </div>
+
+      <div
+        className={`relative w-full h-[540px] sm:h-[600px] lg:h-[660px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col select-none transition-colors duration-300 ${
+          studioLightingPreset === 'clinical-daylight'
+            ? 'bg-[#0f2438]'
+            : studioLightingPreset === 'diagnostic-contrast'
+            ? 'bg-[#030712]'
+            : 'bg-slate-950'
+        }`}
+      >
         {/* 3D Canvas Mount (midline incision along linea alba is always active) */}
         <div
           ref={mountRef}

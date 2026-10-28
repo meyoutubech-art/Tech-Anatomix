@@ -9,7 +9,6 @@ export type PageRoute =
   | 'chemistry'
   | 'biology'
   | 'anatomy'
-  | 'gaming-arena'
   | 'ai-generator'
   | 'ai-lab'
   | 'about';
@@ -25,7 +24,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate, onOpen
     { route: 'home', label: 'Home' },
     { route: 'chemistry', label: 'Chemistry' },
     { route: 'anatomy', label: 'Anatomy' },
-    { route: 'gaming-arena', label: 'Gaming Arena' },
     { route: 'ai-generator', label: 'Create 3D Model' },
     { route: 'ai-lab', label: 'AI Lab' },
     { route: 'about', label: 'About' },

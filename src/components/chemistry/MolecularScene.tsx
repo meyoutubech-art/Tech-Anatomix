@@ -5,8 +5,12 @@ import { MoleculeDefinition, AtomData } from '../../types/chemistry';
 import { MOLECULES } from '../../data/moleculesData';
 import { Global3DViewer } from '../common/Global3DViewer';
 import { EducationalExplanationBox, ExplanationData } from '../common/EducationalExplanationBox';
-import { Atom, Info, Layers } from 'lucide-react';
+import { Atom, Info, Layers, Sun, Eye, RotateCcw } from 'lucide-react';
 import { setupPreBatch1StudioEnvironment, styleStudioGridHelper } from '../../simulations/preBatch1VisualUpgradeStudio';
+import { buildDomainEnvironmentStageGroup } from '../../utils/immersiveEnvironmentPreset';
+
+type MolecularLightingMode = 'studio-specular' | 'high-contrast-dark' | 'daylight-lab';
+type MolecularCameraAngle = 'iso' | 'front' | 'top' | 'side';
 
 interface MolecularSceneProps {
   selectedMoleculeId: string;
@@ -23,7 +27,13 @@ export const MolecularScene: React.FC<MolecularSceneProps> = ({ selectedMolecule
   const [showGrid, setShowGrid] = useState(false);
   const [selectedAtomIndex, setSelectedAtomIndex] = useState<number | null>(null);
   const [modelPosition, setModelPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [lightingMode, setLightingMode] = useState<MolecularLightingMode>('studio-specular');
+  const [cameraAngle, setCameraAngle] = useState<MolecularCameraAngle>('iso');
   const positionGroupRef = useRef<THREE.Group | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const dirLight1Ref = useRef<THREE.DirectionalLight | null>(null);
+  const dirLight2Ref = useRef<THREE.DirectionalLight | null>(null);
 
   // Reset position when molecule selection changes
   useEffect(() => {
@@ -47,7 +57,8 @@ export const MolecularScene: React.FC<MolecularSceneProps> = ({ selectedMolecule
     const height = container.clientHeight || 500;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
+    scene.background = new THREE.Color(0x0b1628);
+    sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     camera.position.set(0, 0, 6.5);
@@ -65,16 +76,19 @@ export const MolecularScene: React.FC<MolecularSceneProps> = ({ selectedMolecule
     controlsRef.current = controls;
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.52);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.56);
     scene.add(ambientLight);
+    ambientLightRef.current = ambientLight;
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.38);
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.42);
     dirLight1.position.set(6, 8, 10);
     scene.add(dirLight1);
+    dirLight1Ref.current = dirLight1;
 
-    const dirLight2 = new THREE.DirectionalLight(0x93c5fd, 0.62);
+    const dirLight2 = new THREE.DirectionalLight(0x93c5fd, 0.68);
     dirLight2.position.set(-6, -4, -6);
     scene.add(dirLight2);
+    dirLight2Ref.current = dirLight2;
 
     // Optional subtle grid
     const grid = new THREE.GridHelper(8, 16, 0x38bdf8, 0x1e4e58);
@@ -86,6 +100,10 @@ export const MolecularScene: React.FC<MolecularSceneProps> = ({ selectedMolecule
     const studioEnv = setupPreBatch1StudioEnvironment(scene, renderer, -2.2, {
       stageRadius: 4.4,
     });
+
+    // Molecular Studio 3D Stage Platform
+    const molecularStage = buildDomainEnvironmentStageGroup('molecular-studio', -2.2, 3.6);
+    scene.add(molecularStage);
 
     // Universal Position Parent Group
     const positionGroup = new THREE.Group();
@@ -258,8 +276,125 @@ export const MolecularScene: React.FC<MolecularSceneProps> = ({ selectedMolecule
         formula: molecule.formula,
       };
 
+  // Sync Molecular Studio Lighting Mode
+  useEffect(() => {
+    if (!sceneRef.current || !ambientLightRef.current || !dirLight1Ref.current || !dirLight2Ref.current) return;
+    if (lightingMode === 'daylight-lab') {
+      sceneRef.current.background = new THREE.Color(0x16263d);
+      ambientLightRef.current.intensity = 0.85;
+      dirLight1Ref.current.intensity = 1.65;
+      dirLight1Ref.current.color.setHex(0xffffff);
+      dirLight2Ref.current.intensity = 0.82;
+      dirLight2Ref.current.color.setHex(0xe0f2fe);
+    } else if (lightingMode === 'high-contrast-dark') {
+      sceneRef.current.background = new THREE.Color(0x050914);
+      ambientLightRef.current.intensity = 0.36;
+      dirLight1Ref.current.intensity = 1.75;
+      dirLight1Ref.current.color.setHex(0xf8fafc);
+      dirLight2Ref.current.intensity = 0.92;
+      dirLight2Ref.current.color.setHex(0x38bdf8);
+    } else {
+      sceneRef.current.background = new THREE.Color(0x0b1628);
+      ambientLightRef.current.intensity = 0.56;
+      dirLight1Ref.current.intensity = 1.42;
+      dirLight1Ref.current.color.setHex(0xffffff);
+      dirLight2Ref.current.intensity = 0.68;
+      dirLight2Ref.current.color.setHex(0x93c5fd);
+    }
+  }, [lightingMode]);
+
+  const applyMolecularCameraPreset = (angle: MolecularCameraAngle) => {
+    setCameraAngle(angle);
+    if (!controlsRef.current) return;
+    if (angle === 'front') {
+      controlsRef.current.reset(6.5, 0, Math.PI / 2, new THREE.Vector3(0, 0, 0));
+    } else if (angle === 'top') {
+      controlsRef.current.reset(6.5, 0, 0.14, new THREE.Vector3(0, 0, 0));
+    } else if (angle === 'side') {
+      controlsRef.current.reset(6.5, Math.PI / 2, Math.PI / 2, new THREE.Vector3(0, 0, 0));
+    } else {
+      controlsRef.current.reset(6.5, 0.45, 1.18, new THREE.Vector3(0, 0, 0));
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Molecular Studio Environment Controls */}
+      <div
+        id="molecular-studio-environment-deck"
+        data-testid="molecular-studio-environment-deck"
+        className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/95 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs shadow-xs"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            data-testid="molecular-representation-badge"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-200 font-semibold text-[11px]"
+          >
+            <Atom className="w-3.5 h-3.5 text-cyan-400" />
+            Representation: 3D Covalent Ball-and-Stick Geometry (VSEPR)
+          </span>
+          <div className="flex items-center gap-1 bg-slate-800/90 border border-slate-700/80 rounded-lg p-0.5">
+            <Sun className="w-3.5 h-3.5 text-amber-400 ml-1.5 mr-0.5" />
+            {(
+              [
+                { id: 'studio-specular', label: 'Studio Specular' },
+                { id: 'daylight-lab', label: 'Daylight Lab' },
+                { id: 'high-contrast-dark', label: 'High-Contrast Dark' },
+              ] as { id: MolecularLightingMode; label: string }[]
+            ).map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setLightingMode(preset.id)}
+                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  lightingMode === preset.id
+                    ? 'bg-cyan-600 text-white shadow-2xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1 bg-slate-800/90 border border-slate-700/80 rounded-lg p-0.5">
+            <Eye className="w-3.5 h-3.5 text-sky-400 ml-1.5 mr-0.5" />
+            {(
+              [
+                { id: 'iso', label: '3D Orbit' },
+                { id: 'front', label: 'Front' },
+                { id: 'top', label: 'Top' },
+                { id: 'side', label: 'Side' },
+              ] as { id: MolecularCameraAngle; label: string }[]
+            ).map((view) => (
+              <button
+                key={view.id}
+                type="button"
+                onClick={() => applyMolecularCameraPreset(view.id)}
+                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  cameraAngle === view.id
+                    ? 'bg-sky-600 text-white shadow-2xs'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700/60'
+                }`}
+              >
+                {view.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            data-testid="molecular-reset-camera-btn"
+            onClick={() => applyMolecularCameraPreset('iso')}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3 h-3 text-sky-400" />
+            Reset Camera
+          </button>
+        </div>
+      </div>
+
       {/* 3D Molecular Viewport */}
       <Global3DViewer
         title={`3D Molecular Model: ${molecule.name} (${molecule.formula})`}
@@ -269,12 +404,11 @@ export const MolecularScene: React.FC<MolecularSceneProps> = ({ selectedMolecule
         showGrid={showGrid}
         onToggleGrid={setShowGrid}
         onResetCamera={() => {
-          if (controlsRef.current) {
-            controlsRef.current.reset(6.5, 0, Math.PI / 2, new THREE.Vector3(0, 0, 0));
-          }
+          applyMolecularCameraPreset('iso');
         }}
         onResetSimulation={() => {
           setSelectedAtomIndex(null);
+          setModelPosition({ x: 0, y: 0 });
         }}
         onTryIt={onTryIt}
         modelPosition={modelPosition}
