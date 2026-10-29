@@ -12,7 +12,6 @@ import { Sliders, Sparkles, Tag, Check, Eye, HelpCircle, FileSpreadsheet, Flame,
 import { PresentationExportModal } from '../common/PresentationExportModal';
 import { PresentationExportOptions } from '../../utils/presentationGenerator';
 import { ExternalModelWorkspace } from './ExternalModelWorkspace';
-import { PlayDiscoveryDock } from '../common/PlayDiscoveryDock';
 import { buildScientificConceptSpecification } from '../../utils/proceduralModelSynthesizer';
 import {
   HEAT_MATERIALS,
@@ -9445,31 +9444,6 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
           </div>
         </div>
       )}
-
-      {/* =========================================================================
-          LEARN THROUGH PLAY · VISUAL-FIRST DISCOVERY & MASTERY LOOP
-          ========================================================================= */}
-      <div className="w-full">
-        <PlayDiscoveryDock
-          modelSpec={modelSpec}
-          parameters={parameters}
-          selectedPartId={inspectedPart?.id || null}
-          onUpdateParameter={(paramId, value) => {
-            if (onUpdateParameter) {
-              onUpdateParameter(paramId, value);
-            } else {
-              setInternalParameters((prev) => ({ ...prev, [paramId]: value }));
-            }
-          }}
-          onSelectPartById={(partId) => {
-            const p = modelSpec.parts.find((part) => part.id === partId);
-            if (p) handleSelectPart(p);
-          }}
-          onResetChallenge={() => {
-            handleFullViewerReset();
-          }}
-        />
-      </div>
 
       {/* =========================================================================
           PHASE 6: MODEL-AWARE AI CHATBOX UNDERNEATH THE WORKSPACE

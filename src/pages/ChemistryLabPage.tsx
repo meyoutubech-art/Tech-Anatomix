@@ -15,7 +15,6 @@ import { ChemicalReagent, ReactionDefinition } from '../types/chemistry';
 import { EducationalExplanationBox, ExplanationData } from '../components/common/EducationalExplanationBox';
 import { ReactionAiChatbot } from '../components/chemistry/ReactionAiChatbot';
 import { AiCompoundAddPanel } from '../components/chemistry/AiCompoundAddPanel';
-import { ChemistryPlayMissionsBar } from '../components/chemistry/ChemistryPlayMissionsBar';
 import {
   findOrLookupCompound,
   getCanonicalRegistry,
@@ -906,21 +905,6 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
       {/* MODE 1: REACTION BENCH WORKSPACE */}
       {chemMode === 'reaction_bench' ? (
         <div className="space-y-6">
-          {/* LEARN THROUGH PLAY · GUIDED 3D REACTION MISSIONS */}
-          <ChemistryPlayMissionsBar
-            selectedIngredientIds={ingredients.map((i) => i.id)}
-            hasRunReaction={hasRunReaction}
-            evaluatedResult={evaluatedResult}
-            onLoadAndRunExperiment={(reactants, catId) => {
-              const formatted = reactants.map((id) => ({ id, amount: 25 }));
-              handleLoadReactionToExperiment(formatted, catId);
-              handleRunReaction(formatted, catId);
-            }}
-            onAddSingleReagent={(reagentId) => {
-              handleAddCompound(reagentId);
-            }}
-          />
-
           {/* =========================================================================
               PHASE 3 REQUIRED TWO-COLUMN RESPONSIVE WORKSPACE LAYOUT
               Left Column: 3D Beaker Viewer (~50% width on laptop/desktop)

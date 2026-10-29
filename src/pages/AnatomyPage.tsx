@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { PageRoute } from '../components/layout/Navbar';
 import { FrogAnatomyExplorer } from '../components/biology/FrogAnatomyExplorer';
 import { HumanAnatomyExplorer } from '../components/biology/HumanAnatomyExplorer';
-import { AnatomyPlayMissionsBar } from '../components/biology/AnatomyPlayMissionsBar';
 import { ExternalModelAiChat } from '../components/ai/ExternalModelAiChat';
 import { FROG_ORGAN_MANIFEST, FROG_ORGAN_LIST } from '../data/frogAnatomyData';
 import { HUMAN_ORGAN_LIST } from '../data/humanAnatomyData';
@@ -398,10 +397,6 @@ export const AnatomyPage: React.FC<AnatomyPageProps> = ({ onNavigate, initialSpe
         {/* TAB 1: 3D ANATOMY EXPLORER */}
         {activeTab === '3d-model' && (
           <div className="space-y-6">
-            <AnatomyPlayMissionsBar
-              selectedSpecimen={selectedSpecimen}
-              onSelectSpecimen={(spec) => setSelectedSpecimen(spec)}
-            />
             {selectedSpecimen === 'human' && !ENABLE_HUMAN_ANATOMY && (
               <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <span>The Human Anatomy Explorer is temporarily offline for scheduled upgrades. Displaying the Frog Anatomy Explorer.</span>

@@ -9,14 +9,10 @@ import { FrogAnatomyExplorer } from '../components/biology/FrogAnatomyExplorer';
 import { BIOLOGY_BATCH_1_MODELS } from '../data/curatedModelsBatch3';
 import { BIOLOGY_BATCH_2_MODELS } from '../data/curatedModelsBatch4';
 import { ModelAwareChatbot, ModelChatContext } from '../components/ai/ModelAwareChatbot';
-import { learnThroughPlayManager, LearnThroughPlayState } from '../utils/learnThroughPlayEngine';
 import {
   Dna,
   Heart,
   Sparkles,
-  Volume2,
-  Play,
-  CheckCircle2,
   BookOpen,
   Brain,
   Eye,
@@ -62,13 +58,6 @@ export const BiologyLabPage: React.FC<BiologyLabPageProps> = ({ initialModelId, 
   const [selectedOrganelleId, setSelectedOrganelleId] = useState('nucleus');
   const [selectedStructureId, setSelectedStructureId] = useState('left_ventricle');
   const [selectedPairId, setSelectedPairId] = useState('at_pair');
-  const [playState, setPlayState] = useState<LearnThroughPlayState>(() =>
-    learnThroughPlayManager.getState()
-  );
-
-  useEffect(() => {
-    return learnThroughPlayManager.subscribe(setPlayState);
-  }, []);
 
   const handleTryIt = (targetId: string) => {
     const el = document.getElementById(targetId);
@@ -368,120 +357,6 @@ export const BiologyLabPage: React.FC<BiologyLabPageProps> = ({ initialModelId, 
           </div>
         </div>
       </div>
-
-      {/* Visual-First Learn-Through-Play Discovery Mission for Foundation Biology Scenes */}
-      {!activeCuratedSpec && (
-        <div
-          data-testid="biology-learn-through-play-bar"
-          className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 space-y-3"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-base">
-                {bioModel === 'cell' ? '🔋' : bioModel === 'heart' ? '🫀' : bioModel === 'dna' ? '🧬' : '🐸'}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Learn Through Play · Interactive Biology Discovery
-                  </h2>
-                  {playState.discoveries[`bio-play-${bioModel}`] && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      <span>Mastered</span>
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  {bioModel === 'cell'
-                    ? '👁️ SEE the 3D cell ➔ ✋ TRY selecting Mitochondria ➔ 💡 DISCOVER how ATP energy powers life!'
-                    : bioModel === 'heart'
-                    ? '👁️ SEE blood flow ➔ ✋ TRY inspecting the Left Ventricle & Aorta ➔ 💡 DISCOVER high-pressure systemic circulation!'
-                    : bioModel === 'dna'
-                    ? '👁️ SEE the double helix ➔ ✋ TRY comparing A=T (2 bonds) vs G≡C (3 bonds) ➔ 💡 DISCOVER Chargaff base-pairing!'
-                    : '👁️ SEE the amphibian specimen ➔ ✋ TRY rotating the neck ➔ 💡 DISCOVER 3-chambered coelomic anatomy!'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  const text =
-                    bioModel === 'cell'
-                      ? 'Cell Organelle Mission. Tap Watch and Highlight to zoom to the Mitochondria, the powerhouse that converts glucose and oxygen into ATP cellular energy!'
-                      : bioModel === 'heart'
-                      ? 'Human Heart Mission. Tap Watch and Highlight to inspect the muscular Left Ventricle, which pumps oxygenated blood through the Aorta to your entire body!'
-                      : bioModel === 'dna'
-                      ? 'DNA Double Helix Mission. Tap Watch and Highlight to compare Guanine-Cytosine triple hydrogen bonds with Adenine-Thymine double hydrogen bonds!'
-                      : 'Frog Dissection Mission. Rotate the frog neck to unlock the internal 3-chambered heart and lungs!';
-                  learnThroughPlayManager.speakInstruction(`bio-guide-${bioModel}`, text, true);
-                }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 text-xs font-semibold transition-colors cursor-pointer"
-              >
-                <Volume2 className="w-3.5 h-3.5 text-sky-600" />
-                <span>🔊 Listen</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (bioModel === 'cell') {
-                    setSelectedOrganelleId('mitochondria');
-                    learnThroughPlayManager.recordDiscovery({
-                      id: 'bio-play-cell',
-                      domain: 'biology',
-                      title: 'Mitochondria ATP Synthesis',
-                      symbol: '🔋',
-                      scientificPrinciple:
-                        'Mitochondria perform aerobic cellular respiration across folded cristae membranes to synthesize ATP energy.',
-                      formulaOrRule: 'C₆H₁₂O₆ + 6O₂ ➔ 6CO₂ + 6H₂O + ~32 ATP',
-                    });
-                  } else if (bioModel === 'heart') {
-                    setSelectedStructureId('aorta');
-                    learnThroughPlayManager.recordDiscovery({
-                      id: 'bio-play-heart',
-                      domain: 'biology',
-                      title: 'Systemic Left Ventricle & Aortic Ejection',
-                      symbol: '🫀',
-                      scientificPrinciple:
-                        'The thick-walled left ventricle generates high systolic pressure to propel oxygenated blood through the aorta.',
-                      formulaOrRule: 'CO = HR × SV (Systemic High-Pressure Loop)',
-                    });
-                  } else if (bioModel === 'dna') {
-                    setSelectedPairId('gc_pair');
-                    learnThroughPlayManager.recordDiscovery({
-                      id: 'bio-play-dna',
-                      domain: 'biology',
-                      title: 'Complementary Base Pairing (A=T, G≡C)',
-                      symbol: '🧬',
-                      scientificPrinciple:
-                        'Adenine pairs with Thymine via 2 hydrogen bonds, while Guanine pairs with Cytosine via 3 hydrogen bonds.',
-                      formulaOrRule: 'A = T (2 H-bonds) · G ≡ C (3 H-bonds)',
-                    });
-                  } else {
-                    learnThroughPlayManager.recordDiscovery({
-                      id: 'bio-play-frog-anatomy',
-                      domain: 'biology',
-                      title: 'Amphibian Coelomic Organ Organization',
-                      symbol: '🐸',
-                      scientificPrinciple:
-                        'Amphibians possess a 3-chambered heart and sacculated lungs housed in a unified coelomic cavity.',
-                      formulaOrRule: '2 Atria + 1 Shared Ventricle',
-                    });
-                  }
-                }}
-                data-testid="biology-watch-demo-button"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>👁️ Watch &amp; Unlock Discovery</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Active Model Viewport & Controls */}
       {bioModel === 'cell' && (

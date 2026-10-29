@@ -8,13 +8,6 @@ import {
   computeCameraAnglePosition,
   ImmersiveEnvironmentDomain,
 } from '../utils/immersiveEnvironmentPreset';
-import {
-  buildModelPlayChallenge,
-  CHEMISTRY_PLAY_EXPERIMENTS,
-  ANATOMY_PLAY_MISSIONS,
-  learnThroughPlayManager,
-} from '../utils/learnThroughPlayEngine';
-import { CURATED_AI_MODELS } from '../data/curatedAiModels';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -29,7 +22,7 @@ export function runImmersiveEnvironmentVerification(): {
   const details: string[] = [];
   let passed = 0;
 
-  // 1. Verify Phase 1: Complete removal of Gaming Arena files & routes (No new pages or sections constraint)
+  // 1. Verify Phase 1: Complete removal of Gaming Arena files & routes
   const rootDir = process.cwd();
   const gamingDirExists = fs.existsSync(path.join(rootDir, 'src/gaming'));
   const gamingPageExists = fs.existsSync(path.join(rootDir, 'src/pages/GamingArenaPage.tsx'));
@@ -45,7 +38,7 @@ export function runImmersiveEnvironmentVerification(): {
   assert(!navbarSource.includes('gaming-arena'), 'Navbar.tsx must not reference gaming-arena');
   assert(!homeSource.includes('gaming-arena') && !homeSource.includes('Gaming Arena'), 'HomePage.tsx must not reference Gaming Arena');
   passed += 3;
-  details.push('Verified App.tsx, Navbar.tsx, and HomePage.tsx have no separate Gaming Arena routes');
+  details.push('Verified App.tsx, Navbar.tsx, and HomePage.tsx have no Gaming Arena references');
 
   // 2. Verify Phase 2: All 5 Immersive Environment Domains have complete descriptors and 3D stage builders
   const expectedDomains: ImmersiveEnvironmentDomain[] = [
@@ -98,36 +91,5 @@ export function runImmersiveEnvironmentVerification(): {
   passed += 1;
   details.push('Verified 3D camera perspective preset coordinate computation (iso, front, top, side)');
 
-  // 5. Verify Learn-Through-Play SEE -> TRY -> OBSERVE -> DISCOVER -> APPLY -> MASTER engine across curated models
-  const curatedModelsList = Object.values(CURATED_AI_MODELS);
-  assert(curatedModelsList.length >= 25, 'Curated scientific models registry must remain intact');
-  for (const model of curatedModelsList.slice(0, 10)) {
-    const challenge = buildModelPlayChallenge(model);
-    assert(
-      Boolean(challenge.modelId && challenge.visualActionCue && challenge.nonReaderVisualSummary && challenge.causeEffectRule),
-      `Play challenge incomplete for ${model.id}`
-    );
-    assert(
-      challenge.challengeTargetMin <= challenge.demoValue && challenge.demoValue <= challenge.challengeTargetMax,
-      `Target range invalid for ${model.id}`
-    );
-    assert(challenge.spokenSeePrompt.length > 20, `Spoken accessibility prompt required for ${model.id}`);
-    passed += 1;
-  }
-  assert(CHEMISTRY_PLAY_EXPERIMENTS.length >= 4, 'Must have at least 4 verified chemistry play experiments');
-  assert(ANATOMY_PLAY_MISSIONS.length >= 4, 'Must have at least 4 verified anatomy play missions');
-  const recorded = learnThroughPlayManager.recordDiscovery({
-    id: 'test-discovery',
-    domain: 'physics',
-    title: 'Test Discovery',
-    symbol: '⚡',
-    formulaOrRule: 'F = m × a',
-    scientificPrinciple: 'Force equals mass times acceleration.',
-  });
-  assert(Boolean(recorded && recorded.id === 'test-discovery'), 'learnThroughPlayManager.recordDiscovery must return DiscoveryRecord');
-  passed += 3;
-  details.push('Verified Learn-Through-Play 6-stage challenge builder, Chemistry experiments, Anatomy missions, and persistent Discovery log');
-
   return { passed, details };
 }
-

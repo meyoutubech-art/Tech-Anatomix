@@ -22,7 +22,6 @@ import { PendulumScene } from '../components/physics/PendulumScene';
 import { CircuitScene } from '../components/physics/CircuitScene';
 import { EducationalExplanationBox, ExplanationData } from '../components/common/EducationalExplanationBox';
 import { CuriosityEngine } from '../components/common/CuriosityEngine';
-import { PlayDiscoveryDock } from '../components/common/PlayDiscoveryDock';
 import { ModelAwareChatbot, ModelChatContext } from '../components/ai/ModelAwareChatbot';
 import { Sparkles, Sliders, Box, Layers, RotateCcw } from 'lucide-react';
 import { ScientificModelSpec } from '../types/aiModel';
@@ -956,14 +955,6 @@ export const PhysicsLabPage: React.FC<PhysicsLabPageProps> = ({ initialModelId, 
                 onToggleLabels={setShowLabels}
               />
             )}
-
-            {/* Learn-Through-Play Interactive Discovery Loop */}
-            <PlayDiscoveryDock
-              modelSpec={modelSpec}
-              parameters={activeParams}
-              onUpdateParameter={handleUpdateParameter}
-              onResetChallenge={handleResetParameters}
-            />
 
             {/* Educational Explanation Box Directly Below Viewport */}
             <EducationalExplanationBox data={currentEducationalData} />
