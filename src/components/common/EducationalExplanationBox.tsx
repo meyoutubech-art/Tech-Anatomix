@@ -11,6 +11,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { FormattedAiMessage } from './FormattedAiMessage';
+import { MathFormula, MathText } from './MathFormula';
 
 export interface ExplanationData {
   title: string;
@@ -54,6 +55,7 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
     whyTitle = 'WHY DID THIS HAPPEN?',
     whyExplanation,
     examConnection,
+    formula,
     onClearSelection,
   } = data;
 
@@ -80,7 +82,9 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               </span>
             </div>
             {subtitle && (
-              <p className="text-[11px] text-slate-400 truncate">{subtitle}</p>
+              <p className="text-[11px] text-slate-400 truncate">
+                <MathText text={subtitle} />
+              </p>
             )}
           </div>
         </div>
@@ -106,7 +110,9 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <HelpCircle className="w-3.5 h-3.5 text-sky-600" />
               <span>What is it?</span>
             </div>
-            <p className="text-slate-600 leading-relaxed pt-0.5">{whatIsIt}</p>
+            <p className="text-slate-600 leading-relaxed pt-0.5">
+              <MathText text={whatIsIt} />
+            </p>
           </div>
         )}
 
@@ -117,7 +123,9 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <Compass className="w-3.5 h-3.5 text-teal-600" />
               <span>Structure</span>
             </div>
-            <p className="text-slate-600 leading-relaxed pt-0.5">{structure}</p>
+            <p className="text-slate-600 leading-relaxed pt-0.5">
+              <MathText text={structure} />
+            </p>
           </div>
         )}
 
@@ -128,7 +136,9 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <Zap className="w-3.5 h-3.5 text-indigo-600" />
               <span>{mechanismLabel}</span>
             </div>
-            <p className="text-slate-600 leading-relaxed pt-0.5">{mechanismText}</p>
+            <p className="text-slate-600 leading-relaxed pt-0.5">
+              <MathText text={mechanismText} />
+            </p>
           </div>
         )}
 
@@ -139,7 +149,9 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span>Why is it important?</span>
             </div>
-            <p className="text-slate-600 leading-relaxed pt-0.5">{whyIsItImportant}</p>
+            <p className="text-slate-600 leading-relaxed pt-0.5">
+              <MathText text={whyIsItImportant} />
+            </p>
           </div>
         )}
 
@@ -150,7 +162,9 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
               <span>Real-Life Application</span>
             </div>
-            <p className="text-amber-950 leading-relaxed pt-0.5">{realLifeExample}</p>
+            <p className="text-amber-950 leading-relaxed pt-0.5">
+              <MathText text={realLifeExample} />
+            </p>
           </div>
         )}
 
@@ -207,7 +221,22 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <GraduationCap className="w-3.5 h-3.5 text-violet-600" />
               <span>Exam Connection</span>
             </div>
-            <p className="text-violet-950 leading-relaxed pt-0.5">{examConnection}</p>
+            <div className="text-violet-950 leading-relaxed pt-0.5">
+              <MathText text={examConnection} />
+            </div>
+          </div>
+        )}
+
+        {/* 6. GOVERNING MATHEMATICAL EQUATION / FORMULA (if available) */}
+        {formula && (
+          <div className="md:col-span-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+              <span>Governing Formula</span>
+            </div>
+            <div className="text-slate-900 pt-0.5 overflow-x-auto">
+              <MathFormula formula={formula} displayMode={false} />
+            </div>
           </div>
         )}
       </div>

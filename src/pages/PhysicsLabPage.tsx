@@ -21,6 +21,7 @@ import { ProjectileScene } from '../components/physics/ProjectileScene';
 import { PendulumScene } from '../components/physics/PendulumScene';
 import { CircuitScene } from '../components/physics/CircuitScene';
 import { EducationalExplanationBox, ExplanationData } from '../components/common/EducationalExplanationBox';
+import { MathText } from '../components/common/MathFormula';
 import { CuriosityEngine } from '../components/common/CuriosityEngine';
 import { ModelAwareChatbot, ModelChatContext } from '../components/ai/ModelAwareChatbot';
 import { Sparkles, Sliders, Box, Layers, RotateCcw } from 'lucide-react';
@@ -838,7 +839,7 @@ export const PhysicsLabPage: React.FC<PhysicsLabPageProps> = ({ initialModelId, 
             <span>{modelSpec.title}</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-3xl leading-relaxed">
-            {modelSpec.description}
+            <MathText text={modelSpec.description} />
           </p>
         </div>
 
@@ -1016,7 +1017,7 @@ export const PhysicsLabPage: React.FC<PhysicsLabPageProps> = ({ initialModelId, 
                           className="w-full accent-sky-600 cursor-pointer"
                         />
                         <p className="text-[11px] text-slate-500 leading-tight">
-                          {param.description}
+                          <MathText text={param.description} />
                         </p>
                       </div>
                     );
@@ -1041,7 +1042,7 @@ export const PhysicsLabPage: React.FC<PhysicsLabPageProps> = ({ initialModelId, 
                             {cond.name}
                           </span>
                           <span className="text-[10px] text-slate-500 block leading-tight">
-                            {cond.description}
+                            <MathText text={cond.description} />
                           </span>
                         </div>
                         <input

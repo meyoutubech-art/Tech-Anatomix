@@ -6,6 +6,7 @@ import { Global3DViewer } from '../common/Global3DViewer';
 import { PositionRange } from '../common/ModelPositionControls';
 import { ExternalCalloutOverlay, ExternalCalloutItem } from '../common/ExternalCalloutOverlay';
 import { EducationalExplanationBox } from '../common/EducationalExplanationBox';
+import { MathFormula, MathText } from '../common/MathFormula';
 import { getComponentDisplayName } from '../../utils/componentDisplayName';
 import { ModelAwareChatbot } from '../ai/ModelAwareChatbot';
 import { Sliders, Sparkles, Tag, Check, Eye, HelpCircle, FileSpreadsheet, Flame, RotateCcw, Play, Pause, Waves, Wind, Bell, Volume2, Zap, Power, Heart, Activity, ChevronDown, ChevronUp, Settings, Grid, Compass, Box, Layers, Gauge } from 'lucide-react';
@@ -7574,7 +7575,10 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                         ? 'Atoms interact to satisfy the octet rule (stable noble-gas electron configurations). Large electronegativity differences (Δχ > 2.0) favor complete electron transfer (ionic bonding held by Coulombic attraction), while small differences favor electron pair sharing (covalent bonding).'
                         : `The 3D model is active with real-time WebGL rendering. Click any component or 3D label to inspect it, or adjust experiment parameters to observe immediate physical changes.`,
                       examConnection: modelSpec.examConnection,
-                      formula: modelSpec.equations?.[0],
+                      formula:
+                        modelSpec.equations && modelSpec.equations.length > 0
+                          ? modelSpec.equations.join('  |  ')
+                          : undefined,
                     }
               }
             />
@@ -9107,15 +9111,35 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                         </p>
                         <p>
                           <strong className="text-slate-800">Structure & Interpretation:</strong>{' '}
-                          {sciSpec.chosenInterpretation}
+                          <MathText text={sciSpec.chosenInterpretation} />
                         </p>
                         {sciSpec.governingBehavior && (
                           <p>
                             <strong className="text-slate-800">Working Mechanism:</strong>{' '}
-                            {sciSpec.governingBehavior}
+                            <MathText text={sciSpec.governingBehavior} />
                           </p>
                         )}
                       </div>
+
+                      {(() => {
+                        const eqList =
+                          sciSpec.governingEquations && sciSpec.governingEquations.length > 0
+                            ? sciSpec.governingEquations
+                            : modelSpec.equations || [];
+                        if (eqList.length === 0) return null;
+                        return (
+                          <div className="flex flex-col gap-1.5 pt-1" data-testid="scientific-spec-equations">
+                            {eqList.slice(0, 4).map((eq, idx) => (
+                              <div
+                                key={idx}
+                                className="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-slate-900 text-sky-300 text-[11px] w-fit max-w-full overflow-x-auto shadow-2xs"
+                              >
+                                <MathFormula formula={eq} displayMode={false} />
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
 
                       {/* Retrieved Scientific Evidence & Verifiable Web Sources */}
                       {(() => {
@@ -9132,7 +9156,7 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                                 <ul className="list-disc pl-4 space-y-0.5">
                                   {facts.slice(0, 2).map((fact, idx) => (
                                     <li key={idx} className="leading-snug">
-                                      {fact}
+                                      <MathText text={fact} />
                                     </li>
                                   ))}
                                 </ul>
@@ -9186,7 +9210,13 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                       {sciSpec.limitations && (
                         <p className="text-[10px] text-slate-500 leading-snug pt-0.5">
                           <strong className="text-slate-700">Assumptions & Scope:</strong>{' '}
-                          {Array.isArray(sciSpec.limitations) ? sciSpec.limitations[0] : sciSpec.limitations}
+                          <MathText
+                            text={
+                              Array.isArray(sciSpec.limitations)
+                                ? sciSpec.limitations[0]
+                                : sciSpec.limitations
+                            }
+                          />
                         </p>
                       )}
                     </div>

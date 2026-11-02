@@ -198,7 +198,7 @@ export const ExternalModelWorkspace: React.FC<ExternalModelWorkspaceProps> = ({
           whyTitle: whyTitle || '3D ANATOMICAL MODEL REVIEW',
           whyExplanation: whyExplanation || 'Explore this biological system in high-fidelity 3D with interactive orbit, zoom, pan, and real-time anatomical annotations directly on the model.',
           examConnection,
-          formula: equations?.[0],
+          formula: equations && equations.length > 0 ? equations.join('  |  ') : undefined,
         }}
       />
     </div>

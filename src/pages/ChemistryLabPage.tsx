@@ -13,6 +13,7 @@ import {
 } from '../data/reactionsData';
 import { ChemicalReagent, ReactionDefinition } from '../types/chemistry';
 import { EducationalExplanationBox, ExplanationData } from '../components/common/EducationalExplanationBox';
+import { MathText } from '../components/common/MathFormula';
 import { ReactionAiChatbot } from '../components/chemistry/ReactionAiChatbot';
 import { AiCompoundAddPanel } from '../components/chemistry/AiCompoundAddPanel';
 import {
@@ -992,7 +993,7 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                           {evaluatedResult.reaction.name}
                         </h4>
                         <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                          {evaluatedResult.reaction.observableEffects.description}
+                          <MathText text={evaluatedResult.reaction.observableEffects.description} />
                         </p>
                       </div>
 
@@ -1109,14 +1110,14 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                           Balanced Stoichiometric Equation:
                         </span>
                         <div className="p-2.5 rounded-xl bg-slate-900 text-emerald-300 font-mono text-xs font-bold border border-slate-800 overflow-x-auto">
-                          {evaluatedResult.reaction.balancedEquation}
+                          <MathText text={evaluatedResult.reaction.balancedEquation} />
                         </div>
                       </div>
 
                       {/* Mechanism */}
                       <div className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed">
                         <strong className="text-slate-900 block mb-0.5">Molecular Mechanism:</strong>
-                        {evaluatedResult.reaction.explanation}
+                        <MathText text={evaluatedResult.reaction.explanation} />
                       </div>
                     </div>
                   ) : (
@@ -1538,7 +1539,7 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                         Balanced Chemical Equation (Stoichiometrically Validated):
                       </span>
                       <div className="p-3 rounded-xl bg-white font-mono text-xs font-bold text-slate-900 border border-slate-200 shadow-2xs overflow-x-auto">
-                        {evaluatedResult.balancedEquation}
+                        <MathText text={evaluatedResult.balancedEquation} />
                       </div>
                     </div>
                   )}
@@ -1636,7 +1637,7 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                   {/* Concise Scientific Explanation */}
                   <div className="p-3 rounded-xl bg-white/70 border border-slate-200 text-[11px] leading-relaxed text-slate-700">
                     <span className="font-bold text-slate-900 block mb-0.5">Scientific Mechanism:</span>
-                    <p>{evaluatedResult.explanation || evaluatedResult.reaction?.explanation || evaluatedResult.message}</p>
+                    <p><MathText text={evaluatedResult.explanation || evaluatedResult.reaction?.explanation || evaluatedResult.message} /></p>
                     <span className="text-[10px] text-slate-400 mt-1 block italic">
                       Educational Visualization Notice: 3D particle settling, effervescent bubbles, and color transitions are synchronized representations of this stoichiometric result.
                     </span>
