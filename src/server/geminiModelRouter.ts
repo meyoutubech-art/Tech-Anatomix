@@ -32,8 +32,8 @@ export interface ModelRuntimeStatus {
 // Verified active Gemini models matching current API availability and guidelines
 export const CANDIDATE_GEMINI_MODELS: ModelCandidateConfig[] = [
   {
-    id: 'gemini-3.1-flash-lite',
-    displayName: 'Gemini 3.1 Flash Lite (High Reliability & Ultra Fast)',
+    id: 'gemini-3.8-flash',
+    displayName: 'Gemini 3.8 Flash (Universal Reasoning & Chat)',
     priority: 1,
     supportedCapabilities: [
       'structured_3d_model',
@@ -44,33 +44,9 @@ export const CANDIDATE_GEMINI_MODELS: ModelCandidateConfig[] = [
     ],
   },
   {
-    id: 'gemini-3.7-flash',
-    displayName: 'Gemini 3.7 Flash (High Performance Science Engine)',
+    id: 'gemini-3.1-flash-lite',
+    displayName: 'Gemini 3.1 Flash Lite (High Reliability & Ultra Fast)',
     priority: 2,
-    supportedCapabilities: [
-      'structured_3d_model',
-      'multimodal_diagram',
-      'parameter_interpretation',
-      'educational_explanation',
-      'chat_assistant',
-    ],
-  },
-  {
-    id: 'gemini-flash-lite-latest',
-    displayName: 'Gemini Flash Lite Latest (Adaptive Alias)',
-    priority: 3,
-    supportedCapabilities: [
-      'structured_3d_model',
-      'multimodal_diagram',
-      'parameter_interpretation',
-      'educational_explanation',
-      'chat_assistant',
-    ],
-  },
-  {
-    id: 'gemini-3.8-flash',
-    displayName: 'Gemini 3.8 Flash (Comprehensive STEM Reasoning)',
-    priority: 4,
     supportedCapabilities: [
       'structured_3d_model',
       'multimodal_diagram',
@@ -82,7 +58,7 @@ export const CANDIDATE_GEMINI_MODELS: ModelCandidateConfig[] = [
   {
     id: 'gemini-flash-latest',
     displayName: 'Gemini Flash Latest (Official Fallback Alias)',
-    priority: 5,
+    priority: 3,
     supportedCapabilities: [
       'structured_3d_model',
       'multimodal_diagram',

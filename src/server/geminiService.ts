@@ -1799,17 +1799,42 @@ export function findCuratedFallback(
   return synthesizeProceduralScientificModel(query, researchRecord);
 }
 
-// 2. Chat with Lab Mentor
-export async function chatWithLabMentor(question: string, modelTitle?: string, subject?: string, context: any = {}) {
+// 2. Chat with AI Assistant (Everything-Aware Universal AI in AI Lab + Context-Aware when inspecting a 3D Model)
+export async function chatWithLabMentor(
+  question: string,
+  modelTitle?: string,
+  subject?: string,
+  context: any = {}
+) {
   const aiClient = getAiClient();
+  const isUniversalChat =
+    Boolean(context?.isUniversalChat) ||
+    context?.mode === 'universal' ||
+    modelTitle === 'Universal AI Assistant' ||
+    subject === 'General' ||
+    (!modelTitle && !context?.title && !context?.modelId);
+
+  const historyList: Array<{ role: string; text: string }> = Array.isArray(context?.history)
+    ? context.history
+        .filter((m: any) => m && typeof m.text === 'string' && m.text.trim())
+        .slice(-12)
+    : [];
+
+  const historyTranscript =
+    historyList.length > 0
+      ? `\nCONVERSATION HISTORY:\n${historyList
+          .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+          .join('\n\n')}\n`
+      : '';
+
   const effectiveTitle =
     modelTitle && modelTitle !== 'Scientific Simulation'
       ? modelTitle
-      : context?.title || modelTitle || 'Scientific Simulation';
+      : context?.title || modelTitle || 'Universal AI Assistant';
   const effectiveSubject =
     subject && subject !== 'Science'
       ? subject
-      : context?.subject || subject || 'Science';
+      : context?.subject || subject || 'General';
 
   const selectedComponent = context?.selectedComponent;
   const rawComponents = Array.isArray(context?.components)
@@ -1822,9 +1847,44 @@ export async function chatWithLabMentor(question: string, modelTitle?: string, s
     .join(', ');
 
   if (aiClient) {
-    const chemistryGroundingBlock =
-      effectiveSubject === 'Chemistry' && context?.results?.localChemistryNotes
-        ? `\nCANONICAL CHEMISTRY REGISTRY & REACTION ENGINE EVALUATION:
+    if (isUniversalChat) {
+      const universalPrompt = `${historyTranscript}USER MESSAGE: "${question}"
+
+Respond directly, accurately, and comprehensively to what the user is asking.`;
+
+      const execution = await modelRouter.executeWithModelFallback(
+        'chat_assistant',
+        async (modelId) => {
+          const response = await aiClient.models.generateContent({
+            model: modelId,
+            contents: universalPrompt,
+            config: {
+              systemInstruction:
+                'You are an intelligent, everything-aware AI assistant like ChatGPT and Gemini. You can answer any question on any topic—including general knowledge, coding & software engineering, mathematics, history, literature, creative writing, daily life, business, languages, technology, and science. Always answer the user\'s exact question directly, clearly, and thoroughly according to what they asked, without restricting yourself to science or any specific 3D model. Format your responses cleanly using Markdown (**bold** for key terms and bullet points or numbered steps when helpful) and write any mathematical symbols in readable Unicode (e.g., °, ×, ÷, →, π, √, ², ³) rather than raw LaTeX dollar-sign syntax.',
+            },
+          });
+
+          if (response.text && response.text.trim()) {
+            return cleanAndFormatScientificText(response.text.trim());
+          }
+          throw new Error('Empty response from model');
+        },
+        15000
+      );
+
+      if (execution && execution.result) {
+        return {
+          answer: execution.result,
+          reply: execution.result,
+          text: execution.result,
+          activeModel: execution.modelId,
+          aiProviderStatus: 'live_ai',
+        };
+      }
+    } else {
+      const chemistryGroundingBlock =
+        effectiveSubject === 'Chemistry' && context?.results?.localChemistryNotes
+          ? `\nCANONICAL CHEMISTRY REGISTRY & REACTION ENGINE EVALUATION:
 - Detected User Intent: ${context?.results?.userIntent || 'reaction_explanation'}
 - Simulator Support Classification: ${context?.results?.reactionSupportClassification || 'not_applicable'}
 - Verified Registry & Reaction Engine Notes:
@@ -1835,11 +1895,11 @@ CRITICAL CHEMISTRY LAB RULES:
 1. Never substitute an unrelated preset reaction when the student asks about a specific reaction.
 2. Preserve the exact balanced chemical equation, reactants, products, reaction type, and observable physical effects from the Verified Registry & Reaction Engine Notes above.
 3. Explicitly state whether the reaction is "Supported in the 3D Virtual Chemistry Lab Simulator", "Scientific Reference Reaction — Not currently executable in the 3D beaker simulator", "No Reaction Under Standard Aqueous Conditions", or "Restricted Reference Only".`
-        : '';
+          : '';
 
-    const prompt = `STUDENT INQUIRY: "${question}"
+      const prompt = `${historyTranscript}USER INQUIRY: "${question}"
 
-STRUCTURED MODEL CONTEXT:
+OPTIONAL ACTIVE 3D MODEL CONTEXT (Use if the question is about this model/simulation; if the user asks a general question on any other topic, answer their question directly and completely):
 - Active 3D Model: ${effectiveTitle} (${effectiveSubject})
 - Scientific Concept: ${context?.concept || effectiveTitle}
 ${context?.description ? `- Model Overview: ${context.description}` : ''}
@@ -1850,54 +1910,52 @@ ${
   * What is it: ${selectedComponent.whatIsIt || ''}
   * What does it do: ${selectedComponent.whatDoesItDo || selectedComponent.description || ''}
   * Real-life example: ${selectedComponent.realLifeExample || ''}`
-    : '- No single component selected (student is asking about the whole model or simulation).'
+    : '- No single component selected.'
 }
 - Current Experiment Parameters: ${JSON.stringify(context?.parameters || {})}
 - Current Real-time Measurements/Outputs: ${JSON.stringify(context?.results || context?.measurements || {})}
 ${context?.recentChange ? `- Recent State Change: ${JSON.stringify(context.recentChange)}` : ''}${chemistryGroundingBlock}
 
-INSTRUCTIONS FOR VIZLAB AI:
-1. Answer the student's question accurately, concisely, and encouragingly.
-2. Ground your response in the EXACT active 3D model (${effectiveTitle}), its current parameters, and its live outputs/components.
-3. If the student refers to "this", "it", or "why is it spinning/pumping/slower", resolve the reference using the currently selected component or recent parameter change.
-4. Keep the explanation suitable for school/introductory STEM students while maintaining scientific correctness and real formulas where helpful.
-5. Max 2-4 short, clear paragraphs. Use **bold** for key scientific terms and bullet points for multi-step points.
-6. CRITICAL FORMATTING RULE: NEVER output raw LaTeX dollar-sign syntax like $25\\text{ m/s}$, $45^\\circ$, $9.81\\text{ m/s}^2$, or \\frac{a}{b}. Always write numbers, units, angles, superscripts, subscripts, and equations in clean, directly readable Unicode notation (e.g., 25 m/s, 45°, 9.81 m/s², CO₂, H₂O, ΔT, ×, ÷, →, π, √(L/g)). Wrap standalone equations in single backticks like \`R = (v² sin(2θ)) / g\`.`;
+INSTRUCTIONS:
+1. Answer the user's question accurately, clearly, and helpfully.
+2. If the user is asking about the active 3D model (${effectiveTitle}), its components, or its parameters, ground your explanation in the model context above.
+3. If the user is asking a general question on any other subject (even outside science or unrelated to the model), answer their question directly and completely like a universal AI assistant (ChatGPT / Gemini) without forcing it back to the 3D model.
+4. Use **bold** for key terms and bullet points where helpful. Never output raw LaTeX dollar-sign syntax like $25\\text{ m/s}$ or \\frac{a}{b}; use clean readable Unicode notation.`;
 
-    const execution = await modelRouter.executeWithModelFallback(
-      'chat_assistant',
-      async (modelId) => {
-        const response = await aiClient.models.generateContent({
-          model: modelId,
-          contents: prompt,
-          config: {
-            systemInstruction:
-              'You are VIZLAB AI Lab Mentor, an elite, model-aware STEM educator. Provide insightful, mathematically and biologically grounded answers connected directly to the active 3D model in front of the student. Always write units and equations using clean Unicode symbols (m/s², °, ×, →, π, √) and clean Markdown (**bold**, bullet lists)—never emit raw LaTeX like $25\\text{ m/s}$ or $45^\\circ$.',
-            temperature: 0.25,
-          },
-        });
+      const execution = await modelRouter.executeWithModelFallback(
+        'chat_assistant',
+        async (modelId) => {
+          const response = await aiClient.models.generateContent({
+            model: modelId,
+            contents: prompt,
+            config: {
+              systemInstruction:
+                'You are an intelligent, everything-aware AI assistant and STEM mentor. When the user asks about the active 3D simulation, use the provided model context; when the user asks about any other topic (general knowledge, math, coding, history, writing, everyday questions, etc.), answer their question directly and completely like ChatGPT or Gemini. Always write units and equations using clean Unicode symbols (m/s², °, ×, →, π, √) and clean Markdown (**bold**, bullet lists)—never emit raw LaTeX.',
+            },
+          });
 
-        if (response.text && response.text.trim()) {
-          return cleanAndFormatScientificText(response.text.trim());
-        }
-        throw new Error('Empty response from model');
-      },
-      10000
-    );
+          if (response.text && response.text.trim()) {
+            return cleanAndFormatScientificText(response.text.trim());
+          }
+          throw new Error('Empty response from model');
+        },
+        15000
+      );
 
-    if (execution && execution.result) {
-      return {
-        answer: execution.result,
-        reply: execution.result,
-        text: execution.result,
-        activeModel: execution.modelId,
-        aiProviderStatus: 'live_ai',
-      };
+      if (execution && execution.result) {
+        return {
+          answer: execution.result,
+          reply: execution.result,
+          text: execution.result,
+          activeModel: execution.modelId,
+          aiProviderStatus: 'live_ai',
+        };
+      }
     }
   }
 
-  // Deterministic context-aware answer if AI is offline
-  if (effectiveSubject === 'Chemistry' && context?.results?.localChemistryNotes) {
+  // Deterministic fallback if AI is offline or unreachable
+  if (!isUniversalChat && effectiveSubject === 'Chemistry' && context?.results?.localChemistryNotes) {
     const cleanedChemistryFallback = cleanAndFormatScientificText(
       String(context.results.localChemistryNotes)
     );
@@ -1905,6 +1963,18 @@ INSTRUCTIONS FOR VIZLAB AI:
       answer: cleanedChemistryFallback,
       reply: cleanedChemistryFallback,
       text: cleanedChemistryFallback,
+      activeModel: 'deterministic-offline',
+      aiProviderStatus: 'deterministic_fallback',
+    };
+  }
+
+  if (isUniversalChat) {
+    const fallbackReply =
+      'I am ready to help with any question across general knowledge, coding, math, writing, history, or science. Right now the live Gemini AI service could not be reached—please check that your internet connection and `GEMINI_API_KEY` are active, and try your question again!';
+    return {
+      answer: fallbackReply,
+      reply: fallbackReply,
+      text: fallbackReply,
       activeModel: 'deterministic-offline',
       aiProviderStatus: 'deterministic_fallback',
     };

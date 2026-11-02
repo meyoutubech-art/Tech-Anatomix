@@ -74,14 +74,25 @@ app.post(['/api/ai/chat', '/ai/chat'], async (req, res) => {
   }
 
   const rawQuestion = body.question || body.message || body.prompt;
-  const { modelTitle, subject, context } = body;
+  const { modelTitle, subject, context, mode, history } = body;
   if (!rawQuestion || typeof rawQuestion !== 'string') {
     return res.status(400).json({ error: 'Question is required' });
   }
   try {
-    const resolvedTitle = modelTitle || context?.title || 'Scientific Simulation';
-    const resolvedSubject = subject || context?.subject || 'Science';
-    const result = await chatWithLabMentor(rawQuestion, resolvedTitle, resolvedSubject, context);
+    const mergedContext = {
+      ...(context || {}),
+      ...(mode ? { mode } : {}),
+      ...(Array.isArray(history) ? { history } : {}),
+    };
+    const resolvedTitle =
+      mergedContext.isUniversalChat || mode === 'universal'
+        ? 'Universal AI Assistant'
+        : modelTitle || context?.title || 'Universal AI Assistant';
+    const resolvedSubject =
+      mergedContext.isUniversalChat || mode === 'universal'
+        ? 'General'
+        : subject || context?.subject || 'General';
+    const result = await chatWithLabMentor(rawQuestion, resolvedTitle, resolvedSubject, mergedContext);
     return res.status(200).json(result);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

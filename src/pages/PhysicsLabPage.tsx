@@ -1055,22 +1055,6 @@ export const PhysicsLabPage: React.FC<PhysicsLabPageProps> = ({ initialModelId, 
                   })}
                 </div>
               )}
-
-              {/* Governing Mathematical Equations */}
-              {modelSpec.equations && modelSpec.equations.length > 0 && (
-                <div className="pt-3 border-t border-slate-100 space-y-2">
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                    Governing Mathematical Formulas
-                  </span>
-                  <div className="space-y-1.5 font-mono text-[11px] bg-slate-900 text-sky-300 p-3 rounded-xl overflow-x-auto border border-slate-800 shadow-inner">
-                    {modelSpec.equations.map((eq, i) => (
-                      <div key={i} className="whitespace-pre">
-                        {eq}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

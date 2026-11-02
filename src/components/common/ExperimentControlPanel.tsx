@@ -108,22 +108,9 @@ export const ExperimentControlPanel: React.FC<ExperimentControlPanelProps> = ({
         </div>
       </div>
 
-      {/* EXPLORE TAB: Equations & Principles */}
+      {/* EXPLORE TAB: Principles */}
       {activeTab === 'explore' ? (
         <div className="space-y-4">
-          <div>
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Governing Mathematical Laws
-            </h4>
-            <div className="space-y-2">
-              {equations.map((eq, i) => (
-                <div key={i} className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 font-mono text-xs text-slate-800">
-                  {eq}
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="text-xs text-slate-600 leading-relaxed space-y-2">
             <p>
               In <strong className="text-slate-900">{simulationTitle}</strong>, state changes obey deterministic physical conservation laws.

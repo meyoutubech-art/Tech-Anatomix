@@ -9117,19 +9117,6 @@ export const Dynamic3DModelRenderer: React.FC<Dynamic3DModelRendererProps> = ({
                         )}
                       </div>
 
-                      {sciSpec.governingEquations && sciSpec.governingEquations.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {sciSpec.governingEquations.slice(0, 3).map((eq, idx) => (
-                            <code
-                              key={idx}
-                              className="px-2 py-0.5 rounded bg-slate-900 text-sky-300 text-[11px] font-mono"
-                            >
-                              {eq}
-                            </code>
-                          ))}
-                        </div>
-                      )}
-
                       {/* Retrieved Scientific Evidence & Verifiable Web Sources */}
                       {(() => {
                         const sources = modelSpec.researchRecord?.sources || sciSpec.researchSources || [];

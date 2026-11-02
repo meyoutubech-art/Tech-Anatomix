@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Bot, Send, Sparkles, User, Lightbulb } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bot, Send, Sparkles, User, Lightbulb, RotateCcw } from 'lucide-react';
 import { classifyAiError } from '../../utils/aiErrorClassifier';
 import { FormattedAiMessage } from '../common/FormattedAiMessage';
 import { AiKeyTakeawaysPanel } from '../common/AiKeyTakeawaysPanel';
@@ -9,11 +9,11 @@ import {
 } from '../../utils/keyTakeawaysService';
 
 interface AiLabAssistantProps {
-  context: {
-    subject: string;
-    title: string;
-    parameters: Record<string, any>;
-    results: Record<string, any>;
+  context?: {
+    subject?: string;
+    title?: string;
+    parameters?: Record<string, any>;
+    results?: Record<string, any>;
   };
 }
 
@@ -26,42 +26,75 @@ interface Message {
   takeawaysOpen?: boolean;
 }
 
+const INITIAL_WELCOME_MESSAGE =
+  'Hello! I am your **Universal AI Assistant** (powered by Gemini). Ask me anything on any topic—coding, mathematics, writing, history, general knowledge, everyday problem-solving, or science!';
+
 export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: 'welcome-universal',
       role: 'assistant',
-      text: `Hello! I am VIZLAB AI. I am monitoring your active **${context.title}** (${context.subject}) simulation. Ask me anything about why these physical or biological phenomena occur or what happens when you adjust the parameters!`,
+      text: INITIAL_WELCOME_MESSAGE,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
-    `Why is this happening in ${context.title}?`,
-    `What parameter change would have the greatest impact?`,
-    `Explain the governing scientific equations.`,
+    'Explain how artificial intelligence and neural networks work',
+    'Write a clean Python function to solve the Fibonacci sequence',
+    'Help me plan a productive daily study and workout schedule',
+    'What are the most important events in world history?',
+    'Explain quantum entanglement in simple everyday terms',
   ];
+
+  useEffect(() => {
+    if (messages.length <= 1 && !loading) return;
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [messages.length, loading]);
+
+  const handleResetChat = () => {
+    setMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        role: 'assistant',
+        text: INITIAL_WELCOME_MESSAGE,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+    setInput('');
+  };
 
   const handleSend = async (questionText: string) => {
     const textToSend = questionText.trim();
     if (!textToSend || loading) return;
 
     const userMsg: Message = {
+      id: `user-${Date.now()}`,
       role: 'user',
       text: textToSend,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedHistory = [...messages, userMsg];
+    setMessages(updatedHistory);
     setInput('');
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setMessages((prev) => [
         ...prev,
         {
+          id: `offline-${Date.now()}`,
           role: 'assistant',
-          text: '⚡ **Offline Mode Active**: The AI Assistant requires an active network connection to connect with Gemini. You can explore all 76 verified 3D science models in the Virtual Labs while offline.',
+          text: '⚡ **Offline Mode Active**: The Universal AI Assistant requires an active internet connection to communicate with Gemini. Please reconnect to ask any question.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -71,14 +104,29 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
     setLoading(true);
 
     try {
+      const conversationHistory = updatedHistory
+        .filter((m) => m.id !== 'welcome-universal' && !m.id?.startsWith('welcome-'))
+        .slice(-12)
+        .map((m) => ({
+          role: m.role,
+          text: m.text,
+        }));
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: textToSend,
-          modelTitle: context.title,
-          subject: context.subject,
-          context,
+          mode: 'universal',
+          modelTitle: 'Universal AI Assistant',
+          subject: 'General',
+          history: conversationHistory,
+          context: {
+            ...(context || {}),
+            isUniversalChat: true,
+            mode: 'universal',
+            history: conversationHistory,
+          },
         }),
       });
 
@@ -87,6 +135,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
         setMessages((prev) => [
           ...prev,
           {
+            id: `err-${Date.now()}`,
             role: 'assistant',
             text: errorMsg,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -104,8 +153,9 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
       }
 
       const aiMsg: Message = {
+        id: `ai-${Date.now()}`,
         role: 'assistant',
-        text: data.answer || 'VIZLAB could not retrieve a response.',
+        text: data.answer || 'Could not retrieve a response. Please try again.',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -113,6 +163,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
       setMessages((prev) => [
         ...prev,
         {
+          id: `err-${Date.now()}`,
           role: 'assistant',
           text: classifyAiError(err),
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -124,7 +175,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[560px] overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[600px] overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
         <div className="flex items-center gap-2.5">
@@ -132,22 +183,33 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
             <Bot className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-slate-900">VIZLAB AI Lab Mentor</h3>
+            <h3 className="text-xs font-bold text-slate-900">Universal AI Assistant</h3>
             <p className="text-[11px] text-slate-500">
-              Synchronized with: <span className="font-semibold text-slate-800">{context.title}</span>
+              Everything-aware conversational AI · Ask about any topic
             </p>
           </div>
         </div>
-        <span className="text-[10px] font-mono uppercase bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
-          Live Context
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleResetChat}
+            className="flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+            title="Start a new chat"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>New Chat</span>
+          </button>
+          <span className="text-[10px] font-mono uppercase bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
+            All-Domain AI
+          </span>
+        </div>
       </div>
 
       {/* Chat Messages Log */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3.5">
+      <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto space-y-3.5">
         {messages.map((m, idx) => (
           <div
-            key={idx}
+            key={m.id || idx}
             className={`flex items-start gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
           >
             <div
@@ -175,9 +237,9 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
                   messageId={m.id || `msg-${idx}`}
                   question={findPrecedingUserQuestion(messages, idx)}
                   answer={m.text}
-                  modelTitle={context.title}
-                  subject={context.subject}
-                  context={context}
+                  modelTitle="Universal AI Assistant"
+                  subject="General"
+                  context={{ isUniversalChat: true }}
                   variant="light"
                   showTakeawaysButton={isEligibleForKeyTakeaways(m, idx)}
                   cachedTakeaways={m.keyTakeaways}
@@ -206,7 +268,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
         {loading && (
           <div className="flex items-center gap-2 text-xs text-slate-400 italic py-1">
             <Sparkles className="w-3.5 h-3.5 animate-spin text-sky-500" />
-            <span>Analyzing scientific model and synthesizing explanation...</span>
+            <span>Thinking and generating response...</span>
           </div>
         )}
       </div>
@@ -236,7 +298,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
       >
         <input
           type="text"
-          placeholder={`Ask about ${context.title}...`}
+          placeholder="Ask me anything — coding, math, writing, general knowledge, or science..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={loading}

@@ -11,7 +11,6 @@ import {
   Compass,
 } from 'lucide-react';
 import { FormattedAiMessage } from './FormattedAiMessage';
-import { convertLatexFragmentToUnicode } from '../../utils/scientificTextFormatter';
 
 export interface ExplanationData {
   title: string;
@@ -55,7 +54,6 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
     whyTitle = 'WHY DID THIS HAPPEN?',
     whyExplanation,
     examConnection,
-    formula,
     onClearSelection,
   } = data;
 
@@ -210,19 +208,6 @@ export const EducationalExplanationBox: React.FC<EducationalExplanationBoxProps>
               <span>Exam Connection</span>
             </div>
             <p className="text-violet-950 leading-relaxed pt-0.5">{examConnection}</p>
-          </div>
-        )}
-
-        {/* 6. GOVERNING FORMULA (if available) */}
-        {formula && (
-          <div className="md:col-span-2 p-3 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
-              <Compass className="w-3.5 h-3.5 text-sky-400" />
-              <span>Governing Law:</span>
-            </div>
-            <div className="font-mono text-xs text-sky-300 font-bold tracking-wide">
-              {convertLatexFragmentToUnicode(formula.replace(/^\$+|\$+$/g, ''))}
-            </div>
           </div>
         )}
       </div>

@@ -248,15 +248,15 @@ export function cleanAndFormatScientificText(rawText: string): string {
 
   let text = rawText;
 
-  // 1. Convert display math $$...$$ and \[...\]
+  // 1. Convert display math $$...$$ and \[...\] into clean readable lines (no code backticks)
   text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, mathBody) => {
     const converted = convertLatexFragmentToUnicode(mathBody.replace(/\n+/g, ' '));
-    return `\n\`${converted}\`\n`;
+    return `\n${converted}\n`;
   });
 
   text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_, mathBody) => {
     const converted = convertLatexFragmentToUnicode(mathBody.replace(/\n+/g, ' '));
-    return `\n\`${converted}\`\n`;
+    return `\n${converted}\n`;
   });
 
   // 2. Convert inline math \(...\)
@@ -271,15 +271,28 @@ export function cleanAndFormatScientificText(rawText: string): string {
 
   // 4. Clean any stray un-delimited LaTeX commands that might appear outside $...$
   if (text.includes('\\') || text.includes('^') || text.includes('_')) {
-    text = text.replace(/\\(?:text|mathrm|mathbf)\{([^{}]*)\}/g, '$1');
-    text = text.replace(/\^\{\\circ\}/g, '°');
-    text = text.replace(/\^\\circ\b/g, '°');
-    for (const [regex, replacement] of LATEX_SYMBOL_MAP) {
-      text = text.replace(regex, replacement);
-    }
-    text = text.replace(/\^\{([0-9+\-=ni]+)\}/g, (_, exp) => toSuperscript(exp));
-    text = text.replace(/(\b(?:m\/s|cm\/s|km\/h|s|m|cm|mm|km|kg|g|N|J|W|Pa|Hz|V|A|C|T|K|mol|L))\^([0-9+-]+)/g, (_, unit, exp) => `${unit}${toSuperscript(exp)}`);
-    text = text.replace(/([0-9a-zA-Z)])\^([23])\b/g, (_, base, exp) => `${base}${toSuperscript(exp)}`);
+    text = text
+      .split('\n')
+      .map((line) => {
+        if (/\\[a-zA-Z]+|_{[^{}]+}|\^{[^{}]+}/.test(line)) {
+          return convertLatexFragmentToUnicode(line);
+        }
+        let s = line;
+        s = s.replace(/\\(?:text|mathrm|mathbf)\{([^{}]*)\}/g, '$1');
+        s = s.replace(/\^\{\\circ\}/g, '°');
+        s = s.replace(/\^\\circ\b/g, '°');
+        for (const [regex, replacement] of LATEX_SYMBOL_MAP) {
+          s = s.replace(regex, replacement);
+        }
+        s = s.replace(/\^\{([0-9+\-=ni]+)\}/g, (_, exp) => toSuperscript(exp));
+        s = s.replace(
+          /(\b(?:m\/s|cm\/s|km\/h|s|m|cm|mm|km|kg|g|N|J|W|Pa|Hz|V|A|C|T|K|mol|L))\^([0-9+-]+)/g,
+          (_, unit, exp) => `${unit}${toSuperscript(exp)}`
+        );
+        s = s.replace(/([0-9a-zA-Z)])\^([23])\b/g, (_, base, exp) => `${base}${toSuperscript(exp)}`);
+        return s;
+      })
+      .join('\n');
   }
 
   return text;

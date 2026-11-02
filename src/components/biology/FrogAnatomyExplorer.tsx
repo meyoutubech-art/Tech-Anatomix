@@ -23,6 +23,7 @@ import {
 } from '../../data/frogAnatomyData';
 import { FrogOrganId } from '../../types/frogAnatomy';
 import { FrogNeckDissectionScene } from './FrogNeckDissectionScene';
+import { OfflineFrogInternalOrgans3DViewer } from './OfflineAnatomy3DFallbacks';
 import { soundEngine } from '../../utils/soundEngine';
 
 interface ErrorBoundaryProps {
@@ -114,9 +115,24 @@ export const FrogAnatomyExplorer: React.FC<FrogAnatomyExplorerProps> = ({
 
   // Organ Card Selection for reference
   const [selectedOrganId, setSelectedOrganId] = useState<FrogOrganId>('heart');
+  const [useOffline3D, setUseOffline3D] = useState<boolean>(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const transitionTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      setUseOffline3D(true);
+      setIsLoading(false);
+      setLoadError(null);
+    };
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // URLs
   const outerFrogUrl = SKETCHFAB_FROG_CONFIG.outerFrogEmbedUrl;
@@ -278,95 +294,133 @@ export const FrogAnatomyExplorer: React.FC<FrogAnatomyExplorerProps> = ({
         ) : (
           <div className="sketchfab-embed-wrapper w-full space-y-1.5">
             <div className="relative w-full h-[400px] sm:h-[460px] lg:h-[500px] max-w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
-              {/* Loading Overlay */}
-              {(isLoading || isTransitioning) && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md text-white gap-3 p-6 pointer-events-none">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full border-3 border-emerald-500/20 border-t-emerald-400 animate-spin" />
-                    <Eye className="w-5 h-5 text-emerald-400 absolute inset-0 m-auto" />
-                  </div>
-                  <div className="text-center space-y-1">
-                    <span className="text-sm font-bold text-slate-200">
-                      {isTransitioning ? 'Switching 3D Specimen Buffers...' : 'Streaming 3D Specimen...'}
-                    </span>
-                    <p className="text-xs text-slate-400 max-w-sm">
-                      {stage === 'external'
-                        ? 'Loading Animated Ranidae Frog 3D Model'
-                        : 'Loading Frog Heart and Lungs (Blackburn Lab)'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Recoverable Error Overlay */}
-              {loadError && !isTransitioning && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md text-white gap-3 p-6">
-                  <AlertCircle className="w-10 h-10 text-rose-500" />
-                  <h4 className="text-sm font-bold text-rose-300">Specimen WebGL Stream Interrupted</h4>
-                  <p className="text-xs text-slate-400 max-w-md text-center">
-                    {loadError}. High-density 3D biological scans may require GPU memory reset.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <button
-                      onClick={() => {
-                        setUseStableMode(true);
-                        handleReload();
-                      }}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white cursor-pointer transition-colors shadow-md"
-                    >
-                      Reload in Safe Anti-Crash Mode
-                    </button>
-                    <a
-                      href={currentSourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 cursor-pointer transition-colors"
-                    >
-                      Open Direct in Sketchfab
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* Single Active Iframe with exact Sketchfab attributes */}
-              {!isTransitioning && (
-                <iframe
-                  key={`specimen-${stage}-${useStableMode ? 'stable' : 'tour'}-${iframeKey}`}
-                  title={stage === 'internal' ? 'Frog Heart and Lungs' : currentTitle}
-                  src={currentEmbedUrl}
-                  frameBorder="0"
-                  style={{ width: '100%', height: '100%', display: 'block' }}
-                  className="w-full h-full block border-0 rounded-2xl"
-                  allow="autoplay; fullscreen; xr-spatial-tracking; web-share"
-                  loading="eager"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  allowFullScreen
-                  {...({
-                    mozallowfullscreen: 'true',
-                    webkitallowfullscreen: 'true',
-                    'xr-spatial-tracking': 'true',
-                    'execution-while-out-of-viewport': 'true',
-                    'execution-while-not-rendered': 'true',
-                    'web-share': 'true',
-                  } as React.IframeHTMLAttributes<HTMLIFrameElement>)}
-                  onLoad={() => {
-                    setIsLoading(false);
-                    setLoadError(null);
-                  }}
-                  onError={() => {
-                    setIsLoading(false);
-                    setLoadError('Failed to load 3D model stream. GPU context reset suggested.');
-                  }}
+              {useOffline3D ? (
+                <OfflineFrogInternalOrgans3DViewer
+                  stage={stage}
+                  selectedOrganId={selectedOrganId}
+                  onSelectOrgan={(id) => setSelectedOrganId(id)}
                 />
+              ) : (
+                <>
+                  {/* Loading Overlay */}
+                  {(isLoading || isTransitioning) && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md text-white gap-3 p-6">
+                      <div className="relative pointer-events-none">
+                        <div className="w-12 h-12 rounded-full border-3 border-emerald-500/20 border-t-emerald-400 animate-spin" />
+                        <Eye className="w-5 h-5 text-emerald-400 absolute inset-0 m-auto" />
+                      </div>
+                      <div className="text-center space-y-1 pointer-events-none">
+                        <span className="text-sm font-bold text-slate-200">
+                          {isTransitioning ? 'Switching 3D Specimen Buffers...' : 'Streaming 3D Specimen...'}
+                        </span>
+                        <p className="text-xs text-slate-400 max-w-sm">
+                          {stage === 'external'
+                            ? 'Loading Animated Ranidae Frog 3D Model'
+                            : 'Loading Frog Heart and Lungs (Blackburn Lab)'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUseOffline3D(true);
+                          setIsLoading(false);
+                          setLoadError(null);
+                        }}
+                        className="mt-2 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white cursor-pointer shadow-lg pointer-events-auto"
+                      >
+                        Use Offline 3D Model Instead
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Recoverable Error Overlay */}
+                  {loadError && !isTransitioning && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md text-white gap-3 p-6">
+                      <AlertCircle className="w-10 h-10 text-rose-500" />
+                      <h4 className="text-sm font-bold text-rose-300">Specimen WebGL Stream Interrupted</h4>
+                      <p className="text-xs text-slate-400 max-w-md text-center">
+                        {loadError}. You can switch to the built-in Offline 3D Model or retry the stream.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <button
+                          onClick={() => {
+                            setUseOffline3D(true);
+                            setLoadError(null);
+                            setIsLoading(false);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white cursor-pointer transition-colors shadow-md"
+                        >
+                          Switch to Offline 3D Model
+                        </button>
+                        <button
+                          onClick={() => {
+                            setUseStableMode(true);
+                            handleReload();
+                          }}
+                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white border border-slate-700 cursor-pointer transition-colors shadow-md"
+                        >
+                          Reload Stream
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Single Active Iframe with exact Sketchfab attributes */}
+                  {!isTransitioning && (
+                    <iframe
+                      key={`specimen-${stage}-${useStableMode ? 'stable' : 'tour'}-${iframeKey}`}
+                      title={stage === 'internal' ? 'Frog Heart and Lungs' : currentTitle}
+                      src={currentEmbedUrl}
+                      frameBorder="0"
+                      style={{ width: '100%', height: '100%', display: 'block' }}
+                      className="w-full h-full block border-0 rounded-2xl"
+                      allow="autoplay; fullscreen; xr-spatial-tracking; web-share"
+                      loading="eager"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      allowFullScreen
+                      {...({
+                        mozallowfullscreen: 'true',
+                        webkitallowfullscreen: 'true',
+                        'xr-spatial-tracking': 'true',
+                        'execution-while-out-of-viewport': 'true',
+                        'execution-while-not-rendered': 'true',
+                        'web-share': 'true',
+                      } as React.IframeHTMLAttributes<HTMLIFrameElement>)}
+                      onLoad={() => {
+                        setIsLoading(false);
+                        setLoadError(null);
+                      }}
+                      onError={() => {
+                        setIsLoading(false);
+                        setUseOffline3D(true);
+                      }}
+                    />
+                  )}
+                </>
               )}
 
-              {/* TOP EXTREME LEFT: Tech-Anatomix Logo */}
-              <div className="absolute top-3 left-3 z-20 pointer-events-none">
+              {/* TOP EXTREME LEFT: Tech-Anatomix Logo & Offline Toggle */}
+              <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
                 <img
                   src="/logo.png"
                   alt="Tech-Anatomix Logo"
-                  className="w-9 h-9 object-contain rounded-lg shadow-md drop-shadow bg-slate-900/60 p-1 backdrop-blur-xs border border-slate-700/50"
+                  className="w-9 h-9 object-contain rounded-lg shadow-md drop-shadow bg-slate-900/60 p-1 backdrop-blur-xs border border-slate-700/50 pointer-events-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseOffline3D((prev) => !prev);
+                    setIsLoading(false);
+                    setLoadError(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl border font-bold text-xs shadow-lg transition-all cursor-pointer ${
+                    useOffline3D
+                      ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400'
+                      : 'bg-slate-900/90 hover:bg-slate-800 text-emerald-300 border-slate-700'
+                  }`}
+                >
+                  {useOffline3D ? 'Offline 3D Active (Switch to Cloud)' : 'Switch to Offline 3D'}
+                </button>
               </div>
             </div>
           </div>

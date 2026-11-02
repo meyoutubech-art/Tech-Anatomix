@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanAndFormatScientificText } from '../../utils/scientificTextFormatter';
+import { cleanAndFormatScientificText, convertLatexFragmentToUnicode } from '../../utils/scientificTextFormatter';
 
 export interface FormattedAiMessageProps {
   text: string;
@@ -29,13 +29,6 @@ export function renderInlineScientificMarkdown(
         ? 'font-semibold text-sky-300'
         : 'font-semibold text-slate-900';
 
-  const codeClass =
-    variant === 'user'
-      ? 'font-mono text-[11px] px-1.5 py-0.5 rounded bg-white/15 text-white border border-white/20'
-      : variant === 'dark'
-        ? 'font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-900/90 text-emerald-300 border border-slate-700/80'
-        : 'font-mono text-[11px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-900 border border-sky-200/80 font-medium';
-
   // Tokenize by `code`, **bold**, and *italic*
   const tokenRegex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*)/g;
   const parts = line.split(tokenRegex);
@@ -44,11 +37,11 @@ export function renderInlineScientificMarkdown(
     if (!part) return null;
 
     if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-      const codeContent = part.slice(1, -1);
+      const codeContent = convertLatexFragmentToUnicode(part.slice(1, -1));
       return (
-        <code key={idx} className={codeClass}>
+        <span key={idx} className={boldClass}>
           {codeContent}
-        </code>
+        </span>
       );
     }
 
@@ -114,19 +107,17 @@ export const FormattedAiMessage: React.FC<FormattedAiMessageProps> = ({
     if (trimmed.startsWith('```')) {
       flushList(`l-${lineIdx}`);
       if (inCodeBlock) {
-        const blockContent = codeBlockLines.join('\n');
-        elements.push(
-          <pre
-            key={`code-${lineIdx}`}
-            className={
-              variant === 'dark'
-                ? 'p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-emerald-300 font-mono text-[11px] overflow-x-auto my-1.5'
-                : 'p-2.5 rounded-xl bg-slate-900 text-sky-300 font-mono text-[11px] overflow-x-auto my-1.5 shadow-2xs'
-            }
-          >
-            <code>{blockContent}</code>
-          </pre>
-        );
+        const blockContent = codeBlockLines
+          .map((l) => convertLatexFragmentToUnicode(l.trim()))
+          .filter(Boolean)
+          .join(' • ');
+        if (blockContent) {
+          elements.push(
+            <p key={`code-${lineIdx}`} className="leading-relaxed">
+              {renderInlineScientificMarkdown(blockContent, variant)}
+            </p>
+          );
+        }
         inCodeBlock = false;
         codeBlockLines = [];
       } else {
@@ -198,20 +189,11 @@ export const FormattedAiMessage: React.FC<FormattedAiMessageProps> = ({
     // Standalone formula line wrapped in single backticks: `...`
     if (trimmed.startsWith('`') && trimmed.endsWith('`') && trimmed.slice(1, -1).indexOf('`') === -1 && trimmed.length > 3) {
       flushList(`eq-${lineIdx}`);
-      const formulaText = trimmed.slice(1, -1);
+      const formulaText = convertLatexFragmentToUnicode(trimmed.slice(1, -1));
       elements.push(
-        <div
-          key={`eq-${lineIdx}`}
-          className={
-            variant === 'user'
-              ? 'px-3 py-1.5 rounded-lg bg-white/15 border border-white/20 font-mono text-[11px] font-semibold text-white my-1'
-              : variant === 'dark'
-                ? 'px-3 py-2 rounded-xl bg-slate-950/90 border border-slate-800 font-mono text-[11px] font-semibold text-emerald-300 my-1'
-                : 'px-3 py-2 rounded-xl bg-slate-900 text-sky-300 font-mono text-[11px] font-semibold my-1 shadow-2xs'
-          }
-        >
+        <p key={`eq-${lineIdx}`} className="leading-relaxed font-medium">
           {formulaText}
-        </div>
+        </p>
       );
       return;
     }
@@ -228,18 +210,17 @@ export const FormattedAiMessage: React.FC<FormattedAiMessageProps> = ({
   flushList('final');
 
   if (inCodeBlock && codeBlockLines.length > 0) {
-    elements.push(
-      <pre
-        key="code-unclosed"
-        className={
-          variant === 'dark'
-            ? 'p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-emerald-300 font-mono text-[11px] overflow-x-auto my-1.5'
-            : 'p-2.5 rounded-xl bg-slate-900 text-sky-300 font-mono text-[11px] overflow-x-auto my-1.5 shadow-2xs'
-        }
-      >
-        <code>{codeBlockLines.join('\n')}</code>
-      </pre>
-    );
+    const blockContent = codeBlockLines
+      .map((l) => convertLatexFragmentToUnicode(l.trim()))
+      .filter(Boolean)
+      .join(' • ');
+    if (blockContent) {
+      elements.push(
+        <p key="code-unclosed" className="leading-relaxed">
+          {renderInlineScientificMarkdown(blockContent, variant)}
+        </p>
+      );
+    }
   }
 
   return <div className={`space-y-2 break-words ${className}`}>{elements}</div>;

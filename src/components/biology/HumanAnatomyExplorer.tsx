@@ -33,6 +33,7 @@ import {
   HumanOrganInfo,
 } from '../../data/humanAnatomyData';
 import { soundEngine } from '../../utils/soundEngine';
+import { OfflineHumanInternalOrgans3DViewer } from './OfflineAnatomy3DFallbacks';
 
 // Dissection State Machine
 export type DissectionState =
@@ -1449,28 +1450,36 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     };
 
     setLoading(true);
-    loader.load(
-      GOOGLE_DRIVE_GLB_URL,
-      (gltf) => {
-        processLoadedGltf(gltf, 'Google Drive GLB (1G5H2bggsYC9UJ2DGju_7L1HJ2UJEti4r)');
-      },
-      undefined,
-      (err) => {
-        console.warn('Google Drive direct load fallback to local GLB asset:', err);
-        loader.load(
-          LOCAL_GLB_FALLBACK_URL,
-          (gltfFallback) => {
-            processLoadedGltf(gltfFallback, 'Google Drive GLB Asset (/models/human_base_mesh_01.glb)');
-          },
-          undefined,
-          (fallbackErr) => {
-            console.error('Both primary and local GLB loads failed:', fallbackErr);
-            setLoading(false);
-            setLoadError('Failed to parse 3D GLB binary. Check network permissions.');
-          }
-        );
-      }
-    );
+    const loadLocalFallbackGlb = () => {
+      loader.load(
+        LOCAL_GLB_FALLBACK_URL,
+        (gltfFallback) => {
+          processLoadedGltf(gltfFallback, 'Local Offline GLB Asset (/models/human_base_mesh_01.glb)');
+        },
+        undefined,
+        (fallbackErr) => {
+          console.error('Both primary and local GLB loads failed:', fallbackErr);
+          setLoading(false);
+          setLoadError('Failed to parse 3D GLB binary. Check network permissions.');
+        }
+      );
+    };
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      loadLocalFallbackGlb();
+    } else {
+      loader.load(
+        GOOGLE_DRIVE_GLB_URL,
+        (gltf) => {
+          processLoadedGltf(gltf, 'Google Drive GLB (1G5H2bggsYC9UJ2DGju_7L1HJ2UJEti4r)');
+        },
+        undefined,
+        (err) => {
+          console.warn('Google Drive direct load fallback to local GLB asset:', err);
+          loadLocalFallbackGlb();
+        }
+      );
+    }
 
     // Raycasting Setup for Pointer & Touch Events
     const raycaster = new THREE.Raycaster();
@@ -2270,6 +2279,35 @@ const InternalOrgansEmbedViewer: React.FC<InternalOrgansEmbedViewerProps> = ({
   onToggleFullscreen,
   onReturnToExternalBody,
 }) => {
+  const [useOffline3D, setUseOffline3D] = useState<boolean>(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
+  const [iframeLoaded, setIframeLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleOffline = () => setUseOffline3D(true);
+    const handleOnline = () => {
+      // Keep user in current mode unless they switch back, or allow seamless online recovery
+    };
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
+  // Automatic fallback if Sketchfab embed cannot be reached (e.g. offline Wi-Fi without internet)
+  useEffect(() => {
+    if (useOffline3D || iframeLoaded) return;
+    const timer = window.setTimeout(() => {
+      if (!iframeLoaded && typeof navigator !== 'undefined' && !navigator.onLine) {
+        setUseOffline3D(true);
+      }
+    }, 4500);
+    return () => window.clearTimeout(timer);
+  }, [useOffline3D, iframeLoaded]);
+
   return (
     <div className="relative w-full h-[540px] sm:h-[600px] lg:h-[660px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col">
       {/* Top Controls Overlay Ribbon */}
@@ -2285,6 +2323,19 @@ const InternalOrgansEmbedViewer: React.FC<InternalOrgansEmbedViewerProps> = ({
 
         {/* Top Right Action Controls */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setUseOffline3D((prev) => !prev)}
+            className={`px-3 py-1.5 rounded-xl border font-bold text-xs shadow-lg transition-all cursor-pointer ${
+              useOffline3D
+                ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400'
+                : 'bg-slate-900/90 hover:bg-slate-800 text-emerald-300 border-slate-700'
+            }`}
+            title="Switch between Offline Three.js 3D Visceral Model and Cloud Sketchfab Stream"
+          >
+            {useOffline3D ? 'Offline 3D Active (Switch to Cloud)' : 'Switch to Offline 3D'}
+          </button>
+
           <button
             onClick={onReturnToExternalBody}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-100 border border-slate-700 font-bold text-xs shadow-lg transition-all cursor-pointer"
@@ -2303,16 +2354,22 @@ const InternalOrgansEmbedViewer: React.FC<InternalOrgansEmbedViewerProps> = ({
         </div>
       </div>
 
-      {/* Sketchfab Embed Iframe with Native Interactive Controls */}
+      {/* Offline Three.js 3D Fallback OR Sketchfab Embed Iframe */}
       <div className="w-full h-full flex-1 relative bg-slate-950">
-        <iframe
-          title="Human Internal Organs"
-          frameBorder="0"
-          allowFullScreen
-          allow="autoplay; fullscreen; xr-spatial-tracking"
-          src="https://sketchfab.com/models/fe69d7b1ed6f46a3bd0b6933b796092e/embed?autostart=1&camera=0&transparent=1"
-          className="w-full h-full block min-h-[440px] border-0 rounded-2xl"
-        />
+        {useOffline3D ? (
+          <OfflineHumanInternalOrgans3DViewer />
+        ) : (
+          <iframe
+            title="Human Internal Organs"
+            frameBorder="0"
+            allowFullScreen
+            allow="autoplay; fullscreen; xr-spatial-tracking"
+            src="https://sketchfab.com/models/fe69d7b1ed6f46a3bd0b6933b796092e/embed?autostart=1&camera=0&transparent=1"
+            className="w-full h-full block min-h-[440px] border-0 rounded-2xl"
+            onLoad={() => setIframeLoaded(true)}
+            onError={() => setUseOffline3D(true)}
+          />
+        )}
       </div>
     </div>
   );
