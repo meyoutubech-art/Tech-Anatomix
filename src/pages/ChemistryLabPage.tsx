@@ -49,7 +49,9 @@ import {
   FileSpreadsheet,
   Info,
   Sliders,
+  Link as LinkIcon,
 } from 'lucide-react';
+import { rankChemicalSearchResults } from '../utils/chemicalSearchRanker';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -415,52 +417,13 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
     return Array.from(map.values());
   }, [registryVersion]);
 
-  const filteredReagents = useMemo(() => {
-    const qNorm = normalizeChemicalSearchText(searchQuery);
-    return allLibraryReagents.filter((r) => {
-      const matchesSearch =
-        qNorm === '' ||
-        normalizeChemicalSearchText(r.name).includes(qNorm) ||
-        normalizeChemicalSearchText(r.formula).includes(qNorm) ||
-        normalizeChemicalSearchText(r.type).includes(qNorm) ||
-        normalizeChemicalSearchText(r.subcategory || '').includes(qNorm) ||
-        normalizeChemicalSearchText(r.role || '').includes(qNorm) ||
-        normalizeChemicalSearchText(r.categoryLabel || '').includes(qNorm) ||
-        normalizeChemicalSearchText(r.catalyticRole || '').includes(qNorm) ||
-        normalizeChemicalSearchText(r.description || '').includes(qNorm) ||
-        normalizeChemicalSearchText(r.appearanceDescription || '').includes(qNorm) ||
-        (r.aliases || []).some((a) => normalizeChemicalSearchText(a).includes(qNorm));
-
-      const hasSecondary = Boolean(
-        r.secondaryCategories?.includes(activeCategory as any) ||
-          r.sourceCategories?.includes(activeCategory)
-      );
-
-      const matchesCat =
-        activeCategory === 'all' ||
-        r.category === activeCategory ||
-        hasSecondary ||
-        (activeCategory === 'acid' && r.type === 'acid') ||
-        (activeCategory === 'base' && r.type === 'base') ||
-        (activeCategory === 'salt' &&
-          (r.id === 'water' ||
-            r.category === 'salt' ||
-            r.type === 'salt' ||
-            r.type === 'carbonate' ||
-            r.type === 'reagent' ||
-            r.type === 'reducing_agent')) ||
-        (activeCategory === 'metal' && (r.type === 'metal' || r.type === 'alkali_metal')) ||
-        (activeCategory === 'oxidizer' &&
-          (r.type === 'oxidizer' || (r.category as string) === 'oxidizing_agent')) ||
-        (activeCategory === 'indicator' && r.type === 'indicator') ||
-        (activeCategory === 'catalyst' &&
-          (r.category === 'catalyst' ||
-            r.type === 'catalyst' ||
-            Boolean(r.secondaryCategories?.includes('catalyst'))));
-
-      return matchesSearch && matchesCat;
-    });
+  // Intelligent ranked search results: exact matches always rank #1 + educational related compounds
+  const searchResults = useMemo(() => {
+    return rankChemicalSearchResults(searchQuery, allLibraryReagents, activeCategory);
   }, [allLibraryReagents, searchQuery, activeCategory]);
+
+  const filteredReagents = searchResults.directMatches;
+  const relatedReagents = searchResults.relatedCompounds;
 
   // Add compound to recipe - supports reagentId string or ChemicalReagent object from AI lookup
   const handleAddCompound = (reagentOrId: string | ChemicalReagent, customAmount?: number) => {
@@ -1692,118 +1655,218 @@ export const ChemistryLabPage: React.FC<ChemistryLabPageProps> = ({ initialMode,
                   ))}
                 </div>
 
-                {/* Reagent Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[250px] overflow-y-auto p-1">
-                  {filteredReagents.map((r) => {
-                    const countInRecipe = ingredients.filter((i) => i.id === r.id).length;
-                    const isCatalystView =
-                      activeCategory === 'catalyst' ||
-                      r.category === 'catalyst' ||
-                      r.type === 'catalyst';
-                    return (
+                {/* Search Status & Direct Match Count */}
+                {searchQuery.trim().length > 0 && (
+                  <div className="flex items-center justify-between px-2 py-1 bg-slate-50 rounded-lg text-[11px] border border-slate-200">
+                    <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                      <span>Direct Matches:</span>
+                      <strong className="text-emerald-700 font-mono">{filteredReagents.length}</strong>
+                      <span className="text-slate-400">·</span>
+                      <span className="text-[10px] text-slate-500">Exact formula &amp; names ranked at top</span>
+                    </span>
+                    {searchQuery && (
                       <button
-                        key={r.id}
-                        onClick={() => handleAddCompound(r.id)}
-                        title={
-                          r.isRestricted
-                            ? `RESTRICTED (${r.name}): ${r.restrictionReason || r.description}`
-                            : r.catalyticRole
-                            ? `${r.name} (${r.formula}) — ${r.catalyticRole}${
-                                r.exampleReactions?.length ? ` | Example: ${r.exampleReactions[0]}` : ''
-                              }`
-                            : `${r.name} (${r.formula}) — ${r.description}`
-                        }
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                          r.isRestricted
-                            ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
-                            : countInRecipe > 0
-                            ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500/30'
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                        }`}
+                        onClick={() => setSearchQuery('')}
+                        className="text-[10px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
                       >
-                        <div>
-                          <div className="flex items-center justify-between mb-1 gap-1">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
-                              style={{ backgroundColor: r.color }}
-                            />
-                            <span className="text-[9px] uppercase font-bold text-slate-400 font-mono truncate">
-                              {r.subcategory || r.role || r.type}
-                            </span>
-                          </div>
-                          <div className="font-bold text-xs text-slate-900 leading-tight truncate">
-                            {r.formula}
-                          </div>
-                          <div className="text-[10px] text-slate-600 font-medium truncate mt-0.5">
-                            {r.name}
-                          </div>
-                          {(isCatalystView || r.id === 'water') && (
-                            <div className="mt-1 text-[9px] text-slate-500 line-clamp-1 leading-snug">
-                              {r.catalyticRole || r.description}
-                            </div>
-                          )}
-                          {isCatalystView && r.exampleReactions?.[0] && (
-                            <div className="mt-0.5 text-[8px] font-mono text-slate-600 bg-slate-100 px-1 py-0.5 rounded truncate">
-                              {r.exampleReactions[0]}
-                            </div>
-                          )}
-                          {r.indicatorTransition && (
-                            <div className="mt-1 text-[8px] font-medium text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.5 rounded truncate">
-                              {r.indicatorTransition.transitionRange}: {r.indicatorTransition.acidColor} → {r.indicatorTransition.baseColor}
-                            </div>
-                          )}
-                          {r.isRestricted ? (
-                            <div className="mt-1 text-[8px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded truncate">
-                              {r.safetyClassification === 'radioactive_restricted'
-                                ? '☢ Radioactive · Reference Only'
-                                : '⚠ Restricted · Reference Only'}
-                            </div>
-                          ) : (
-                            <div className="mt-1 flex items-center gap-1 flex-wrap">
-                              {r.visualLabStatus && (
-                                <span
-                                  className={`text-[8px] font-bold px-1 py-0.2 rounded truncate ${
-                                    r.visualLabStatus === 'Reaction-supported'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : r.visualLabStatus === 'Visualized'
-                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                      : 'bg-sky-50 text-sky-700 border border-sky-200'
-                                  }`}
-                                >
-                                  {r.visualLabStatus}
-                                </span>
-                              )}
-                              {r.hazard && (
-                                <span className="text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
-                                  {r.hazard}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        Clear search
+                      </button>
+                    )}
+                  </div>
+                )}
 
-                        <div
-                          className={`mt-2 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold ${
-                            r.isRestricted ? 'text-amber-700' : 'text-emerald-700'
+                {/* Direct Matches Reagent Grid */}
+                {filteredReagents.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[240px] overflow-y-auto p-1">
+                    {filteredReagents.map((r, idx) => {
+                      const countInRecipe = ingredients.filter((i) => i.id === r.id).length;
+                      const isCatalystView =
+                        activeCategory === 'catalyst' ||
+                        r.category === 'catalyst' ||
+                        r.type === 'catalyst';
+                      const isTopMatch = searchQuery.trim().length > 0 && idx === 0;
+
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => handleAddCompound(r.id)}
+                          title={
+                            r.isRestricted
+                              ? `RESTRICTED (${r.name}): ${r.restrictionReason || r.description}`
+                              : r.catalyticRole
+                              ? `${r.name} (${r.formula}) — ${r.catalyticRole}${
+                                  r.exampleReactions?.length ? ` | Example: ${r.exampleReactions[0]}` : ''
+                                }`
+                              : `${r.name} (${r.formula}) — ${r.description}`
+                          }
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between relative ${
+                            r.isRestricted
+                              ? 'border-amber-200 bg-amber-50/40 hover:border-amber-300'
+                              : isTopMatch
+                              ? 'border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500 shadow-2xs hover:bg-emerald-50'
+                              : countInRecipe > 0
+                              ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500/30'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                           }`}
                         >
-                          <span>
-                            {r.isRestricted
-                              ? 'Safety Info'
-                              : countInRecipe > 0
-                              ? `In Beaker (${countInRecipe})`
-                              : '+ Add'}
-                          </span>
-                          {r.isRestricted ? (
-                            <Info className="w-3 h-3" />
-                          ) : (
-                            <Plus className="w-3 h-3" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1 gap-1">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
+                                style={{ backgroundColor: r.color }}
+                              />
+                              <div className="flex items-center gap-1">
+                                {isTopMatch && (
+                                  <span className="text-[8px] uppercase font-bold text-emerald-800 bg-emerald-100 px-1 rounded">
+                                    ★ Top Match
+                                  </span>
+                                )}
+                                <span className="text-[9px] uppercase font-bold text-slate-400 font-mono truncate">
+                                  {r.subcategory || r.role || r.type}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="font-bold text-xs text-slate-900 leading-tight truncate">
+                              {r.formula}
+                            </div>
+                            <div className="text-[10px] text-slate-600 font-medium truncate mt-0.5">
+                              {r.name}
+                            </div>
+                            {(isCatalystView || r.id === 'water') && (
+                              <div className="mt-1 text-[9px] text-slate-500 line-clamp-1 leading-snug">
+                                {r.catalyticRole || r.description}
+                              </div>
+                            )}
+                            {isCatalystView && r.exampleReactions?.[0] && (
+                              <div className="mt-0.5 text-[8px] font-mono text-slate-600 bg-slate-100 px-1 py-0.5 rounded truncate">
+                                {r.exampleReactions[0]}
+                              </div>
+                            )}
+                            {r.indicatorTransition && (
+                              <div className="mt-1 text-[8px] font-medium text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.5 rounded truncate">
+                                {r.indicatorTransition.transitionRange}: {r.indicatorTransition.acidColor} → {r.indicatorTransition.baseColor}
+                              </div>
+                            )}
+                            {r.isRestricted ? (
+                              <div className="mt-1 text-[8px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded truncate">
+                                {r.safetyClassification === 'radioactive_restricted'
+                                  ? '☢ Radioactive · Reference Only'
+                                  : '⚠ Restricted · Reference Only'}
+                              </div>
+                            ) : (
+                              <div className="mt-1 flex items-center gap-1 flex-wrap">
+                                {r.visualLabStatus && (
+                                  <span
+                                    className={`text-[8px] font-bold px-1 py-0.2 rounded truncate ${
+                                      r.visualLabStatus === 'Reaction-supported'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : r.visualLabStatus === 'Visualized'
+                                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                        : 'bg-sky-50 text-sky-700 border border-sky-200'
+                                    }`}
+                                  >
+                                    {r.visualLabStatus}
+                                  </span>
+                                )}
+                                {r.hazard && (
+                                  <span className="text-[8px] font-bold text-rose-700 bg-rose-50 px-1 py-0.2 rounded truncate">
+                                    {r.hazard}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div
+                            className={`mt-2 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold ${
+                              r.isRestricted ? 'text-amber-700' : 'text-emerald-700'
+                            }`}
+                          >
+                            <span>
+                              {r.isRestricted
+                                ? 'Safety Info'
+                                : countInRecipe > 0
+                                ? `In Beaker (${countInRecipe})`
+                                : '+ Add'}
+                            </span>
+                            {r.isRestricted ? (
+                              <Info className="w-3 h-3" />
+                            ) : (
+                              <Plus className="w-3 h-3" />
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : searchQuery.trim().length > 0 ? (
+                  <div className="p-3 text-center rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+                    <p className="font-semibold text-slate-800">
+                      No direct catalog match for &ldquo;{searchQuery}&rdquo;.
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      See related compounds below, or enter compound name in the AI Reagent Synthesizer below to add it immediately.
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* Related Search Results in Library Shelf */}
+                {searchQuery.trim().length > 0 && relatedReagents.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-200">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5">
+                        <LinkIcon className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Related Chemical Compounds ({relatedReagents.length})</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Co-reactants &amp; related chemical families
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto p-1 bg-slate-50/70 rounded-xl border border-slate-200/80">
+                      {relatedReagents.map(({ compound: r, relationReason }) => {
+                        const countInRecipe = ingredients.filter((i) => i.id === r.id).length;
+                        return (
+                          <button
+                            key={`related_${r.id}`}
+                            onClick={() => handleAddCompound(r.id)}
+                            title={`${r.name} (${r.formula}) — ${relationReason}`}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                              countInRecipe > 0
+                                ? 'border-sky-500 bg-sky-50/80 ring-1 ring-sky-500/30'
+                                : 'border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/40'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1 gap-1">
+                                <span
+                                  className="w-2 h-2 rounded-full border border-black/10 shrink-0"
+                                  style={{ backgroundColor: r.color }}
+                                />
+                                <span className="text-[8px] font-bold text-sky-700 bg-sky-100 px-1 py-0.5 rounded truncate max-w-[120px]">
+                                  🔗 {relationReason}
+                                </span>
+                              </div>
+                              <div className="font-bold text-xs text-slate-900 leading-tight truncate">
+                                {r.formula}
+                              </div>
+                              <div className="text-[10px] text-slate-600 font-medium truncate mt-0.5">
+                                {r.name}
+                              </div>
+                            </div>
+
+                            <div className="mt-2 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px] font-semibold text-sky-700">
+                              <span>
+                                {countInRecipe > 0 ? `In Beaker (${countInRecipe})` : '+ Add Related'}
+                              </span>
+                              <Plus className="w-3 h-3" />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 6. AI-ASSISTED COMPOUND ADDITION (DIRECTLY BELOW REAGENT LIBRARY SHELF) */}

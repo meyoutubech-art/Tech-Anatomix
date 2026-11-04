@@ -166,6 +166,15 @@ export const GlobalAudioControl: React.FC = () => {
             />
           </div>
 
+          {/* Stadium Audio Boost Status */}
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
+            <span className="font-bold text-[11px] flex items-center gap-1.5">
+              <span>⚡ Stadium Acoustic Power:</span>
+              <span className="text-emerald-700 font-semibold">Active</span>
+            </span>
+            <span className="text-[10px] text-emerald-600 font-mono font-bold">+180% Boost</span>
+          </div>
+
           <p className="text-[10px] text-slate-400 leading-tight pt-1 border-t border-slate-100">
             State-driven audio synchronizes with active cardiac BPM, respiration, verified reactions, and 3D physics.
           </p>

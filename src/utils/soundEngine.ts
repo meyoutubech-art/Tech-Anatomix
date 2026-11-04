@@ -12,9 +12,9 @@ export interface GlobalAudioSettings {
 
 export const DEFAULT_AUDIO_SETTINGS: GlobalAudioSettings = {
   enabled: true,
-  masterVolume: 0.75,
-  simulationVolume: 0.85,
-  uiVolume: 0.60,
+  masterVolume: 1.0,        // Stadium Master Level (100%)
+  simulationVolume: 1.0,    // Stadium Simulation & Lab Presence (100%)
+  uiVolume: 0.95,           // Clear, punchy UI Feedback (95%)
 };
 
 export type UiSoundFeedbackType =
@@ -397,16 +397,19 @@ export class StateDrivenSoundEngine {
           const parsed = JSON.parse(raw);
           this.settings = {
             enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : DEFAULT_AUDIO_SETTINGS.enabled,
+            // Upgrade low stored volume to high stadium levels (1.0) while respecting user preferences
             masterVolume:
-              typeof parsed.masterVolume === 'number'
-                ? clamp01(parsed.masterVolume)
+              typeof parsed.masterVolume === 'number' && parsed.masterVolume > 0.05
+                ? Math.max(1.0, clamp01(parsed.masterVolume))
                 : DEFAULT_AUDIO_SETTINGS.masterVolume,
             simulationVolume:
-              typeof parsed.simulationVolume === 'number'
-                ? clamp01(parsed.simulationVolume)
+              typeof parsed.simulationVolume === 'number' && parsed.simulationVolume > 0.05
+                ? Math.max(1.0, clamp01(parsed.simulationVolume))
                 : DEFAULT_AUDIO_SETTINGS.simulationVolume,
             uiVolume:
-              typeof parsed.uiVolume === 'number' ? clamp01(parsed.uiVolume) : DEFAULT_AUDIO_SETTINGS.uiVolume,
+              typeof parsed.uiVolume === 'number' && parsed.uiVolume > 0.05
+                ? Math.max(0.95, clamp01(parsed.uiVolume))
+                : DEFAULT_AUDIO_SETTINGS.uiVolume,
           };
         }
       }
@@ -451,13 +454,17 @@ export class StateDrivenSoundEngine {
         const ctx: AudioContext = new AudioCtx();
         this.ctx = ctx;
 
-        // Build master limiter & gain buses to prevent clipping
+        // Stadium-grade dynamic compressor & brickwall limiter with makeup boost
+        // Keeps audio loud, punchy, and booming while preventing digital distortion
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.setValueAtTime(-14, ctx.currentTime);
-        comp.knee.setValueAtTime(18, ctx.currentTime);
-        comp.ratio.setValueAtTime(8, ctx.currentTime);
-        comp.attack.setValueAtTime(0.003, ctx.currentTime);
-        comp.release.setValueAtTime(0.18, ctx.currentTime);
+        comp.threshold.setValueAtTime(-1.5, ctx.currentTime); // High headroom threshold
+        comp.knee.setValueAtTime(6, ctx.currentTime);
+        comp.ratio.setValueAtTime(14, ctx.currentTime);
+        comp.attack.setValueAtTime(0.001, ctx.currentTime);
+        comp.release.setValueAtTime(0.08, ctx.currentTime);
+
+        const boosterGain = ctx.createGain();
+        boosterGain.gain.setValueAtTime(1.85, ctx.currentTime); // Stadium presence booster
 
         const masterGain = ctx.createGain();
         const simGain = ctx.createGain();
@@ -465,7 +472,8 @@ export class StateDrivenSoundEngine {
 
         simGain.connect(masterGain);
         uiGain.connect(masterGain);
-        masterGain.connect(comp);
+        masterGain.connect(boosterGain);
+        boosterGain.connect(comp);
         comp.connect(ctx.destination);
 
         this.compressor = comp;
@@ -494,7 +502,7 @@ export class StateDrivenSoundEngine {
     const length = Math.floor(ctx.sampleRate * durationSec);
     const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    // Pink-weighted soft noise for realistic fluid, airflow, and effervescence
+    // Stadium-level rich, punchy pink-weighted noise for fluid, effervescence & combustion bursts
     let b0 = 0,
       b1 = 0,
       b2 = 0,
@@ -510,7 +518,7 @@ export class StateDrivenSoundEngine {
       b3 = 0.86650 * b3 + white * 0.3104856;
       b4 = 0.55000 * b4 + white * 0.5329522;
       b5 = -0.7616 * b5 - white * 0.0168980;
-      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.08;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.42;
       b6 = white * 0.115926;
     }
     this.noiseBuffer = buffer;
@@ -1081,7 +1089,7 @@ export class StateDrivenSoundEngine {
     try {
       const now = ctx.currentTime;
       if (isSolid) {
-        // Granular / crystalline solid addition: 3 micro-clinks against Pyrex glass
+        // Granular / crystalline solid addition: 3 loud, resonant micro-clinks against Pyrex glass
         const grainCount = 3;
         for (let i = 0; i < grainCount; i++) {
           const t0 = now + i * 0.045;
@@ -1092,17 +1100,17 @@ export class StateDrivenSoundEngine {
           osc.frequency.setValueAtTime(grainFreq, t0);
           osc.frequency.exponentialRampToValueAtTime(grainFreq * 0.65, t0 + 0.04);
 
-          gain.gain.setValueAtTime(0.08, t0);
-          gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.045);
+          gain.gain.setValueAtTime(0.48, t0);
+          gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
 
           osc.connect(gain);
           gain.connect(this.simGainNode);
           osc.start(t0);
-          osc.stop(t0 + 0.05);
+          osc.stop(t0 + 0.055);
         }
       } else {
-        // Liquid pour stream: band-passed fluid stream + gentle meniscus droplet resonance
-        const duration = clampRange(0.22 + amountNorm * 0.12, 0.22, 0.45);
+        // Liquid pour stream: amplified fluid stream + stadium meniscus resonance
+        const duration = clampRange(0.24 + amountNorm * 0.14, 0.24, 0.50);
         const noise = ctx.createBufferSource();
         noise.buffer = this.getNoiseBuffer(ctx);
 
@@ -1110,11 +1118,11 @@ export class StateDrivenSoundEngine {
         filter.type = 'bandpass';
         filter.frequency.setValueAtTime(freqHz * 0.85, now);
         filter.frequency.exponentialRampToValueAtTime(freqHz * 1.35, now + duration);
-        filter.Q.setValueAtTime(3.2, now);
+        filter.Q.setValueAtTime(2.8, now);
 
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.14, now + 0.04);
+        gain.gain.linearRampToValueAtTime(0.68, now + 0.04);
         gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
         noise.connect(filter);
@@ -1123,20 +1131,20 @@ export class StateDrivenSoundEngine {
         noise.start(now);
         noise.stop(now + duration + 0.02);
 
-        // Subtle fluid droplet pitch chirp
+        // Resonant fluid droplet pitch chirp
         const dropOsc = ctx.createOscillator();
         const dropGain = ctx.createGain();
         dropOsc.type = 'sine';
         dropOsc.frequency.setValueAtTime(freqHz, now + 0.05);
         dropOsc.frequency.exponentialRampToValueAtTime(freqHz * 1.65, now + 0.14);
 
-        dropGain.gain.setValueAtTime(0.06, now + 0.05);
-        dropGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        dropGain.gain.setValueAtTime(0.42, now + 0.05);
+        dropGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
 
         dropOsc.connect(dropGain);
         dropGain.connect(this.simGainNode);
         dropOsc.start(now + 0.05);
-        dropOsc.stop(now + 0.16);
+        dropOsc.stop(now + 0.17);
       }
     } catch {}
 
@@ -1195,17 +1203,17 @@ export class StateDrivenSoundEngine {
               : rawVigor === 'gentle'
                 ? 0.65
                 : 1.0;
-      const progressEnvelope = Math.max(0.15, 1.0 - reactionProgress * 0.75);
+      const progressEnvelope = Math.max(0.20, 1.0 - reactionProgress * 0.70);
       const centerFreq = Number((580 + vigorMultiplier * 260).toFixed(1));
-      const gainLevel = this.getEffectiveSimulationGain(0.24 * vigorMultiplier * progressEnvelope);
+      const gainLevel = this.getEffectiveSimulationGain(0.70 * vigorMultiplier * progressEnvelope);
 
       this.upsertNoiseLoop({
         loopId: effLoopId,
         sourceId,
         kind: 'chemistry_effervescence',
         centerFreqHz: centerFreq,
-        qFactor: 2.2,
-        lfoRateHz: 6.5 * vigorMultiplier,
+        qFactor: 2.0,
+        lfoRateHz: 7.0 * vigorMultiplier,
         gainLevel,
         metadata: {
           reactionId: activeReaction.id,
@@ -1223,15 +1231,15 @@ export class StateDrivenSoundEngine {
     if (isBoiling) {
       const superheatFactor = clampRange((temperatureC - 100) / 80 + 0.5, 0.5, 1.8);
       const boilFreq = Number((290 + superheatFactor * 95).toFixed(1));
-      const gainLevel = this.getEffectiveSimulationGain(0.22 * Math.min(1.4, superheatFactor));
+      const gainLevel = this.getEffectiveSimulationGain(0.68 * Math.min(1.4, superheatFactor));
 
       this.upsertNoiseLoop({
         loopId: boilLoopId,
         sourceId,
         kind: 'chemistry_boiling',
         centerFreqHz: boilFreq,
-        qFactor: 1.8,
-        lfoRateHz: 4.8 * superheatFactor,
+        qFactor: 1.7,
+        lfoRateHz: 5.2 * superheatFactor,
         gainLevel,
         metadata: {
           temperatureC,
@@ -1257,7 +1265,7 @@ export class StateDrivenSoundEngine {
         this.violentReactionPlayedSet.add(runKey);
         const isExplosion = Boolean(effects?.isViolent || effects?.hazardType === 'explosion');
         const subtype = isExplosion ? 'violent_combustion_burst' : 'foaming_fountain_surge';
-        const gainLevel = this.getEffectiveSimulationGain(isExplosion ? 0.45 : 0.34);
+        const gainLevel = this.getEffectiveSimulationGain(isExplosion ? 0.95 : 0.75);
 
         this.recordEvent(
           {
@@ -1280,15 +1288,15 @@ export class StateDrivenSoundEngine {
       }
 
       // Sustain foaming / rapid exothermic surge loop while reaction progresses
-      const progressEnv = Math.max(0.1, 1.0 - reactionProgress * 0.85);
+      const progressEnv = Math.max(0.15, 1.0 - reactionProgress * 0.85);
       this.upsertNoiseLoop({
         loopId: foamLoopId,
         sourceId,
         kind: 'chemistry_foaming',
-        centerFreqHz: effects?.isViolent ? 210 : 440,
-        qFactor: 1.5,
-        lfoRateHz: 9.0,
-        gainLevel: this.getEffectiveSimulationGain(0.28 * progressEnv),
+        centerFreqHz: effects?.isViolent ? 220 : 440,
+        qFactor: 1.4,
+        lfoRateHz: 9.5,
+        gainLevel: this.getEffectiveSimulationGain(0.78 * progressEnv),
         metadata: {
           reactionId: activeReaction.id,
           hazardType: effects?.hazardType,
@@ -1305,38 +1313,69 @@ export class StateDrivenSoundEngine {
     if (!ctx || !this.simGainNode) return;
     try {
       const now = ctx.currentTime;
-      // Low-frequency combustion thump + filtered noise whoosh
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-      osc.type = isExplosion ? 'sawtooth' : 'triangle';
-      osc.frequency.setValueAtTime(isExplosion ? 135 : 220, now);
-      osc.frequency.exponentialRampToValueAtTime(isExplosion ? 38 : 95, now + 0.45);
 
-      oscGain.gain.setValueAtTime(0.001, now);
-      oscGain.gain.linearRampToValueAtTime(isExplosion ? 0.32 : 0.20, now + 0.025);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      // Layer 1: Massive stadium sub-bass earthquake transient (45Hz -> 28Hz)
+      const subOsc = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      subOsc.type = 'sine';
+      subOsc.frequency.setValueAtTime(isExplosion ? 85 : 120, now);
+      subOsc.frequency.exponentialRampToValueAtTime(isExplosion ? 32 : 55, now + 0.55);
 
-      osc.connect(oscGain);
-      oscGain.connect(this.simGainNode);
-      osc.start(now);
-      osc.stop(now + 0.52);
+      subGain.gain.setValueAtTime(0.001, now);
+      subGain.gain.linearRampToValueAtTime(isExplosion ? 0.95 : 0.65, now + 0.02);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
 
+      subOsc.connect(subGain);
+      subGain.connect(this.simGainNode);
+      subOsc.start(now);
+      subOsc.stop(now + 0.68);
+
+      // Layer 2: Saturated mid-punch combustion transient (160Hz -> 48Hz)
+      const midOsc = ctx.createOscillator();
+      const midGain = ctx.createGain();
+      midOsc.type = isExplosion ? 'sawtooth' : 'triangle';
+      midOsc.frequency.setValueAtTime(isExplosion ? 170 : 240, now);
+      midOsc.frequency.exponentialRampToValueAtTime(isExplosion ? 48 : 85, now + 0.42);
+
+      midGain.gain.setValueAtTime(0.001, now);
+      midGain.gain.linearRampToValueAtTime(isExplosion ? 0.78 : 0.55, now + 0.025);
+      midGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+
+      midOsc.connect(midGain);
+      midGain.connect(this.simGainNode);
+      midOsc.start(now);
+      midOsc.stop(now + 0.50);
+
+      // Layer 3: High-energy explosion noise blast with stadium acoustic resonance
       const noise = ctx.createBufferSource();
       noise.buffer = this.getNoiseBuffer(ctx);
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(isExplosion ? 950 : 1400, now);
-      filter.frequency.exponentialRampToValueAtTime(220, now + 0.65);
+      filter.frequency.setValueAtTime(isExplosion ? 1800 : 2200, now);
+      filter.frequency.exponentialRampToValueAtTime(180, now + 0.75);
 
       const nGain = ctx.createGain();
-      nGain.gain.setValueAtTime(0.24, now);
-      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.68);
+      nGain.gain.setValueAtTime(isExplosion ? 0.88 : 0.65, now);
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.80);
+
+      // Stadium Echo / Reverberant Delay
+      const delay = ctx.createDelay();
+      delay.delayTime.setValueAtTime(0.16, now); // 160ms stadium slap-back reflection
+      const feedback = ctx.createGain();
+      feedback.gain.setValueAtTime(0.38, now);
 
       noise.connect(filter);
       filter.connect(nGain);
       nGain.connect(this.simGainNode);
+
+      // Route through delay line for stadium echo
+      nGain.connect(delay);
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(this.simGainNode);
+
       noise.start(now);
-      noise.stop(now + 0.7);
+      noise.stop(now + 0.85);
     } catch {}
   }
 
@@ -1726,7 +1765,7 @@ export class StateDrivenSoundEngine {
         : params.subtype === 'bell_gong_strike'
           ? Number((1480 + velFactor * 180).toFixed(1))
           : Number((180 + velFactor * 90).toFixed(1));
-    const gainLevel = this.getEffectiveSimulationGain(0.22 * Math.min(1.4, velFactor));
+    const gainLevel = this.getEffectiveSimulationGain(0.72 * Math.min(1.4, velFactor));
 
     const recorded = this.recordEvent(
       {
@@ -1754,15 +1793,15 @@ export class StateDrivenSoundEngine {
       const gain = ctx.createGain();
       osc.type = params.subtype.startsWith('projectile') ? 'triangle' : 'sine';
       osc.frequency.setValueAtTime(freqHz, now);
-      osc.frequency.exponentialRampToValueAtTime(freqHz * 0.55, now + 0.075);
+      osc.frequency.exponentialRampToValueAtTime(freqHz * 0.55, now + 0.085);
 
-      gain.gain.setValueAtTime(0.14 * Math.min(1.3, velFactor), now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      gain.gain.setValueAtTime(0.65 * Math.min(1.3, velFactor), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
       osc.connect(gain);
       gain.connect(this.simGainNode);
       osc.start(now);
-      osc.stop(now + 0.085);
+      osc.stop(now + 0.095);
     } catch {}
 
     return true;
@@ -1785,7 +1824,7 @@ export class StateDrivenSoundEngine {
     };
 
     const freqHz = freqMap[type] || 440;
-    const gainLevel = this.getEffectiveUiGain(0.18);
+    const gainLevel = this.getEffectiveUiGain(0.55);
 
     const recorded = this.recordEvent(
       {
@@ -1822,7 +1861,7 @@ export class StateDrivenSoundEngine {
           const g = this.ctx.createGain();
           osc.type = 'sine';
           osc.frequency.setValueAtTime(f, t0);
-          g.gain.setValueAtTime(0.08, t0);
+          g.gain.setValueAtTime(0.38, t0);
           g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.24);
           osc.connect(g);
           g.connect(this.uiGainNode);
@@ -1837,7 +1876,7 @@ export class StateDrivenSoundEngine {
         if (type === 'validation_warning') {
           osc.frequency.exponentialRampToValueAtTime(freqHz * 0.82, now + 0.14);
         }
-        g.gain.setValueAtTime(0.07, now);
+        g.gain.setValueAtTime(0.35, now);
         g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
         osc.connect(g);
         g.connect(this.uiGainNode);
