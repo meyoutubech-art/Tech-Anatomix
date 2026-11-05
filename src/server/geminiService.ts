@@ -2364,6 +2364,8 @@ export async function getSafeDiagnostics() {
 // 7. AI-Assisted Chemical Compound Verification & Synthesis
 export async function resolveChemicalCompoundWithAi(query: string): Promise<{
   found: boolean;
+  isValidChemical?: boolean;
+  isProhibited?: boolean;
   isRestricted?: boolean;
   compound?: {
     id: string;
@@ -2381,21 +2383,55 @@ export async function resolveChemicalCompoundWithAi(query: string): Promise<{
     hazard?: string;
   };
   message?: string;
+  rejectionReason?: string;
 }> {
-  const client = getAiClient();
-  if (!client) {
+  const subscriptDigits: Record<string, string> = {
+    '0': '₀',
+    '1': '₁',
+    '2': '₂',
+    '3': '₃',
+    '4': '₄',
+    '5': '₅',
+    '6': '₆',
+    '7': '₇',
+    '8': '₈',
+    '9': '₉',
+  };
+  const toSubscripts = (formulaStr: string) =>
+    formulaStr.replace(/([A-Za-z)\]])(\d+)/g, (_, prefix, digits) => {
+      const sub = String(digits)
+        .split('')
+        .map((d) => subscriptDigits[d] || d)
+        .join('');
+      return `${prefix}${sub}`;
+    });
+
+  // Safety check before external calls
+  const qLower = query.toLowerCase().trim();
+  if (
+    /\b(sarin|vx|tabun|soman|novichok|mustard gas|phosgene|ricin|botulinum|cyanide|uranium|plutonium|radium|polonium|mercury)\b/i.test(
+      qLower
+    )
+  ) {
+    const reason = `"${query}" is a prohibited hazardous, toxic, or radioactive substance not permitted in classroom virtual laboratories.`;
     return {
       found: false,
-      message: 'Live AI synthesis unavailable (offline mode). Using local canonical chemical database.',
+      isValidChemical: false,
+      isProhibited: true,
+      isRestricted: true,
+      message: reason,
+      rejectionReason: reason,
     };
   }
 
-  const execution = await modelRouter.executeWithModelFallback<any>(
-    'chat_assistant',
-    async (modelId: string) => {
-      const response = await client.models.generateContent({
-        model: modelId,
-        contents: `You are an expert IUPAC chemist and laboratory safety officer.
+  const client = getAiClient();
+  if (client) {
+    const execution = await modelRouter.executeWithModelFallback<any>(
+      'chat_assistant',
+      async (modelId: string) => {
+        const response = await client.models.generateContent({
+          model: modelId,
+          contents: `You are an expert IUPAC chemist and laboratory safety officer.
 The user wants to add the chemical "${query}" to an educational virtual chemistry laboratory reagent shelf and reaction simulator.
 Determine if "${query}" is a real, scientifically valid chemical compound or element.
 - If it is fictional/nonsense (e.g. "kryptonite", "unobtainium"), return {"isValid": false, "isProhibited": false, "reason": "Not a real chemical substance."}.
@@ -2423,58 +2459,148 @@ Return ONLY valid JSON matching:
     "hazard": string
   }
 }`,
-      });
+        });
 
-      const parsed = JSON.parse(cleanJsonText(response.text || '{}'));
-      return parsed;
-    },
-    12000
-  );
+        const parsed = JSON.parse(cleanJsonText(response.text || '{}'));
+        return parsed;
+      },
+      12000
+    );
 
-  if (execution && execution.result) {
-    const res = execution.result as any;
-    if (res.isProhibited) {
-      return {
-        found: false,
-        isRestricted: true,
-        message: res.reason || `"${query}" is a prohibited hazardous or radioactive substance.`,
-      };
+    if (execution && execution.result) {
+      const res = execution.result as any;
+      if (res.isProhibited) {
+        const reason = res.reason || `"${query}" is a prohibited hazardous or radioactive substance.`;
+        return {
+          found: false,
+          isValidChemical: false,
+          isProhibited: true,
+          isRestricted: true,
+          message: reason,
+          rejectionReason: reason,
+        };
+      }
+      if (res.isValid && res.compound && res.compound.name && res.compound.formula) {
+        const c = res.compound;
+        const safeId =
+          String(c.id || c.name)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '') || `custom_${Date.now()}`;
+        return {
+          found: true,
+          isValidChemical: true,
+          isProhibited: false,
+          compound: {
+            id: safeId,
+            name: String(c.name),
+            formula: toSubscripts(String(c.formula)),
+            state: c.state === 'solid' || c.state === 'gas' ? c.state : 'liquid',
+            color: /^#[0-9A-Fa-f]{6}$/.test(c.color) ? c.color : '#F8FAFC',
+            isColorless: Boolean(c.isColorless ?? c.color === '#F8FAFC'),
+            type: c.type || c.category || 'salt',
+            category: c.category || 'salt',
+            subcategory: String(c.subcategory || 'Verified Chemical Reagent'),
+            description: String(c.description || `${c.name} (${c.formula}) — verified laboratory reagent.`),
+            unit: c.unit === 'g' ? 'g' : 'mL',
+            pourAmount: Number(c.pourAmount) || (c.unit === 'g' ? 10 : 20),
+            hazard: c.hazard ? String(c.hazard) : undefined,
+          },
+        };
+      }
+      if (res.isValid === false) {
+        const reason = res.reason || `Could not verify "${query}" as a valid classroom chemical compound.`;
+        return {
+          found: false,
+          isValidChemical: false,
+          isProhibited: false,
+          message: reason,
+          rejectionReason: reason,
+        };
+      }
     }
-    if (res.isValid && res.compound && res.compound.name && res.compound.formula) {
-      const c = res.compound;
-      const safeId =
-        String(c.id || c.name)
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '_')
-          .replace(/^_+|_+$/g, '') || `custom_${Date.now()}`;
-      return {
-        found: true,
-        compound: {
-          id: safeId,
-          name: String(c.name),
-          formula: String(c.formula),
-          state: c.state === 'solid' || c.state === 'gas' ? c.state : 'liquid',
-          color: /^#[0-9A-Fa-f]{6}$/.test(c.color) ? c.color : '#F8FAFC',
-          isColorless: Boolean(c.isColorless ?? c.color === '#F8FAFC'),
-          type: c.type || c.category || 'salt',
-          category: c.category || 'salt',
-          subcategory: String(c.subcategory || 'Verified Chemical Reagent'),
-          description: String(c.description || `${c.name} (${c.formula}) — verified laboratory reagent.`),
-          unit: c.unit === 'g' ? 'g' : 'mL',
-          pourAmount: Number(c.pourAmount) || (c.unit === 'g' ? 10 : 20),
-          hazard: c.hazard ? String(c.hazard) : undefined,
-        },
-      };
+  }
+
+  // Fallback to NIH PubChem REST API lookup when AI key is absent or model times out
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const pubchemUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
+      query.trim()
+    )}/property/MolecularFormula,Title,IUPACName/JSON`;
+    const resp = await fetch(pubchemUrl, { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (resp.ok) {
+      const data = (await resp.json()) as any;
+      const prop = data?.PropertyTable?.Properties?.[0];
+      if (prop && prop.MolecularFormula) {
+        const title = String(prop.Title || query.trim())
+          .replace(/\b\w/g, (ch) => ch.toUpperCase());
+        const rawFormula = String(prop.MolecularFormula);
+        const formattedFormula = `${toSubscripts(rawFormula)} (aq)`;
+        const lowerTitle = `${title} ${prop.IUPACName || ''}`.toLowerCase();
+
+        let category: 'acid' | 'base' | 'salt' | 'metal' | 'indicator' | 'oxidizer' | 'catalyst' = 'salt';
+        let type: 'acid' | 'base' | 'salt' | 'metal' | 'indicator' | 'oxidizer' | 'catalyst' | 'reagent' | 'reducing_agent' = 'reagent';
+        let subcategory = 'PubChem Verified Chemical Compound';
+
+        if (/\bacid\b/.test(lowerTitle) || (/^H[A-Z]/.test(rawFormula) && rawFormula !== 'H2O' && rawFormula !== 'H2O2')) {
+          category = 'acid';
+          type = 'acid';
+          subcategory = 'Verified Acid Reagent';
+        } else if (/\bhydroxide\b/.test(lowerTitle) || /OH\)?\d*$/.test(rawFormula)) {
+          category = 'base';
+          type = 'base';
+          subcategory = 'Verified Alkaline Base';
+        } else if (/\b(permanganate|dichromate|chromate|perchlorate|chlorate|peroxide|periodate|persulfate)\b/.test(lowerTitle)) {
+          category = 'oxidizer';
+          type = 'oxidizer';
+          subcategory = 'Verified Oxidizing Agent';
+        } else if (/\b(carbonate|bicarbonate)\b/.test(lowerTitle)) {
+          category = 'salt';
+          type = 'salt';
+          subcategory = 'Carbonate / Bicarbonate Salt';
+        }
+
+        const safeId =
+          title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '') || `pubchem_${Date.now()}`;
+
+        return {
+          found: true,
+          isValidChemical: true,
+          isProhibited: false,
+          compound: {
+            id: safeId,
+            name: title,
+            formula: formattedFormula,
+            state: 'liquid',
+            color: '#F8FAFC',
+            isColorless: true,
+            type,
+            category,
+            subcategory,
+            description: `${title} (${formattedFormula}${
+              prop.IUPACName ? `, IUPAC: ${prop.IUPACName}` : ''
+            }) — verified chemical compound integrated into the virtual reagent shelf and reaction engine.`,
+            unit: 'mL',
+            pourAmount: 20,
+          },
+        };
+      }
     }
-    return {
-      found: false,
-      message: res.reason || `Could not verify "${query}" as a valid classroom chemical compound.`,
-    };
+  } catch {
+    // Ignore network errors if completely offline
   }
 
   return {
     found: false,
+    isValidChemical: false,
     message: `Could not find a verified educational compound entry for "${query}".`,
+    rejectionReason: `Could not find a verified educational compound entry for "${query}".`,
   };
 }
 

@@ -1802,19 +1802,20 @@ function synthesizeScientificReaction(
     };
   }
 
-  // 2B. Redox: Permanganate (MnO4⁻) + Reducing Agent (Ascorbic, Citric, Tartaric, Lactic, Formic, Sulfite, Nitrite, Sn²⁺, Fe²⁺)
+  // 2B. Redox: Permanganate (MnO4⁻) + Reducing Agent (Ascorbic, Citric, Tartaric, Lactic, Formic, Sulfite, Nitrite, Sn²⁺, Fe²⁺, Alcohols, Aldehydes, Sugars)
   const permanganateReagent = pair.find(
     (c) => c.id === 'kmn_o4_reagent' || c.id.endsWith('_mno4') || /permanganate/i.test(c.name)
   );
   const mno4Reductant = pair.find(
     (c) =>
       c.id !== permanganateReagent?.id &&
-      (/ascorbic|vitamin c|citric|tartaric|lactic|malic|formic|oxalic|sulfite|sulphite|bisulfite|thiosulfate|nitrite|ferrous|iron\(ii\)|stannous|tin\(ii\)|glucose|sucrose/i.test(
-        `${c.id} ${c.name} ${c.formula}`
-      ))
+      (c.type === 'reducing_agent' ||
+        /ascorbic|vitamin c|ascorbate|citric|tartaric|lactic|malic|formic|oxalic|pyruvic|pyruvate|sulfite|sulphite|bisulfite|metabisulfite|dithionite|thiosulfate|phosphite|hypophosphite|borohydride|nitrite|ferrous|iron\(ii\)|stannous|tin\(ii\)|glucose|fructose|sucrose|glycerol|glycerin|ethanol|methanol|isopropanol|formaldehyde|acetaldehyde|hydrazine|hydroxylamine|h2so3|so2|h2s/i.test(
+          `${c.id} ${c.name} ${c.formula}`
+        ))
   );
   if (permanganateReagent && mno4Reductant) {
-    const evolvesCo2 = /ascorbic|citric|tartaric|formic|oxalic|malic/i.test(mno4Reductant.name);
+    const evolvesCo2 = /ascorbic|citric|tartaric|formic|oxalic|malic|pyruvic/i.test(mno4Reductant.name);
     return {
       id: `synth_redox_${permanganateReagent.id}_${mno4Reductant.id}`,
       name: `Permanganate Redox Reduction (${permanganateReagent.name} + ${mno4Reductant.name})`,
@@ -1849,16 +1850,21 @@ function synthesizeScientificReaction(
     };
   }
 
-  // 2C. Redox: Dichromate (Cr2O7²⁻) + Reducing Agent (Sulfite, Ascorbic, Oxalic, Formic, Fe²⁺, Sn²⁺)
+  // 2C. Redox: Dichromate (Cr2O7²⁻) / Chromic Acid + Reducing Agent (Sulfite, Ascorbic, Oxalic, Formic, Alcohols, Aldehydes, Fe²⁺, Sn²⁺)
   const dichromateReagent = pair.find(
-    (c) => c.id === 'k2cr2o7' || c.id.endsWith('_cr2o7') || /dichromate/i.test(c.name)
+    (c) =>
+      c.id === 'k2cr2o7' ||
+      c.id === 'chromic_acid' ||
+      c.id.endsWith('_cr2o7') ||
+      /dichromate|chromic acid/i.test(c.name)
   );
   const crReductant = pair.find(
     (c) =>
       c.id !== dichromateReagent?.id &&
-      (/ascorbic|vitamin c|oxalic|formic|tartaric|citric|sulfite|sulphite|bisulfite|thiosulfate|ferrous|iron\(ii\)|stannous|tin\(ii\)/i.test(
-        `${c.id} ${c.name} ${c.formula}`
-      ))
+      (c.type === 'reducing_agent' ||
+        /ascorbic|vitamin c|ascorbate|oxalic|formic|tartaric|citric|sulfite|sulphite|bisulfite|metabisulfite|dithionite|thiosulfate|phosphite|hypophosphite|borohydride|ferrous|iron\(ii\)|stannous|tin\(ii\)|ethanol|methanol|isopropanol|glycerol|formaldehyde|acetaldehyde|glucose|fructose|h2so3|so2/i.test(
+          `${c.id} ${c.name} ${c.formula}`
+        ))
   );
   if (dichromateReagent && crReductant) {
     return {
@@ -1880,9 +1886,9 @@ function synthesizeScientificReaction(
         producesPrecipitate: false,
         isViolent: false,
         hazardType: 'none',
-        description: `Six-electron redox transition: bright orange hexavalent dichromate (Cr₂O₇²⁻, Cr(VI), E° = +1.33 V) oxidizes ${crReductant.name} and transitions sharply to emerald-green trivalent chromium(III) ([Cr(H₂O)₆]³⁺).`,
+        description: `Six-electron redox transition: bright orange hexavalent chromium(VI) (${dichromateReagent.name}, E° = +1.33 V) oxidizes ${crReductant.name} and transitions sharply to emerald-green trivalent chromium(III) ([Cr(H₂O)₆]³⁺).`,
       },
-      explanation: `Each dichromate ion accepts 6 electrons from ${crReductant.name}, cleaving Cr–O bonds to form octahedral d³ [Cr(H₂O)₆]³⁺ complexes with characteristic green d–d absorption bands.`,
+      explanation: `Each Cr(VI) center accepts 3 electrons from ${crReductant.name}, cleaving Cr–O bonds to form octahedral d³ [Cr(H₂O)₆]³⁺ complexes with characteristic green d–d absorption bands.`,
     };
   }
 

@@ -52,7 +52,7 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
       return;
     }
 
-    // Fallback to live Gemini AI scientific compound verification & registration
+    // Fallback to live Vizlab AI scientific compound verification & registration
     setIsSearchingAi(true);
     try {
       const response = await fetch('/api/ai/chemistry-resolve', {
@@ -62,21 +62,27 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
       });
       if (response.ok) {
         const data = await response.json();
-        if (data.isValidChemical && !data.isProhibited && data.compound) {
+        const isAccepted =
+          Boolean(data.found || data.isValidChemical) &&
+          !data.isProhibited &&
+          !data.isRestricted &&
+          Boolean(data.compound);
+
+        if (isAccepted && data.compound) {
           const newReagent: ChemicalReagent = {
-            id: data.compound.id,
+            id: data.compound.id || trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
             name: data.compound.name,
             formula: data.compound.formula,
             state: data.compound.state === 'solid' || data.compound.state === 'gas' ? data.compound.state : 'liquid',
             color: data.compound.color || '#f8fafc',
-            isColorless: Boolean(data.compound.isColorless),
+            isColorless: Boolean(data.compound.isColorless ?? true),
             type: data.compound.type || 'salt',
             category: data.compound.category || 'salt',
             subcategory: data.compound.subcategory || 'AI Verified Reagent',
-            concentration: data.compound.concentration || '0.5 M',
+            concentration: data.compound.concentration || (data.compound.state === 'solid' ? 'Reagent Solid (s)' : '0.5 M (aq)'),
             initialQuantity: 100,
-            pourAmount: data.compound.pourAmount || 20,
-            unit: data.compound.unit || 'mL',
+            pourAmount: data.compound.pourAmount || (data.compound.state === 'solid' ? 10 : 20),
+            unit: data.compound.unit || (data.compound.state === 'solid' ? 'g' : 'mL'),
             description: data.compound.description,
             hazard: data.compound.hazard || 'Handle with standard laboratory PPE',
             aliases: data.compound.aliases || [trimmed.toLowerCase()],
@@ -88,15 +94,17 @@ export const AiCompoundAddPanel: React.FC<AiCompoundAddPanelProps> = ({
           setSearchResult({
             found: true,
             compound: newReagent,
-            sourceConfidence: 'AI Scientific Compound Synthesizer (Added to Reagent Shelf & Reaction Engine)',
+            sourceConfidence:
+              data.sourceConfidence ||
+              'Vizlab AI Scientific Compound Synthesizer (Added to Reagent Shelf & Reaction Engine)',
           });
           soundEngine.playUiFeedback('ai_completion', `ai_lookup_ok::${newReagent.id}`);
           setIsSearchingAi(false);
           return;
-        } else if (data.rejectionReason) {
+        } else if (data.rejectionReason || data.message) {
           setSearchResult({
             found: false,
-            message: data.rejectionReason,
+            message: data.rejectionReason || data.message,
           });
           soundEngine.playUiFeedback('validation_warning', `ai_lookup_warn::${trimmed.toLowerCase()}`);
           setIsSearchingAi(false);
