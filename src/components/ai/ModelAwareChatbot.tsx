@@ -400,7 +400,7 @@ export const ModelAwareChatbot: React.FC<ModelAwareChatbotProps> = ({
         role: 'assistant',
         text:
           instantOffline ||
-          `⚡ **Offline Mode Active**: AI chat requires an active internet connection to contact Gemini. All 3D rotations, zoom, component selection, labels, and physical parameters for **${context.title}** continue to work completely offline!`,
+          `⚡ **Offline Mode Active**: AI chat requires an active internet connection to contact Vizlab AI. All 3D rotations, zoom, component selection, labels, and physical parameters for **${context.title}** continue to work completely offline!`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setConversations((prev) => ({

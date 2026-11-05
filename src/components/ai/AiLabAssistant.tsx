@@ -27,7 +27,7 @@ interface Message {
 }
 
 const INITIAL_WELCOME_MESSAGE =
-  'Hello! I am your **Universal AI Assistant** (powered by Gemini). Ask me anything on any topic—coding, mathematics, writing, history, general knowledge, everyday problem-solving, or science!';
+  'Hello! I am your **Universal AI Assistant** (powered by Vizlab). Ask me anything on any topic—coding, mathematics, writing, history, general knowledge, everyday problem-solving, or science!';
 
 export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
   const [messages, setMessages] = useState<Message[]>([
@@ -94,7 +94,7 @@ export const AiLabAssistant: React.FC<AiLabAssistantProps> = ({ context }) => {
         {
           id: `offline-${Date.now()}`,
           role: 'assistant',
-          text: '⚡ **Offline Mode Active**: The Universal AI Assistant requires an active internet connection to communicate with Gemini. Please reconnect to ask any question.',
+          text: '⚡ **Offline Mode Active**: The Universal AI Assistant requires an active internet connection to communicate with Vizlab AI. Please reconnect to ask any question.',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);

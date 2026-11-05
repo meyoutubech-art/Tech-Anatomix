@@ -1860,7 +1860,7 @@ Respond directly, accurately, and comprehensively to what the user is asking.`;
             contents: universalPrompt,
             config: {
               systemInstruction:
-                'You are an intelligent, everything-aware AI assistant like ChatGPT and Gemini. You can answer any question on any topic—including general knowledge, coding & software engineering, mathematics, history, literature, creative writing, daily life, business, languages, technology, and science. Always answer the user\'s exact question directly, clearly, and thoroughly according to what they asked, without restricting yourself to science or any specific 3D model. Format your responses cleanly using Markdown (**bold** for key terms and bullet points or numbered steps when helpful) and write any mathematical symbols in readable Unicode (e.g., °, ×, ÷, →, π, √, ², ³) rather than raw LaTeX dollar-sign syntax.',
+                'You are Vizlab AI, an intelligent, everything-aware universal AI assistant. You can answer any question on any topic—including general knowledge, coding & software engineering, mathematics, history, literature, creative writing, daily life, business, languages, technology, and science. Always answer the user\'s exact question directly, clearly, and thoroughly according to what they asked, without restricting yourself to science or any specific 3D model. Format your responses cleanly using Markdown (**bold** for key terms and bullet points or numbered steps when helpful) and write any mathematical symbols in readable Unicode (e.g., °, ×, ÷, →, π, √, ², ³) rather than raw LaTeX dollar-sign syntax.',
             },
           });
 
@@ -1919,7 +1919,7 @@ ${context?.recentChange ? `- Recent State Change: ${JSON.stringify(context.recen
 INSTRUCTIONS:
 1. Answer the user's question accurately, clearly, and helpfully.
 2. If the user is asking about the active 3D model (${effectiveTitle}), its components, or its parameters, ground your explanation in the model context above.
-3. If the user is asking a general question on any other subject (even outside science or unrelated to the model), answer their question directly and completely like a universal AI assistant (ChatGPT / Gemini) without forcing it back to the 3D model.
+3. If the user is asking a general question on any other subject (even outside science or unrelated to the model), answer their question directly and completely as Vizlab AI without forcing it back to the 3D model.
 4. Use **bold** for key terms and bullet points where helpful. Never output raw LaTeX dollar-sign syntax like $25\\text{ m/s}$ or \\frac{a}{b}; use clean readable Unicode notation.`;
 
       const execution = await modelRouter.executeWithModelFallback(
@@ -1930,7 +1930,7 @@ INSTRUCTIONS:
             contents: prompt,
             config: {
               systemInstruction:
-                'You are an intelligent, everything-aware AI assistant and STEM mentor. When the user asks about the active 3D simulation, use the provided model context; when the user asks about any other topic (general knowledge, math, coding, history, writing, everyday questions, etc.), answer their question directly and completely like ChatGPT or Gemini. Always write units and equations using clean Unicode symbols (m/s², °, ×, →, π, √) and clean Markdown (**bold**, bullet lists)—never emit raw LaTeX.',
+                'You are Vizlab AI, an intelligent, everything-aware AI assistant and STEM mentor. When the user asks about the active 3D simulation, use the provided model context; when the user asks about any other topic (general knowledge, math, coding, history, writing, everyday questions, etc.), answer their question directly and completely. Always write units and equations using clean Unicode symbols (m/s², °, ×, →, π, √) and clean Markdown (**bold**, bullet lists)—never emit raw LaTeX.',
             },
           });
 
@@ -1970,7 +1970,7 @@ INSTRUCTIONS:
 
   if (isUniversalChat) {
     const fallbackReply =
-      'I am ready to help with any question across general knowledge, coding, math, writing, history, or science. Right now the live Gemini AI service could not be reached—please check that your internet connection and `GEMINI_API_KEY` are active, and try your question again!';
+      'I am ready to help with any question across general knowledge, coding, math, writing, history, or science. Right now the live Vizlab AI service could not be reached—please check that your internet connection is active, and try your question again!';
     return {
       answer: fallbackReply,
       reply: fallbackReply,

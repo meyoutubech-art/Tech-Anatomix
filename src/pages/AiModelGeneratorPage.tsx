@@ -542,7 +542,13 @@ export const AiModelGeneratorPage: React.FC<AiModelGeneratorPageProps> = ({
             (aiEngineStatus.hasApiKey ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>AI Live: {aiEngineStatus.primaryModel || 'Gemini'}</span>
+                <span>
+                  AI Live:{' '}
+                  {aiEngineStatus.primaryModel &&
+                  !aiEngineStatus.primaryModel.toLowerCase().includes('gemini')
+                    ? aiEngineStatus.primaryModel
+                    : 'Vizlab AI'}
+                </span>
               </div>
             ) : (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-sky-50 text-sky-800 border border-sky-200 shadow-2xs">

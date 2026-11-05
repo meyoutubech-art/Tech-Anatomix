@@ -62,7 +62,8 @@ export const AiAssistantPage: React.FC = () => {
 
             <div className="space-y-2.5 text-xs text-slate-600 leading-relaxed">
               <p>
-                Ask <strong className="text-slate-900">any question on any subject</strong>—just like ChatGPT and Gemini.
+                Ask <strong className="text-slate-900">any question on any subject</strong> with{' '}
+                <strong className="text-slate-900">Vizlab AI</strong>.
               </p>
               <p>
                 This assistant is not restricted to a single 3D model or science topic. It remembers your conversation context and adapts to whatever you want to learn, build, or solve.

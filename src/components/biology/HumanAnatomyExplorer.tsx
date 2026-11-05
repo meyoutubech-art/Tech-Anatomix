@@ -121,6 +121,220 @@ const DRIVE_GLB_ID = '1G5H2bggsYC9UJ2DGju_7L1HJ2UJEti4r';
 const GOOGLE_DRIVE_GLB_URL = `https://drive.google.com/uc?export=download&id=${DRIVE_GLB_ID}`;
 const LOCAL_GLB_FALLBACK_URL = '/models/human_base_mesh_01.glb';
 
+/**
+ * Builds a complete, anatomically proportioned Three.js 3D Human Body model in memory
+ * for 100% offline operation when the Google Drive link or GLB binary cannot be loaded.
+ * Matches the exact coordinate space, height (~1.80m centered at origin), and anterior
+ * sternal-abdominal midline profile (y = 0.44 down to y = -0.12) of the dissection guide.
+ */
+function buildOfflineThreeJsHumanBodyScene(): THREE.Group {
+  const root = new THREE.Group();
+  root.name = 'OfflineThreeJsHumanBody';
+
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: 0x965d37,
+    roughness: 0.54,
+    metalness: 0.04,
+  });
+
+  // Helper to get exact anterior midline Z matching buildGuideCurve(defaultCalib)
+  const getAnteriorTorsoZ = (y: number): number => {
+    if (y >= 0.44) {
+      const t = Math.min(1, (y - 0.44) / 0.10);
+      return 0.154 * (1 - t) + 0.095 * t;
+    }
+    if (y >= 0.30) {
+      const t = (0.44 - y) / (0.44 - 0.30);
+      return 0.154 * (1 - t) + 0.150 * t;
+    }
+    if (y >= 0.16) {
+      const t = (0.30 - y) / (0.30 - 0.16);
+      return 0.150 * (1 - t) + 0.148 * t;
+    }
+    if (y >= 0.02) {
+      const t = (0.16 - y) / (0.16 - 0.02);
+      return 0.148 * (1 - t) + 0.136 * t;
+    }
+    if (y >= -0.05) {
+      const t = (0.02 - y) / (0.02 - -0.05);
+      return 0.136 * (1 - t) + 0.116 * t;
+    }
+    if (y >= -0.12) {
+      const t = (-0.05 - y) / (-0.05 - -0.12);
+      return 0.116 * (1 - t) + 0.096 * t;
+    }
+    const t = Math.min(1, (-0.12 - y) / 0.10);
+    return 0.096 * (1 - t) + 0.072 * t;
+  };
+
+  // 1. High-resolution subdivided Torso Mesh (Thorax, Abdomen & Pelvis: y = -0.22 to +0.52)
+  const radialSegs = 64;
+  const heightSegs = 72;
+  const yMin = -0.22;
+  const yMax = 0.52;
+  const torsoGeo = new THREE.BufferGeometry();
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let iy = 0; iy <= heightSegs; iy++) {
+    const v = iy / heightSegs;
+    const y = yMin + v * (yMax - yMin);
+
+    // Anatomical half-width (X) from pelvis -> waist -> ribcage -> shoulders
+    let halfWidthX = 0.155;
+    if (y > 0.32) {
+      // Upper chest broadening toward deltoids/shoulders
+      const t = (y - 0.32) / (0.52 - 0.32);
+      halfWidthX = 0.172 + 0.022 * Math.sin(t * Math.PI * 0.85) - 0.045 * Math.pow(t, 2.2);
+    } else if (y > 0.04) {
+      // Ribcage tapering to waist
+      const t = (y - 0.04) / (0.32 - 0.04);
+      halfWidthX = 0.142 + 0.030 * (t * t * (3 - 2 * t));
+    } else if (y > -0.12) {
+      // Iliac / lower abdominal flare
+      const t = (y - -0.12) / (0.04 - -0.12);
+      halfWidthX = 0.158 * (1 - t) + 0.142 * t;
+    } else {
+      // Pelvic base taper
+      const t = (y - yMin) / (-0.12 - yMin);
+      halfWidthX = 0.125 + 0.033 * t;
+    }
+
+    const frontZ = getAnteriorTorsoZ(y);
+    const backZ = 0.115 * (0.85 + 0.15 * Math.sin(((y - yMin) / (yMax - yMin)) * Math.PI));
+
+    for (let ix = 0; ix <= radialSegs; ix++) {
+      const u = ix / radialSegs;
+      const theta = u * Math.PI * 2; // theta = 0 at +Z (anterior midline!)
+      const sinT = Math.sin(theta);
+      const cosT = Math.cos(theta);
+
+      const x = sinT * halfWidthX;
+      let z = cosT >= 0 ? cosT * frontZ : cosT * backZ;
+
+      // Subtle pectoral contour on upper anterior chest (y in [0.28, 0.45])
+      if (cosT > 0.25 && y > 0.27 && y < 0.46) {
+        const pecY = Math.sin(((y - 0.27) / 0.19) * Math.PI);
+        const pecX = Math.sin(Math.min(1, Math.abs(sinT) / 0.78) * Math.PI);
+        z += 0.008 * pecY * pecX * cosT;
+      }
+
+      positions.push(x, y, z);
+      uvs.push(u, v);
+    }
+  }
+
+  const rowStride = radialSegs + 1;
+  for (let iy = 0; iy < heightSegs; iy++) {
+    for (let ix = 0; ix < radialSegs; ix++) {
+      const a = iy * rowStride + ix;
+      const b = a + 1;
+      const c = (iy + 1) * rowStride + ix;
+      const d = c + 1;
+      indices.push(a, d, b);
+      indices.push(a, c, d);
+    }
+  }
+
+  torsoGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  torsoGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  torsoGeo.setIndex(indices);
+  torsoGeo.computeVertexNormals();
+
+  const torsoMesh = new THREE.Mesh(torsoGeo, skinMat);
+  torsoMesh.userData = { isYUpProceduralSkin: true };
+  root.add(torsoMesh);
+
+  // 2. Neck & Cranium / Head (y = 0.50 to 0.89)
+  const neckGeo = new THREE.CylinderGeometry(0.058, 0.068, 0.14, 28);
+  const neckMesh = new THREE.Mesh(neckGeo, skinMat);
+  neckMesh.position.set(0, 0.56, 0.01);
+  root.add(neckMesh);
+
+  const craniumGeo = new THREE.SphereGeometry(0.112, 32, 32);
+  craniumGeo.scale(0.86, 1.16, 0.96);
+  const craniumMesh = new THREE.Mesh(craniumGeo, skinMat);
+  craniumMesh.position.set(0, 0.75, 0.015);
+  root.add(craniumMesh);
+
+  const jawGeo = new THREE.SphereGeometry(0.078, 24, 24);
+  jawGeo.scale(0.85, 0.95, 0.88);
+  const jawMesh = new THREE.Mesh(jawGeo, skinMat);
+  jawMesh.position.set(0, 0.675, 0.038);
+  root.add(jawMesh);
+
+  const noseGeo = new THREE.ConeGeometry(0.016, 0.042, 16);
+  noseGeo.rotateX(Math.PI * 0.42);
+  const noseMesh = new THREE.Mesh(noseGeo, skinMat);
+  noseMesh.position.set(0, 0.73, 0.122);
+  root.add(noseMesh);
+
+  // 3. Bilateral Shoulders, Arms, Forearms & Hands
+  [-1, 1].forEach((side) => {
+    // Deltoid shoulder cap
+    const shoulderGeo = new THREE.SphereGeometry(0.068, 24, 24);
+    shoulderGeo.scale(0.95, 1.05, 0.92);
+    const shoulder = new THREE.Mesh(shoulderGeo, skinMat);
+    shoulder.position.set(side * 0.205, 0.44, 0.005);
+    root.add(shoulder);
+
+    // Upper arm (humerus / biceps)
+    const upperArmCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 0.215, 0.43, 0.005),
+      new THREE.Vector3(side * 0.238, 0.29, 0.0),
+      new THREE.Vector3(side * 0.252, 0.16, 0.008),
+    ]);
+    const upperArmGeo = new THREE.TubeGeometry(upperArmCurve, 20, 0.048, 18, true);
+    root.add(new THREE.Mesh(upperArmGeo, skinMat));
+
+    // Forearm (radius & ulna)
+    const forearmCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 0.252, 0.16, 0.008),
+      new THREE.Vector3(side * 0.268, 0.02, 0.024),
+      new THREE.Vector3(side * 0.276, -0.10, 0.036),
+    ]);
+    const forearmGeo = new THREE.TubeGeometry(forearmCurve, 20, 0.039, 16, true);
+    root.add(new THREE.Mesh(forearmGeo, skinMat));
+
+    // Hand
+    const handGeo = new THREE.SphereGeometry(0.038, 18, 18);
+    handGeo.scale(0.65, 1.45, 0.85);
+    const hand = new THREE.Mesh(handGeo, skinMat);
+    hand.position.set(side * 0.28, -0.145, 0.042);
+    root.add(hand);
+
+    // 4. Bilateral Thighs, Knees, Calves & Feet (y = -0.18 down to -0.89)
+    const thighCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 0.096, -0.18, 0.005),
+      new THREE.Vector3(side * 0.098, -0.36, 0.008),
+      new THREE.Vector3(side * 0.092, -0.53, 0.004),
+    ]);
+    const thighGeo = new THREE.TubeGeometry(thighCurve, 24, 0.068, 20, true);
+    root.add(new THREE.Mesh(thighGeo, skinMat));
+
+    const kneeGeo = new THREE.SphereGeometry(0.056, 20, 20);
+    const knee = new THREE.Mesh(kneeGeo, skinMat);
+    knee.position.set(side * 0.092, -0.54, 0.008);
+    root.add(knee);
+
+    const calfCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(side * 0.092, -0.54, 0.004),
+      new THREE.Vector3(side * 0.090, -0.69, -0.006),
+      new THREE.Vector3(side * 0.086, -0.84, 0.002),
+    ]);
+    const calfGeo = new THREE.TubeGeometry(calfCurve, 24, 0.050, 18, true);
+    root.add(new THREE.Mesh(calfGeo, skinMat));
+
+    const footGeo = new THREE.BoxGeometry(0.068, 0.042, 0.145);
+    const foot = new THREE.Mesh(footGeo, skinMat);
+    foot.position.set(side * 0.088, -0.87, 0.042);
+    root.add(foot);
+  });
+
+  return root;
+}
+
 export interface GuideCalibration {
   yOffset: number; // Vertical shift (meters)
   zOffset: number; // Skin depth offset (meters)
@@ -702,6 +916,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
     posAttr: THREE.BufferAttribute;
     origPositions: Float32Array;
     center: THREE.Vector3;
+    isYUpProceduralSkin?: boolean;
   }>>([]);
   const audioFXRef = useRef<DissectionAudioFX>(new DissectionAudioFX());
 
@@ -865,7 +1080,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       const botY = -0.12 * calib.lengthScale + calib.yOffset;
       const cutBottomY = topY - (topY - botY) * currProgress;
 
-      for (const { posAttr, origPositions, center } of skinMeshDataRef.current) {
+      for (const { posAttr, origPositions, center, isYUpProceduralSkin } of skinMeshDataRef.current) {
         const arr = posAttr.array as Float32Array;
         const count = posAttr.count;
 
@@ -881,26 +1096,49 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
           const ry = origPositions[idx + 1];
           const rz = origPositions[idx + 2];
 
-          // Sketchfab_model matrix maps: worldX = rx - cx, worldY = rz - cy, worldZ = -ry - cz
-          const wx = rx - center.x;
-          const wy = rz - center.y;
-          const wz = -ry - center.z;
+          if (isYUpProceduralSkin) {
+            const wx = rx - center.x;
+            const wy = ry - center.y;
+            const wz = rz - center.z;
 
-          if (wz > 0.04 && Math.abs(wx) < 0.046 && wy <= topY + 0.006 && wy >= cutBottomY - 0.006) {
-            const xRatio = Math.min(1, Math.abs(wx) / 0.046);
-            const distFromEnds = Math.min(
-              Math.max(0, topY + 0.006 - wy),
-              Math.max(0, wy - (cutBottomY - 0.006))
-            );
-            const yFeather = Math.min(1, distFromEnds / 0.018);
-            const recess = 0.028 * Math.cos(xRatio * (Math.PI / 2)) * yFeather;
-            arr[idx] = rx;
-            arr[idx + 1] = ry + recess; // +ry moves vertex deeper inward (-worldZ)
-            arr[idx + 2] = rz;
+            if (wz > 0.04 && Math.abs(wx) < 0.046 && wy <= topY + 0.006 && wy >= cutBottomY - 0.006) {
+              const xRatio = Math.min(1, Math.abs(wx) / 0.046);
+              const distFromEnds = Math.min(
+                Math.max(0, topY + 0.006 - wy),
+                Math.max(0, wy - (cutBottomY - 0.006))
+              );
+              const yFeather = Math.min(1, distFromEnds / 0.018);
+              const recess = 0.028 * Math.cos(xRatio * (Math.PI / 2)) * yFeather;
+              arr[idx] = rx;
+              arr[idx + 1] = ry;
+              arr[idx + 2] = rz - recess; // -rz moves vertex deeper inward (-worldZ)
+            } else {
+              arr[idx] = rx;
+              arr[idx + 1] = ry;
+              arr[idx + 2] = rz;
+            }
           } else {
-            arr[idx] = rx;
-            arr[idx + 1] = ry;
-            arr[idx + 2] = rz;
+            // Sketchfab_model matrix maps: worldX = rx - cx, worldY = rz - cy, worldZ = -ry - cz
+            const wx = rx - center.x;
+            const wy = rz - center.y;
+            const wz = -ry - center.z;
+
+            if (wz > 0.04 && Math.abs(wx) < 0.046 && wy <= topY + 0.006 && wy >= cutBottomY - 0.006) {
+              const xRatio = Math.min(1, Math.abs(wx) / 0.046);
+              const distFromEnds = Math.min(
+                Math.max(0, topY + 0.006 - wy),
+                Math.max(0, wy - (cutBottomY - 0.006))
+              );
+              const yFeather = Math.min(1, distFromEnds / 0.018);
+              const recess = 0.028 * Math.cos(xRatio * (Math.PI / 2)) * yFeather;
+              arr[idx] = rx;
+              arr[idx + 1] = ry + recess; // +ry moves vertex deeper inward (-worldZ)
+              arr[idx + 2] = rz;
+            } else {
+              arr[idx] = rx;
+              arr[idx + 1] = ry;
+              arr[idx + 2] = rz;
+            }
           }
         }
         posAttr.needsUpdate = true;
@@ -1401,6 +1639,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
                 posAttr,
                 origPositions: new Float32Array(posAttr.array as Float32Array),
                 center: center.clone(),
+                isYUpProceduralSkin: Boolean(child.userData?.isYUpProceduralSkin),
               });
             }
           }
@@ -1428,6 +1667,7 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       });
 
       setModelStats({ triangles: Math.round(triangleCount), meshes: meshCount });
+      modelGroup.clear();
       modelGroup.add(loadedScene);
 
       loadedScene.position.sub(center);
@@ -1449,37 +1689,92 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
       setActiveSource(sourceName);
     };
 
-    setLoading(true);
+    let modelResolved = false;
+    let driveTimeoutId: number | null = null;
+    let localTimeoutId: number | null = null;
+
+    const clearLoadTimeouts = () => {
+      if (driveTimeoutId !== null) {
+        window.clearTimeout(driveTimeoutId);
+        driveTimeoutId = null;
+      }
+      if (localTimeoutId !== null) {
+        window.clearTimeout(localTimeoutId);
+        localTimeoutId = null;
+      }
+    };
+
+    const loadOfflineThreeJsHumanFallback = (reason: string) => {
+      if (modelResolved) return;
+      modelResolved = true;
+      clearLoadTimeouts();
+      console.info('[HumanAnatomyExplorer] Activating Offline Three.js Human Body Fallback:', reason);
+      const threeJsHumanScene = buildOfflineThreeJsHumanBodyScene();
+      processLoadedGltf({ scene: threeJsHumanScene }, 'Offline Three.js Human Body Model');
+    };
+
     const loadLocalFallbackGlb = () => {
+      if (modelResolved) return;
+      // When offline, if local GLB is not cached by service worker within 1.8s, fall back to pure Three.js Human Body
+      localTimeoutId = window.setTimeout(() => {
+        if (!modelResolved) {
+          loadOfflineThreeJsHumanFallback('Local GLB load timed out while offline');
+        }
+      }, 1800);
+
       loader.load(
         LOCAL_GLB_FALLBACK_URL,
         (gltfFallback) => {
+          if (modelResolved) return;
+          modelResolved = true;
+          clearLoadTimeouts();
           processLoadedGltf(gltfFallback, 'Local Offline GLB Asset (/models/human_base_mesh_01.glb)');
         },
         undefined,
-        (fallbackErr) => {
-          console.error('Both primary and local GLB loads failed:', fallbackErr);
-          setLoading(false);
-          setLoadError('Failed to parse 3D GLB binary. Check network permissions.');
+        () => {
+          loadOfflineThreeJsHumanFallback('Both Google Drive and local GLB failed to load');
         }
       );
     };
 
+    setLoading(true);
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      // Offline mode: Google Drive link cannot load offline, so try local cached GLB and automatically fall back to Three.js Human Body
       loadLocalFallbackGlb();
     } else {
+      driveTimeoutId = window.setTimeout(() => {
+        if (!modelResolved) {
+          loadLocalFallbackGlb();
+        }
+      }, 3200);
+
       loader.load(
         GOOGLE_DRIVE_GLB_URL,
         (gltf) => {
+          if (modelResolved) return;
+          modelResolved = true;
+          clearLoadTimeouts();
           processLoadedGltf(gltf, 'Google Drive GLB (1G5H2bggsYC9UJ2DGju_7L1HJ2UJEti4r)');
         },
         undefined,
-        (err) => {
-          console.warn('Google Drive direct load fallback to local GLB asset:', err);
-          loadLocalFallbackGlb();
+        () => {
+          if (!modelResolved) {
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+              loadOfflineThreeJsHumanFallback('Google Drive load failed while offline');
+            } else {
+              loadLocalFallbackGlb();
+            }
+          }
         }
       );
     }
+
+    const handleOfflineDuringLoad = () => {
+      if (!modelResolved) {
+        loadOfflineThreeJsHumanFallback('Network disconnected during model load');
+      }
+    };
+    window.addEventListener('offline', handleOfflineDuringLoad);
 
     // Raycasting Setup for Pointer & Touch Events
     const raycaster = new THREE.Raycaster();
@@ -1809,6 +2104,8 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
 
     return () => {
       cancelAnimationFrame(animId);
+      clearLoadTimeouts();
+      window.removeEventListener('offline', handleOfflineDuringLoad);
       window.removeEventListener('resize', handleResize);
       domEl.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
@@ -2234,7 +2531,11 @@ const ExternalBodyDissectionViewer: React.FC<ExternalBodyDissectionViewerProps> 
             <div className="w-10 h-10 rounded-full border-3 border-cyan-500/20 border-t-cyan-400 animate-spin" />
             <div className="text-center space-y-1">
               <span className="text-xs font-bold text-slate-200">Loading External Human Body 3D Model...</span>
-              <p className="text-[11px] text-slate-400">Loading Google Drive GLB asset (ID: {DRIVE_GLB_ID})</p>
+              <p className="text-[11px] text-slate-400">
+                {typeof navigator !== 'undefined' && !navigator.onLine
+                  ? 'Offline Mode — Loading Three.js 3D Human Body Fallback...'
+                  : `Loading 3D Human Body Specimen (Drive / Three.js Fallback)`}
+              </p>
             </div>
           </div>
         )}

@@ -53,13 +53,13 @@ export function classifyAiError(errOrStatus: any, defaultFallback = 'Internal AI
       msg.toLowerCase().includes('unauthenticated') ||
       msg.toLowerCase().includes('api key not valid')
     ) {
-      return 'Gemini authentication failed';
+      return 'Vizlab AI authentication failed';
     }
     if (msg.includes('403') || msg.toLowerCase().includes('permission denied')) {
-      return 'Gemini permission denied';
+      return 'Vizlab AI permission denied';
     }
     if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
-      return 'Gemini rate limit reached';
+      return 'Vizlab AI rate limit reached';
     }
     if (
       msg.includes('502') ||
@@ -67,7 +67,7 @@ export function classifyAiError(errOrStatus: any, defaultFallback = 'Internal AI
       msg.includes('504') ||
       msg.toLowerCase().includes('unavailable')
     ) {
-      return 'Gemini service temporarily unavailable';
+      return 'Vizlab AI service temporarily unavailable';
     }
     if (msg.includes('500')) {
       return 'Internal AI server error';
@@ -84,17 +84,17 @@ function getStatusMessage(status: number, fallback: string): string {
     case 404:
       return 'AI endpoint not found';
     case 401:
-      return 'Gemini authentication failed';
+      return 'Vizlab AI authentication failed';
     case 403:
-      return 'Gemini permission denied';
+      return 'Vizlab AI permission denied';
     case 429:
-      return 'Gemini rate limit reached';
+      return 'Vizlab AI rate limit reached';
     case 500:
       return 'Internal AI server error';
     case 502:
     case 503:
     case 504:
-      return 'Gemini service temporarily unavailable';
+      return 'Vizlab AI service temporarily unavailable';
     default:
       return `Server returned HTTP ${status}: ${fallback}`;
   }

@@ -33,7 +33,7 @@ export interface ModelRuntimeStatus {
 export const CANDIDATE_GEMINI_MODELS: ModelCandidateConfig[] = [
   {
     id: 'gemini-3.8-flash',
-    displayName: 'Gemini 3.8 Flash (Universal Reasoning & Chat)',
+    displayName: 'Vizlab 3.8 Flash (Universal Reasoning & Chat)',
     priority: 1,
     supportedCapabilities: [
       'structured_3d_model',
@@ -45,7 +45,7 @@ export const CANDIDATE_GEMINI_MODELS: ModelCandidateConfig[] = [
   },
   {
     id: 'gemini-3.1-flash-lite',
-    displayName: 'Gemini 3.1 Flash Lite (High Reliability & Ultra Fast)',
+    displayName: 'Vizlab 3.1 Flash Lite (High Reliability & Ultra Fast)',
     priority: 2,
     supportedCapabilities: [
       'structured_3d_model',
@@ -57,7 +57,7 @@ export const CANDIDATE_GEMINI_MODELS: ModelCandidateConfig[] = [
   },
   {
     id: 'gemini-flash-latest',
-    displayName: 'Gemini Flash Latest (Official Fallback Alias)',
+    displayName: 'Vizlab Flash Latest (Official Fallback Alias)',
     priority: 3,
     supportedCapabilities: [
       'structured_3d_model',

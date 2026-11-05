@@ -560,7 +560,7 @@ export const ReactionAiChatbot: React.FC<ReactionAiChatbotProps> = ({
                   <span>•</span>
                   <span className="text-slate-400 font-mono">
                     {m.aiProviderStatus === 'live_ai'
-                      ? 'Live Gemini AI + Canonical Registry'
+                      ? 'Live Vizlab AI + Canonical Registry'
                       : 'Verified Registry & Reaction Engine'}
                   </span>
                 </>
